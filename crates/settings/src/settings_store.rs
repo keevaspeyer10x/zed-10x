@@ -1,5 +1,5 @@
 use anyhow::{Context as _, Result};
-use collections::{BTreeMap, HashMap, TypeIdHashMap, btree_map, hash_map};
+use collections::{BTreeMap, HashMap, HashSet, TypeIdHashMap, btree_map, hash_map};
 use fs::Fs;
 use futures::{
     FutureExt, StreamExt,
@@ -1165,6 +1165,38 @@ impl SettingsStore {
         Ok(())
     }
 
+    /// Remove local settings for a batch of worktrees and recompute derived values once.
+    ///
+    /// Use this for full worktree snapshots. Calling [`Self::clear_local_settings`]
+    /// in a loop would recompute every registered setting after each worktree.
+    pub fn clear_local_settings_for_worktrees(
+        &mut self,
+        root_ids: impl IntoIterator<Item = WorktreeId>,
+        cx: &mut App,
+    ) -> Result<()> {
+        let root_ids = root_ids.into_iter().collect::<HashSet<_>>();
+        if root_ids.is_empty() {
+            return Ok(());
+        }
+
+        self.local_settings
+            .retain(|(worktree_id, _), _| !root_ids.contains(worktree_id));
+
+        self.editorconfig_store.update(cx, |store, _cx| {
+            for root_id in &root_ids {
+                store.remove_for_worktree(*root_id);
+            }
+        });
+
+        for setting_value in self.setting_values.values_mut() {
+            for root_id in &root_ids {
+                setting_value.clear_local_values(*root_id);
+            }
+        }
+        self.recompute_values(None, cx);
+        Ok(())
+    }
+
     pub fn local_settings(
         &self,
         root_id: WorktreeId,
@@ -1652,7 +1684,11 @@ impl<T: Settings> AnySettingValue for SettingValue<T> {
 
 #[cfg(test)]
 mod tests {
-    use std::{cell::RefCell, num::NonZeroU32};
+    use std::{
+        cell::RefCell,
+        num::NonZeroU32,
+        sync::atomic::{AtomicUsize, Ordering},
+    };
 
     use crate::{
         ClosePosition, ItemSettingsContent, VsCodeSettingsSource, default_settings,
@@ -1706,6 +1742,17 @@ mod tests {
                 tab_size: content.tab_size.unwrap(),
                 preferred_line_length: content.preferred_line_length.unwrap(),
             }
+        }
+    }
+
+    static COUNTING_SETTINGS_DERIVATIONS: AtomicUsize = AtomicUsize::new(0);
+
+    struct CountingSettings;
+
+    impl Settings for CountingSettings {
+        fn from_settings(_: &SettingsContent) -> Self {
+            COUNTING_SETTINGS_DERIVATIONS.fetch_add(1, Ordering::SeqCst);
+            Self
         }
     }
 
@@ -1937,6 +1984,87 @@ mod tests {
                 path: rel_path("root2/something")
             })),
             &AutoUpdateSetting { auto_update: false }
+        );
+    }
+
+    #[gpui::test]
+    fn test_clear_local_settings_for_worktrees_recomputes_once(cx: &mut App) {
+        let mut store = SettingsStore::new(cx, &test_settings());
+        store.register_setting::<CountingSettings>();
+
+        for root_id in [WorktreeId::from_usize(1), WorktreeId::from_usize(2)] {
+            store
+                .set_local_settings(
+                    root_id,
+                    LocalSettingsPath::InWorktree(RelPath::empty_arc()),
+                    LocalSettingsKind::Settings,
+                    Some(r#"{ "tab_size": 8 }"#),
+                    cx,
+                )
+                .unwrap();
+        }
+
+        COUNTING_SETTINGS_DERIVATIONS.store(0, Ordering::SeqCst);
+        store
+            .clear_local_settings_for_worktrees(
+                [WorktreeId::from_usize(1), WorktreeId::from_usize(2)],
+                cx,
+            )
+            .unwrap();
+
+        assert_eq!(COUNTING_SETTINGS_DERIVATIONS.load(Ordering::SeqCst), 1);
+        assert!(store.local_settings.is_empty());
+
+        COUNTING_SETTINGS_DERIVATIONS.store(0, Ordering::SeqCst);
+        store.clear_local_settings_for_worktrees([], cx).unwrap();
+        assert_eq!(COUNTING_SETTINGS_DERIVATIONS.load(Ordering::SeqCst), 0);
+    }
+
+    #[gpui::test]
+    fn test_clear_local_settings_for_worktrees_preserves_unaffected_roots(cx: &mut App) {
+        let mut store = SettingsStore::new(cx, &test_settings());
+        store.register_setting::<DefaultLanguageSettings>();
+
+        for (root_id, tab_size) in [(1, 5), (2, 7), (3, 9)] {
+            store
+                .set_local_settings(
+                    WorktreeId::from_usize(root_id),
+                    LocalSettingsPath::InWorktree(RelPath::empty_arc()),
+                    LocalSettingsKind::Settings,
+                    Some(&format!(r#"{{ "tab_size": {tab_size} }}"#)),
+                    cx,
+                )
+                .unwrap();
+        }
+
+        store
+            .clear_local_settings_for_worktrees(
+                [
+                    WorktreeId::from_usize(1),
+                    WorktreeId::from_usize(2),
+                    WorktreeId::from_usize(2),
+                ],
+                cx,
+            )
+            .unwrap();
+
+        assert_eq!(
+            store
+                .local_settings
+                .keys()
+                .map(|(root_id, _)| *root_id)
+                .collect::<Vec<_>>(),
+            vec![WorktreeId::from_usize(3)]
+        );
+        assert_eq!(
+            store.get::<DefaultLanguageSettings>(Some(SettingsLocation {
+                worktree_id: WorktreeId::from_usize(3),
+                path: RelPath::empty(),
+            })),
+            &DefaultLanguageSettings {
+                tab_size: 9.try_into().unwrap(),
+                preferred_line_length: 80,
+            }
         );
     }
 
