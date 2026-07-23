@@ -59,6 +59,13 @@ struct EditorconfigWorktreeState {
 }
 
 impl EditorconfigStore {
+    pub(crate) fn has_worktree_state(&self, root_id: WorktreeId) -> bool {
+        self.worktree_state.contains_key(&root_id)
+            || self
+                .local_external_config_discovery_tasks
+                .contains_key(&root_id)
+    }
+
     pub(crate) fn set_configs(
         &mut self,
         worktree_id: WorktreeId,
