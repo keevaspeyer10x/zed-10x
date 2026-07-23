@@ -85,8 +85,8 @@ use image_store::{ImageItemEvent, ImageStoreEvent};
 
 use ::git::{blame::Blame, status::FileStatus};
 use gpui::{
-    App, AppContext, AsyncApp, BorrowAppContext, Context, Entity, EventEmitter, Hsla, SharedString,
-    Task, TaskExt, WeakEntity, Window,
+    App, AppContext, AsyncApp, Context, Entity, EventEmitter, Hsla, SharedString, Task, TaskExt,
+    WeakEntity, Window,
 };
 use language::{
     Buffer, BufferEditSource, BufferEvent, Capability, CodeLabel, CursorShape, DiskState, Language,
@@ -2851,17 +2851,14 @@ impl Project {
         message_id: u32,
         cx: &mut Context<Self>,
     ) -> Result<()> {
-        cx.update_global::<SettingsStore, _>(|store, cx| {
-            store
-                .clear_local_settings_for_worktrees(
-                    message
-                        .worktrees
-                        .iter()
-                        .map(|worktree_metadata| WorktreeId::from_proto(worktree_metadata.id)),
-                    cx,
-                )
-                .log_err();
-        });
+        SettingsStore::clear_local_settings_for_worktrees_if_present(
+            message
+                .worktrees
+                .iter()
+                .map(|worktree_metadata| WorktreeId::from_proto(worktree_metadata.id)),
+            cx,
+        )
+        .log_err();
 
         self.join_project_response_message_id = message_id;
         self.set_worktrees_from_proto(message.worktrees, cx)?;
@@ -5357,16 +5354,15 @@ impl Project {
         this.update(&mut cx, |this, cx| {
             // Don't handle messages that were sent before the response to us joining the project
             if envelope.message_id > this.join_project_response_message_id {
-                cx.update_global::<SettingsStore, _>(|store, cx| {
-                    store
-                        .clear_local_settings_for_worktrees(
-                            envelope.payload.worktrees.iter().map(|worktree_metadata| {
-                                WorktreeId::from_proto(worktree_metadata.id)
-                            }),
-                            cx,
-                        )
-                        .log_err();
-                });
+                SettingsStore::clear_local_settings_for_worktrees_if_present(
+                    envelope
+                        .payload
+                        .worktrees
+                        .iter()
+                        .map(|worktree_metadata| WorktreeId::from_proto(worktree_metadata.id)),
+                    cx,
+                )
+                .log_err();
 
                 this.set_worktrees_from_proto(envelope.payload.worktrees, cx)?;
             }
