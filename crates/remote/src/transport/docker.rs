@@ -836,6 +836,7 @@ impl RemoteConnection for DockerExecConnection {
             args: docker_args,
             // Docker-exec pipes in environment via the "-e" argument
             env: Default::default(),
+            stdin_prelude: Vec::new(),
         })
     }
 

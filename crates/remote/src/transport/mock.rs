@@ -210,6 +210,7 @@ impl RemoteConnection for MockRemoteConnection {
             program: "mock".into(),
             args: shell_args,
             env: env.clone(),
+            stdin_prelude: Vec::new(),
         })
     }
 
@@ -225,6 +226,7 @@ impl RemoteConnection for MockRemoteConnection {
                 }))
                 .collect(),
             env: Default::default(),
+            stdin_prelude: Vec::new(),
         })
     }
 

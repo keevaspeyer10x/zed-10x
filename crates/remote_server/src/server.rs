@@ -47,14 +47,14 @@ use smol::{
     stream::StreamExt as _,
 };
 use std::{
-    ffi::OsStr,
+    ffi::{OsStr, OsString},
     fs::File,
     io::Write,
     mem,
     path::{Path, PathBuf},
     str::FromStr,
     sync::{Arc, LazyLock},
-    time::Instant,
+    time::{Duration, Instant},
 };
 use thiserror::Error;
 use util::{ResultExt, command::new_command};
@@ -79,6 +79,13 @@ pub enum Commands {
         #[arg(long)]
         identifier: String,
     },
+    #[command(hide = true)]
+    EnvExec {
+        #[arg(required = true, trailing_var_arg = true)]
+        command: Vec<OsString>,
+    },
+    #[command(hide = true)]
+    Capabilities,
     Version,
 }
 
@@ -104,6 +111,14 @@ pub fn run(command: Commands) -> anyhow::Result<()> {
             identifier,
             reconnect,
         } => execute_proxy(identifier, reconnect).context("running proxy on the remote server"),
+        Commands::EnvExec { command } => {
+            execute_env_exec(command).context("starting command with stdin environment")
+        }
+        Commands::Capabilities => {
+            #[cfg(unix)]
+            println!("{}", remote::STDIN_ENVIRONMENT_CAPABILITY);
+            Ok(())
+        }
         Commands::Version => {
             let release_channel = *RELEASE_CHANNEL;
             match release_channel {
@@ -124,6 +139,109 @@ pub fn run(command: Commands) -> anyhow::Result<()> {
             Ok(())
         }
     }
+}
+
+#[cfg(unix)]
+// This deadline starts only after the remote process has launched. The client
+// separately allows 30 seconds for SSH to accept and forward the prelude.
+const STDIN_ENVIRONMENT_READ_TIMEOUT: Duration = Duration::from_secs(5);
+
+#[cfg(unix)]
+/// Directly reads fd 0 before any buffered stdin reader or async runtime starts.
+struct UnbufferedStdin {
+    deadline: Instant,
+}
+
+#[cfg(unix)]
+impl std::io::Read for UnbufferedStdin {
+    fn read(&mut self, buffer: &mut [u8]) -> std::io::Result<usize> {
+        if buffer.is_empty() {
+            return Ok(0);
+        }
+
+        loop {
+            let timeout = self.deadline.saturating_duration_since(Instant::now());
+            if timeout.is_zero() {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::TimedOut,
+                    "timed out reading remote command environment",
+                ));
+            }
+            let timeout_millis = timeout.as_millis().clamp(1, i32::MAX as u128) as i32;
+            let mut descriptor = libc::pollfd {
+                fd: libc::STDIN_FILENO,
+                events: libc::POLLIN | libc::POLLHUP,
+                revents: 0,
+            };
+            // SAFETY: `descriptor` points to one initialized `pollfd` value for
+            // the duration of the call.
+            let poll_result = unsafe { libc::poll(&mut descriptor, 1, timeout_millis) };
+            if poll_result == 0 {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::TimedOut,
+                    "timed out reading remote command environment",
+                ));
+            }
+            if poll_result < 0 {
+                let error = std::io::Error::last_os_error();
+                if error.kind() == std::io::ErrorKind::Interrupted {
+                    continue;
+                }
+                return Err(error);
+            }
+            if descriptor.revents & libc::POLLNVAL != 0 {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    "standard input is not a valid descriptor",
+                ));
+            }
+            if descriptor.revents & libc::POLLERR != 0
+                && descriptor.revents & (libc::POLLIN | libc::POLLHUP) == 0
+            {
+                return Err(std::io::Error::other(
+                    "standard input reported a polling error",
+                ));
+            }
+
+            // SAFETY: `buffer` is valid for `buffer.len()` writable bytes and
+            // standard input remains owned by the process across this call.
+            let bytes_read =
+                unsafe { libc::read(libc::STDIN_FILENO, buffer.as_mut_ptr().cast(), buffer.len()) };
+            if bytes_read >= 0 {
+                return Ok(bytes_read as usize);
+            }
+
+            let error = std::io::Error::last_os_error();
+            if error.kind() != std::io::ErrorKind::Interrupted {
+                return Err(error);
+            }
+        }
+    }
+}
+
+#[cfg(unix)]
+fn execute_env_exec(command: Vec<OsString>) -> anyhow::Result<()> {
+    use std::os::unix::process::CommandExt as _;
+
+    let (program, arguments) = command
+        .split_first()
+        .context("stdin environment command is missing")?;
+    let mut stdin = UnbufferedStdin {
+        deadline: Instant::now() + STDIN_ENVIRONMENT_READ_TIMEOUT,
+    };
+    let environment =
+        remote::read_stdin_environment(&mut stdin).context("reading stdin environment frame")?;
+
+    let error = std::process::Command::new(program)
+        .args(arguments)
+        .envs(environment)
+        .exec();
+    Err(error).context("executing stdin environment command")
+}
+
+#[cfg(not(unix))]
+fn execute_env_exec(_command: Vec<OsString>) -> anyhow::Result<()> {
+    anyhow::bail!("stdin environment command is not supported on this platform")
 }
 
 pub static VERSION: LazyLock<String> = LazyLock::new(|| match *RELEASE_CHANNEL {
