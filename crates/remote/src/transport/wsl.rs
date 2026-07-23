@@ -523,6 +523,7 @@ impl RemoteConnection for WslRemoteConnection {
             program: "wsl.exe".to_string(),
             args: wsl_args,
             env: HashMap::default(),
+            stdin_prelude: Vec::new(),
         })
     }
 

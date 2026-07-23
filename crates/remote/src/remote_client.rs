@@ -37,7 +37,7 @@ use rpc::{
 };
 use semver::Version;
 use std::{
-    collections::VecDeque,
+    collections::{BTreeMap, BTreeSet, VecDeque},
     fmt,
     ops::ControlFlow,
     path::PathBuf,
@@ -116,11 +116,121 @@ pub struct RemotePlatform {
     pub arch: RemoteArch,
 }
 
-#[derive(Clone, Debug)]
+pub const MAX_STDIN_ENVIRONMENT_BYTES: usize = 1024 * 1024;
+pub const STDIN_ENVIRONMENT_CAPABILITY: &str = "env-exec-v1";
+
+/// A process invocation prepared for a remote transport.
+///
+/// The custom [`Debug`] implementation intentionally exposes environment
+/// variable names and the stdin prelude length, but never environment values
+/// or stdin prelude contents. Callers remain responsible for ensuring that
+/// `program` and `args` do not contain secrets.
+#[derive(Clone)]
 pub struct CommandTemplate {
     pub program: String,
     pub args: Vec<String>,
     pub env: HashMap<String, String>,
+    pub stdin_prelude: Vec<u8>,
+}
+
+impl fmt::Debug for CommandTemplate {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("CommandTemplate")
+            .field("program", &self.program)
+            .field("args", &self.args)
+            .field("env_keys", &self.env.keys().collect::<BTreeSet<_>>())
+            .field("stdin_prelude_bytes", &self.stdin_prelude.len())
+            .finish()
+    }
+}
+
+fn validate_stdin_environment(environment: &HashMap<String, String>) -> Result<()> {
+    for (name, value) in environment {
+        anyhow::ensure!(
+            !name.is_empty() && !name.contains(['=', '\0']),
+            "invalid remote command environment variable name"
+        );
+        anyhow::ensure!(
+            !value.contains('\0'),
+            "invalid remote command environment variable value"
+        );
+    }
+    Ok(())
+}
+
+pub fn encode_stdin_environment(environment: &HashMap<String, String>) -> Result<Vec<u8>> {
+    validate_stdin_environment(environment)?;
+    let ordered_environment = environment.iter().collect::<BTreeMap<_, _>>();
+    let payload = serde_json::to_vec(&ordered_environment)?;
+    anyhow::ensure!(
+        payload.len() <= MAX_STDIN_ENVIRONMENT_BYTES,
+        "remote command environment is too large"
+    );
+
+    let mut frame = payload.len().to_string().into_bytes();
+    frame.push(b':');
+    frame.extend(payload);
+    frame.push(b',');
+    Ok(frame)
+}
+
+/// Reads one netstring-framed environment map from a synchronous byte stream.
+///
+/// The caller owns scheduling. The remote server calls this during its
+/// single-threaded bootstrap, before any async runtime or buffered stdin reader
+/// is started. `Read::read_exact` makes partial transport reads transparent.
+pub fn read_stdin_environment(reader: &mut impl std::io::Read) -> Result<HashMap<String, String>> {
+    const MAX_LENGTH_DIGITS: usize = 7;
+
+    let mut length_digits = Vec::with_capacity(MAX_LENGTH_DIGITS);
+    loop {
+        let mut byte = [0_u8; 1];
+        reader
+            .read_exact(&mut byte)
+            .context("reading remote command environment frame length")?;
+        match byte[0] {
+            b':' => break,
+            digit if digit.is_ascii_digit() && length_digits.len() < MAX_LENGTH_DIGITS => {
+                length_digits.push(digit);
+            }
+            _ => anyhow::bail!("invalid remote command environment frame length"),
+        }
+    }
+
+    anyhow::ensure!(
+        !length_digits.is_empty(),
+        "remote command environment frame length is empty"
+    );
+    anyhow::ensure!(
+        length_digits.len() == 1 || length_digits[0] != b'0',
+        "remote command environment frame length has a leading zero"
+    );
+    let payload_length = std::str::from_utf8(&length_digits)?
+        .parse::<usize>()
+        .context("parsing remote command environment frame length")?;
+    anyhow::ensure!(
+        payload_length <= MAX_STDIN_ENVIRONMENT_BYTES,
+        "remote command environment frame is too large"
+    );
+
+    let mut payload = vec![0_u8; payload_length];
+    reader
+        .read_exact(&mut payload)
+        .context("reading remote command environment payload")?;
+    let mut terminator = [0_u8; 1];
+    reader
+        .read_exact(&mut terminator)
+        .context("reading remote command environment frame terminator")?;
+    anyhow::ensure!(
+        terminator[0] == b',',
+        "invalid remote command environment frame terminator"
+    );
+
+    let environment: HashMap<String, String> =
+        serde_json::from_slice(&payload).context("parsing remote command environment payload")?;
+    validate_stdin_environment(&environment)?;
+    Ok(environment)
 }
 
 /// Whether a command should be run with TTY allocation for interactive use.
@@ -968,6 +1078,19 @@ impl RemoteClient {
         connection.build_command(program, args, env, working_dir, port_forward, interactive)
     }
 
+    pub fn build_command_with_stdin_environment(
+        &self,
+        program: String,
+        args: &[String],
+        env: &HashMap<String, String>,
+        working_dir: Option<String>,
+    ) -> Result<CommandTemplate> {
+        let Some(connection) = self.remote_connection() else {
+            return Err(anyhow!("no remote connection"));
+        };
+        connection.build_command_with_stdin_environment(program, args, env, working_dir)
+    }
+
     pub fn build_forward_ports_command(
         &self,
         forwards: Vec<(u16, String, u16)>,
@@ -1425,6 +1548,95 @@ mod tests {
         );
     }
 
+    #[test]
+    fn stdin_environment_round_trip_preserves_following_protocol_bytes() -> Result<()> {
+        let environment = [
+            ("A".to_string(), "value".to_string()),
+            ("MULTILINE".to_string(), "first\nsecond".to_string()),
+        ]
+        .into_iter()
+        .collect::<HashMap<_, _>>();
+        let mut bytes = encode_stdin_environment(&environment)?;
+        bytes.extend_from_slice(b"{\"jsonrpc\":\"2.0\"}\n");
+        let mut reader = std::io::Cursor::new(bytes);
+
+        assert_eq!(read_stdin_environment(&mut reader)?, environment);
+        let mut remaining = String::new();
+        std::io::Read::read_to_string(&mut reader, &mut remaining)?;
+        assert_eq!(remaining, "{\"jsonrpc\":\"2.0\"}\n");
+        Ok(())
+    }
+
+    #[test]
+    fn stdin_environment_round_trip_handles_partial_reads() -> Result<()> {
+        struct OneByteReader<R>(R);
+
+        impl<R: std::io::Read> std::io::Read for OneByteReader<R> {
+            fn read(&mut self, buffer: &mut [u8]) -> std::io::Result<usize> {
+                let read_length = buffer.len().min(1);
+                self.0.read(&mut buffer[..read_length])
+            }
+        }
+
+        let environment = [("TOKEN".to_string(), "secret".to_string())]
+            .into_iter()
+            .collect::<HashMap<_, _>>();
+        let mut bytes = encode_stdin_environment(&environment)?;
+        bytes.extend_from_slice(b"next");
+        let mut reader = OneByteReader(std::io::Cursor::new(bytes));
+
+        assert_eq!(read_stdin_environment(&mut reader)?, environment);
+        let mut remaining = String::new();
+        std::io::Read::read_to_string(&mut reader, &mut remaining)?;
+        assert_eq!(remaining, "next");
+        Ok(())
+    }
+
+    #[test]
+    fn stdin_environment_rejects_malformed_frames() {
+        for frame in [
+            b":{},".as_slice(),
+            b"01:{},".as_slice(),
+            b"x:{},".as_slice(),
+            b"2:{}".as_slice(),
+            b"2:{}!".as_slice(),
+            b"4:{}".as_slice(),
+            b"1048577:".as_slice(),
+        ] {
+            assert!(
+                read_stdin_environment(&mut std::io::Cursor::new(frame)).is_err(),
+                "frame should be rejected: {frame:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn stdin_environment_rejects_invalid_names_and_values() {
+        for (name, value) in [("", "value"), ("A=B", "value"), ("A", "value\0suffix")] {
+            let environment = [(name.to_string(), value.to_string())]
+                .into_iter()
+                .collect::<HashMap<_, _>>();
+            assert!(encode_stdin_environment(&environment).is_err());
+        }
+    }
+
+    #[test]
+    fn command_template_debug_does_not_expose_environment_values() {
+        let secret = "sentinel-secret-that-must-not-appear-in-debug";
+        let command = CommandTemplate {
+            program: "ssh".to_string(),
+            args: Vec::new(),
+            env: [("SSH_PASSWORD".to_string(), secret.to_string())]
+                .into_iter()
+                .collect(),
+            stdin_prelude: secret.as_bytes().to_vec(),
+        };
+
+        let debug = format!("{command:?}");
+        assert!(debug.contains("SSH_PASSWORD"));
+        assert!(!debug.contains(secret));
+    }
+
     #[gpui::test]
     async fn test_channel_client_request_stream_terminates_on_error(cx: &mut TestAppContext) {
         let (incoming_tx, incoming_rx) = mpsc::unbounded::<Envelope>();
@@ -1617,6 +1829,15 @@ pub trait RemoteConnection: Send + Sync {
         port_forward: Option<(u16, String, u16)>,
         interactive: Interactive,
     ) -> Result<CommandTemplate>;
+    fn build_command_with_stdin_environment(
+        &self,
+        program: String,
+        args: &[String],
+        env: &HashMap<String, String>,
+        working_dir: Option<String>,
+    ) -> Result<CommandTemplate> {
+        self.build_command(Some(program), args, env, working_dir, None, Interactive::No)
+    }
     fn build_forward_ports_command(
         &self,
         forwards: Vec<(u16, String, u16)>,

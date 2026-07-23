@@ -1,6 +1,9 @@
 use crate::{
     RemoteArch, RemoteClientDelegate, RemoteOs, RemotePlatform,
-    remote_client::{CommandTemplate, Interactive, RemoteConnection, RemoteConnectionOptions},
+    remote_client::{
+        CommandTemplate, Interactive, RemoteConnection, RemoteConnectionOptions,
+        encode_stdin_environment,
+    },
     transport::{parse_platform, parse_shell},
 };
 use anyhow::{Context as _, Result, anyhow};
@@ -46,6 +49,7 @@ pub(crate) struct SshRemoteConnection {
     /// reused ControlMaster sessions start with `master_process` as `None`.
     killed: AtomicBool,
     remote_binary_path: Option<Arc<RelPath>>,
+    supports_stdin_environment: bool,
     ssh_platform: RemotePlatform,
     ssh_os_version: Option<String>,
     ssh_path_style: PathStyle,
@@ -357,6 +361,44 @@ impl RemoteConnection for SshRemoteConnection {
         }
     }
 
+    fn build_command_with_stdin_environment(
+        &self,
+        input_program: String,
+        input_args: &[String],
+        input_env: &HashMap<String, String>,
+        working_dir: Option<String>,
+    ) -> Result<CommandTemplate> {
+        anyhow::ensure!(
+            !self.ssh_platform.os.is_windows(),
+            "stdin environment transport is not supported for Windows SSH remotes"
+        );
+        anyhow::ensure!(
+            self.supports_stdin_environment,
+            "remote development server does not support secure agent environment transport; \
+             reconnect to reinstall the version-matched server"
+        );
+        let remote_binary_path = self
+            .remote_binary_path
+            .as_ref()
+            .context("remote binary path not set for stdin environment transport")?;
+
+        // `RemoteClient` installs this version-matched binary before agent
+        // startup. A missing `env-exec` capability must fail closed instead of
+        // falling back to putting environment values in SSH argv.
+        build_command_posix_with_stdin_environment(
+            input_program,
+            input_args,
+            input_env,
+            working_dir,
+            self.socket.envs.clone(),
+            self.ssh_path_style,
+            self.ssh_shell_kind,
+            self.socket.ssh_command_options(),
+            &self.socket.connection_options.ssh_destination(),
+            remote_binary_path.display(self.path_style()).as_ref(),
+        )
+    }
+
     fn build_forward_ports_command(
         &self,
         forwards: Vec<(u16, String, u16)>,
@@ -378,6 +420,7 @@ impl RemoteConnection for SshRemoteConnection {
             program: "ssh".into(),
             args,
             env: Default::default(),
+            stdin_prelude: Vec::new(),
         })
     }
 
@@ -785,6 +828,7 @@ impl SshRemoteConnection {
             killed: AtomicBool::new(false),
             _temp_dir: temp_dir,
             remote_binary_path: None,
+            supports_stdin_environment: false,
             ssh_path_style,
             ssh_platform,
             ssh_os_version,
@@ -795,10 +839,27 @@ impl SshRemoteConnection {
 
         let (release_channel, version) =
             cx.update(|cx| (ReleaseChannel::global(cx), AppVersion::global(cx)));
-        this.remote_binary_path = Some(
-            this.ensure_server_binary(&delegate, release_channel, version, cx)
-                .await?,
-        );
+        let remote_binary_path = this
+            .ensure_server_binary(&delegate, release_channel, version, cx)
+            .await?;
+        if !this.ssh_platform.os.is_windows() {
+            let remote_binary = remote_binary_path.display(this.path_style()).into_owned();
+            this.supports_stdin_environment = this
+                .socket
+                .run_command(
+                    this.ssh_shell_kind,
+                    &remote_binary,
+                    &["capabilities"],
+                    false,
+                )
+                .await
+                .is_ok_and(|output| {
+                    output
+                        .lines()
+                        .any(|capability| capability.trim() == crate::STDIN_ENVIRONMENT_CAPABILITY)
+                });
+        }
+        this.remote_binary_path = Some(remote_binary_path);
 
         Ok(this)
     }
@@ -1818,7 +1879,74 @@ fn build_command_posix(
     ssh_destination: &str,
     interactive: Interactive,
 ) -> Result<CommandTemplate> {
+    build_command_posix_inner(
+        input_program,
+        input_args,
+        input_env,
+        working_dir,
+        port_forward,
+        ssh_env,
+        ssh_path_style,
+        ssh_shell,
+        ssh_shell_kind,
+        ssh_options,
+        ssh_destination,
+        interactive,
+        None,
+    )
+}
+
+fn build_command_posix_with_stdin_environment(
+    input_program: String,
+    input_args: &[String],
+    input_env: &HashMap<String, String>,
+    working_dir: Option<String>,
+    ssh_env: HashMap<String, String>,
+    ssh_path_style: PathStyle,
+    ssh_shell_kind: ShellKind,
+    ssh_options: Vec<String>,
+    ssh_destination: &str,
+    remote_binary_path: &str,
+) -> Result<CommandTemplate> {
+    build_command_posix_inner(
+        Some(input_program),
+        input_args,
+        input_env,
+        working_dir,
+        None,
+        ssh_env,
+        ssh_path_style,
+        "",
+        ssh_shell_kind,
+        ssh_options,
+        ssh_destination,
+        Interactive::No,
+        Some(remote_binary_path),
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn build_command_posix_inner(
+    input_program: Option<String>,
+    input_args: &[String],
+    input_env: &HashMap<String, String>,
+    working_dir: Option<String>,
+    port_forward: Option<(u16, String, u16)>,
+    ssh_env: HashMap<String, String>,
+    ssh_path_style: PathStyle,
+    ssh_shell: &str,
+    ssh_shell_kind: ShellKind,
+    ssh_options: Vec<String>,
+    ssh_destination: &str,
+    interactive: Interactive,
+    stdin_environment_bootstrap: Option<&str>,
+) -> Result<CommandTemplate> {
     use std::fmt::Write as _;
+
+    anyhow::ensure!(
+        stdin_environment_bootstrap.is_none() || input_program.is_some(),
+        "stdin environment transport requires an explicit command"
+    );
 
     let mut exec = String::new();
     if let Some(working_dir) = working_dir {
@@ -1863,15 +1991,23 @@ fn build_command_posix(
             ssh_shell_kind.sequential_and_commands_separator()
         )?;
     };
-    write!(exec, "exec env ")?;
-
-    for (k, v) in input_env.iter() {
-        let assignment = format!("{k}={v}");
-        let assignment = ssh_shell_kind
-            .try_quote(&assignment)
+    let stdin_prelude = if let Some(bootstrap) = stdin_environment_bootstrap {
+        let bootstrap = ssh_shell_kind
+            .try_quote_prefix_aware(bootstrap)
             .context("shell quoting")?;
-        write!(exec, "{assignment} ")?;
-    }
+        write!(exec, "exec {bootstrap} env-exec -- ")?;
+        encode_stdin_environment(input_env)?
+    } else {
+        write!(exec, "exec env ")?;
+        for (key, value) in input_env {
+            let assignment = format!("{key}={value}");
+            let assignment = ssh_shell_kind
+                .try_quote(&assignment)
+                .context("shell quoting")?;
+            write!(exec, "{assignment} ")?;
+        }
+        Vec::new()
+    };
 
     if let Some(input_program) = input_program {
         write!(
@@ -1919,6 +2055,7 @@ fn build_command_posix(
         program: "ssh".into(),
         args,
         env: ssh_env,
+        stdin_prelude,
     })
 }
 
@@ -2022,6 +2159,7 @@ fn build_command_windows(
         program: "ssh".into(),
         args,
         env: ssh_env,
+        stdin_prelude: Vec::new(),
     })
 }
 
@@ -2156,6 +2294,78 @@ mod tests {
             "expected env assignment to be quoted, got: {remote_command}"
         );
 
+        Ok(())
+    }
+
+    #[test]
+    fn test_non_interactive_command_does_not_expose_environment_in_ssh_argv() -> Result<()> {
+        let secret = "sentinel-secret-that-must-not-appear-in-argv";
+        let mut input_env = HashMap::default();
+        input_env.insert("PROVIDER_TOKEN".to_string(), secret.to_string());
+
+        let command = build_command_posix_with_stdin_environment(
+            "agent".to_string(),
+            &["--acp".to_string()],
+            &input_env,
+            Some("~/work".to_string()),
+            HashMap::default(),
+            PathStyle::Unix,
+            ShellKind::Posix,
+            vec![],
+            "user@host",
+            "~/.zed_server/zed-remote-server",
+        )?;
+
+        assert!(
+            command
+                .args
+                .iter()
+                .all(|argument| !argument.contains(secret)),
+            "environment values must not be serialized into SSH argv"
+        );
+        assert!(
+            command
+                .args
+                .last()
+                .is_some_and(|command| command.contains("env-exec -- agent --acp")),
+            "expected the SSH command to invoke the stdin bootstrap: {command:?}"
+        );
+        assert!(!format!("{command:?}").contains(secret));
+
+        let mut framed_input = command.stdin_prelude;
+        framed_input.extend_from_slice(b"{\"jsonrpc\":\"2.0\"}\n");
+        let mut framed_input = std::io::Cursor::new(framed_input);
+        assert_eq!(crate::read_stdin_environment(&mut framed_input)?, input_env);
+        let mut first_acp_message = String::new();
+        std::io::Read::read_to_string(&mut framed_input, &mut first_acp_message)?;
+        assert_eq!(first_acp_message, "{\"jsonrpc\":\"2.0\"}\n");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_stdin_environment_bootstrap_quotes_remote_binary_path() -> Result<()> {
+        let command = build_command_posix_with_stdin_environment(
+            "agent".to_string(),
+            &[],
+            &HashMap::default(),
+            None,
+            HashMap::default(),
+            PathStyle::Unix,
+            ShellKind::Posix,
+            vec![],
+            "user@host",
+            "/tmp/zed server/zed-remote-server",
+        )?;
+
+        let remote_command = command
+            .args
+            .last()
+            .context("missing remote command argument")?;
+        assert!(
+            remote_command.contains("exec '/tmp/zed server/zed-remote-server' env-exec -- agent"),
+            "expected the remote binary path to be shell-quoted: {remote_command}"
+        );
         Ok(())
     }
 

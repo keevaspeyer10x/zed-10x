@@ -20,14 +20,13 @@ use project::agent_server_store::{
     AgentServerCommand, AgentServerStore, AllAgentServersSettings, CustomAgentServerSettings,
 };
 use project::{AgentId, Project};
-use remote::remote_client::Interactive;
 use serde::Deserialize;
 use settings::{AgentConfigOptionValue, SettingsStore};
 use std::path::PathBuf;
 use std::process::{ExitStatus, Stdio};
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
-use std::{any::Any, cell::RefCell, collections::VecDeque};
+use std::{any::Any, cell::RefCell, collections::VecDeque, time::Duration};
 use task::{Shell, ShellBuilder, SpawnInTerminal};
 use thiserror::Error;
 use util::ResultExt as _;
@@ -35,7 +34,10 @@ use util::path_list::PathList;
 use util::process::Child;
 
 use anyhow::{Context as _, Result};
-use gpui::{App, AppContext as _, AsyncApp, Entity, SharedString, Subscription, Task, WeakEntity};
+use gpui::{
+    App, AppContext as _, AsyncApp, Entity, FutureExt as _, SharedString, Subscription, Task,
+    WeakEntity,
+};
 
 use acp_thread::{AcpThread, AuthRequired, LoadError, TerminalProviderEvent};
 use terminal::TerminalBuilder;
@@ -46,6 +48,8 @@ use crate::{CURSOR_ID, GEMINI_ID};
 pub const GEMINI_TERMINAL_AUTH_METHOD_ID: &str = "spawn-gemini-cli";
 const PARAMETERIZED_MODEL_PICKER_META_KEY: &str = "parameterizedModelPicker";
 const MAX_DEBUG_BACKLOG_MESSAGES: usize = 2000;
+const REMOTE_ENVIRONMENT_WRITE_TIMEOUT: Duration = Duration::from_secs(30);
+const REMOTE_AGENT_REAP_TIMEOUT: Duration = Duration::from_secs(5);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AcpDebugMessageDirection {
@@ -810,30 +814,36 @@ impl AcpConnection {
                 .cloned()
         });
         let original_command = command.clone();
-        let (path, args, env) = project
-            .read_with(cx, |project, cx| {
-                project.remote_client().and_then(|client| {
+        let remote_command = project.read_with(cx, |project, cx| -> Result<_> {
+            match project.remote_client() {
+                Some(client) => {
                     let template = client
                         .read(cx)
-                        .build_command(
-                            Some(command.path.display().to_string()),
+                        .build_command_with_stdin_environment(
+                            command.path.display().to_string(),
                             &command.args,
                             &command.env.clone().into_iter().flatten().collect(),
                             root_dir.as_ref().map(|path| path.display().to_string()),
-                            None,
-                            Interactive::No,
                         )
-                        .log_err()?;
-                    Some((template.program, template.args, template.env))
-                })
-            })
-            .unwrap_or_else(|| {
-                (
-                    command.path.display().to_string(),
-                    command.args,
-                    command.env.unwrap_or_default(),
-                )
-            });
+                        .context("Failed to build secure remote agent command")?;
+                    Ok(Some((
+                        template.program,
+                        template.args,
+                        template.env,
+                        template.stdin_prelude,
+                    )))
+                }
+                None => Ok(None),
+            }
+        })?;
+        let (path, args, env, stdin_prelude) = remote_command.unwrap_or_else(|| {
+            (
+                command.path.display().to_string(),
+                command.args,
+                command.env.unwrap_or_default(),
+                Vec::new(),
+            )
+        });
 
         let builder = ShellBuilder::new(&Shell::System, cfg!(windows)).non_interactive();
         let mut child = builder.build_std_command(Some(path.clone()), &args);
@@ -850,10 +860,60 @@ impl AcpConnection {
         let mut child = Child::spawn(child, Stdio::piped(), Stdio::piped(), Stdio::piped())?;
 
         let stdout = child.stdout.take().context("Failed to take stdout")?;
-        let stdin = child.stdin.take().context("Failed to take stdin")?;
+        let mut stdin = child.stdin.take().context("Failed to take stdin")?;
         let stderr = child.stderr.take().context("Failed to take stderr")?;
         log::debug!("Spawning external agent server: {:?}, {:?}", path, args);
         log::trace!("Spawned (pid: {})", child.id());
+
+        if !stdin_prelude.is_empty() {
+            use futures::AsyncWriteExt as _;
+            let write_result = async {
+                stdin
+                    .write_all(&stdin_prelude)
+                    .await
+                    .context("Failed to write remote agent environment")?;
+                stdin
+                    .flush()
+                    .await
+                    .context("Failed to flush remote agent environment")?;
+                anyhow::Ok(())
+            }
+            .with_timeout(REMOTE_ENVIRONMENT_WRITE_TIMEOUT, cx.background_executor())
+            .await
+            .context("Timed out writing remote agent environment")
+            .and_then(|result| result);
+            if let Err(error) = write_result {
+                match child.kill() {
+                    Ok(()) => {
+                        let wait_result = child
+                            .status()
+                            .with_timeout(REMOTE_AGENT_REAP_TIMEOUT, cx.background_executor())
+                            .await
+                            .context(
+                                "Timed out reaping remote agent after environment write failure",
+                            )
+                            .and_then(|result| {
+                                result.context(
+                                    "Failed to wait for remote agent after environment write failure",
+                                )
+                            });
+                        if let Err(wait_error) = wait_result {
+                            log::error!(
+                                "Failed to reap remote agent after environment write failure: \
+                                 {wait_error:#}"
+                            );
+                        }
+                    }
+                    Err(kill_error) => {
+                        log::error!(
+                            "Failed to terminate remote agent after environment write failure: \
+                             {kill_error:#}"
+                        );
+                    }
+                }
+                return Err(error);
+            }
+        }
 
         let sessions = Rc::new(RefCell::new(HashMap::default()));
         let debug_log = AcpDebugLog::default();
