@@ -1,0 +1,79 @@
+#!/bin/bash
+
+set -eu
+
+original_arguments=("$@")
+
+contents_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+resources_dir="$contents_dir/Resources"
+collector="$resources_dir/zed-10x-canary.mjs"
+store_dir=${ZED_10X_CANARY_STORE:-"$HOME/Library/Application Support/Zed 10x/dogfood-canary"}
+
+export CARGO_HOME="/Users/keevaspeyer/Documents/Codex/2026-07-22/i-ve-got-zed-on-my/work/cargo"
+export RUSTUP_HOME="/Users/keevaspeyer/Documents/Codex/2026-07-22/i-ve-got-zed-on-my/work/rustup"
+export PATH="$CARGO_HOME/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+unset ZED_COPY_REMOTE_SERVER
+export ZED_BUILD_REMOTE_SERVER="never"
+
+lane="local"
+project_id=""
+for argument in "$@"; do
+    case "$argument" in
+        ssh://*|zed://ssh/*)
+            lane="intrepid"
+            ;;
+        -*|zed://*)
+            ;;
+        *)
+            if [ -z "$project_id" ]; then
+                project_id=$(printf '%s' "$argument" | shasum -a 256 2>/dev/null | awk '{print $1}' || true)
+            fi
+            ;;
+    esac
+done
+
+trace_id=$(od -An -N16 -tx1 /dev/urandom 2>/dev/null | tr -d ' \n' || true)
+span_id=$(od -An -N8 -tx1 /dev/urandom 2>/dev/null | tr -d ' \n' || true)
+traceparent=""
+if [ "${#trace_id}" -eq 32 ] && [ "${#span_id}" -eq 16 ]; then
+    traceparent="00-$trace_id-$span_id-01"
+    export TRACEPARENT="$traceparent"
+    export ZED_10X_TRACEPARENT="$traceparent"
+    export ZED_10X_CORRELATION_ID="$trace_id"
+fi
+
+app_version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$contents_dir/Info.plist" 2>/dev/null || printf 'unknown')
+build_version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$contents_dir/Info.plist" 2>/dev/null || printf 'unknown')
+git_commit=""
+if [ -f "$resources_dir/zed-10x-git-commit" ]; then
+    git_commit=$(sed -n '1p' "$resources_dir/zed-10x-git-commit" | tr -cd '0-9a-f' | cut -c1-64)
+fi
+
+node_path=${ZED_10X_CANARY_NODE:-$(command -v node 2>/dev/null || true)}
+if [ -n "$node_path" ] && [ -f "$collector" ]; then
+    collector_arguments=(
+        "$node_path" "$collector" watch
+        --pid "$$"
+        --cohort zed10x
+        --lane "$lane"
+        --app-version "$app_version"
+        --build-version "$build_version"
+        --store "$store_dir"
+    )
+    if [ -n "$traceparent" ]; then
+        collector_arguments+=(--traceparent "$traceparent")
+    fi
+    if [ -n "$git_commit" ]; then
+        collector_arguments+=(--git-commit "$git_commit")
+    fi
+    if [ -n "$project_id" ]; then
+        collector_arguments+=(--project-id "$project_id")
+    fi
+    if [ -n "${ZED_10X_CANARY_DEBUG_LOG:-}" ]; then
+        ZED_10X_CANARY_DEBUG=1 nohup "${collector_arguments[@]}" </dev/null >>"$ZED_10X_CANARY_DEBUG_LOG" 2>&1 &
+    else
+        nohup "${collector_arguments[@]}" </dev/null >/dev/null 2>&1 &
+    fi
+fi
+
+exec "$resources_dir/zed-10x" "${original_arguments[@]}"
