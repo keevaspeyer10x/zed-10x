@@ -104,7 +104,11 @@ node script/zed-10x-canary.mjs enable
 Removing the canary launcher and collector from the Zed 10x bundle rolls back
 instrumentation. Normal Zed's bundle, profile, database, and update channel are
 never modified. The control observer is a separate user LaunchAgent and can be
-unloaded independently.
+unloaded independently with:
+
+```sh
+launchctl bootout "gui/$(id -u)" "$HOME/Library/LaunchAgents/com.keeva.zed-control-canary.plist"
+```
 
 ## Operator evidence
 
