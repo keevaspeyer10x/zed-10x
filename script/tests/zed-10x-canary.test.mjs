@@ -13,6 +13,7 @@ import {
   hashProjectIdentifier,
   isDisabled,
   pruneStore,
+  sensitiveEnvironmentNames,
 } from "../zed-10x-canary.mjs";
 
 function temporaryStore() {
@@ -200,6 +201,23 @@ test("control LaunchAgent clears inherited GUI credentials before Node starts", 
   assert.equal(plist.includes("API_KEY"), false);
   assert.equal(plist.includes("TOKEN="), false);
   assert.equal(plist.includes("SECRET="), false);
+});
+
+test("control observer fails closed when credential-shaped environment names arrive", () => {
+  assert.deepEqual(
+    sensitiveEnvironmentNames({
+      HOME: "/Users/example",
+      PATH: "/usr/bin:/bin",
+      OLLAMA_CLOUD_API_KEY: "redacted",
+      GITHUB_TOKEN: "redacted",
+      ZED_10X_CANARY_STORE: "/tmp/canary",
+    }),
+    ["GITHUB_TOKEN", "OLLAMA_CLOUD_API_KEY"],
+  );
+  assert.deepEqual(
+    sensitiveEnvironmentNames({ HOME: "/Users/example", PATH: "/usr/bin:/bin" }),
+    [],
+  );
 });
 
 test("launcher preserves app arguments while exposing only a project hash to telemetry", async () => {

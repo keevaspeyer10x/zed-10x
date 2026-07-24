@@ -67,6 +67,7 @@ const TOKEN_ATTRIBUTES = new Set([
 ]);
 
 const HASH_ATTRIBUTES = new Set(["project.id", "session.id_hash"]);
+const SENSITIVE_ENVIRONMENT_NAME = /(api[_-]?key|token|secret|password|credential)/i;
 
 export function createTraceContext() {
   const traceId = nonZeroHex(16);
@@ -93,6 +94,12 @@ export function hashProjectIdentifier(projectPath) {
 export function isDisabled(environment = process.env, storeDir = DEFAULT_STORE) {
   const flag = String(environment.ZED_10X_TELEMETRY_DISABLED ?? "").toLowerCase();
   return ["1", "true", "yes", "on"].includes(flag) || fs.existsSync(path.join(storeDir, "DISABLED"));
+}
+
+export function sensitiveEnvironmentNames(environment = process.env) {
+  return Object.keys(environment)
+    .filter((name) => SENSITIVE_ENVIRONMENT_NAME.test(name))
+    .sort();
 }
 
 function validateText(value, pattern, field) {
@@ -573,6 +580,7 @@ function sampleProcess(processId) {
 
 async function observeControl(options) {
   const storeDir = options.store ?? DEFAULT_STORE;
+  if (sensitiveEnvironmentNames(process.env).length > 0) return 3;
   const executablePath = options.executable ?? "/Applications/Zed.app/Contents/MacOS/zed";
   const plistPath = options.plist ?? "/Applications/Zed.app/Contents/Info.plist";
   const intervalSeconds = Math.max(2, Number(options["sample-seconds"] ?? 10));
