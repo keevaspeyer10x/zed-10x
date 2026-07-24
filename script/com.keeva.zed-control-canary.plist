@@ -6,6 +6,11 @@
     <string>com.keeva.zed-control-canary</string>
     <key>ProgramArguments</key>
     <array>
+        <string>/usr/bin/env</string>
+        <string>-i</string>
+        <string>HOME=/Users/keevaspeyer</string>
+        <string>PATH=/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <string>ZED_10X_CANARY_STORE=/Users/keevaspeyer/Library/Application Support/Zed 10x/dogfood-canary</string>
         <string>/opt/homebrew/bin/node</string>
         <string>/Applications/Zed 10x.app/Contents/Resources/zed-10x-canary.mjs</string>
         <string>observe-control</string>

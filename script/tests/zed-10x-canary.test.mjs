@@ -188,6 +188,20 @@ test("control observation matches only the exact official executable path", () =
   assert.deepEqual(discoverProcessIds(table, "/Applications/Zed.app/Contents/MacOS/zed"), [101]);
 });
 
+test("control LaunchAgent clears inherited GUI credentials before Node starts", () => {
+  const plist = fs.readFileSync(
+    path.resolve("script/com.keeva.zed-control-canary.plist"),
+    "utf8",
+  );
+  const envIndex = plist.indexOf("<string>/usr/bin/env</string>");
+  const clearIndex = plist.indexOf("<string>-i</string>");
+  const nodeIndex = plist.indexOf("<string>/opt/homebrew/bin/node</string>");
+  assert.ok(envIndex >= 0 && clearIndex > envIndex && nodeIndex > clearIndex);
+  assert.equal(plist.includes("API_KEY"), false);
+  assert.equal(plist.includes("TOKEN="), false);
+  assert.equal(plist.includes("SECRET="), false);
+});
+
 test("launcher preserves app arguments while exposing only a project hash to telemetry", async () => {
   const root = temporaryStore();
   const appContents = path.join(root, "Zed 10x.app", "Contents");

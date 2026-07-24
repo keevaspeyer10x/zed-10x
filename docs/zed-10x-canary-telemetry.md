@@ -79,6 +79,13 @@ Daily event files are retained for 14 days and bounded to 8 MiB each. Pruning,
 incident evaluation, and comparison generation are best-effort. Any failure
 returns without affecting Zed.
 
+The normal-Zed LaunchAgent executes the observer through `env -i` with only
+`HOME`, a fixed executable `PATH`, and the canary store path. This prevents
+provider credentials or unrelated GUI-session environment values from being
+inherited by the observer. Never inspect a LaunchAgent with an unfiltered
+`launchctl print` on a workstation where the GUI namespace may contain
+credentials; use a bounded status projection instead.
+
 Repeated ACP disconnects, app instability, remote-bootstrap failures,
 continuity failures, and sustained resource pressure create deduplicated
 `incidents.jsonl` records linked to issue #15. This is the durable local
