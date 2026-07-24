@@ -1791,13 +1791,23 @@ mod tests {
         }
     }
 
-    static COUNTING_SETTINGS_DERIVATIONS: AtomicUsize = AtomicUsize::new(0);
+    static BATCH_CLEAR_SETTINGS_DERIVATIONS: AtomicUsize = AtomicUsize::new(0);
+    static GLOBAL_CLEAR_SETTINGS_DERIVATIONS: AtomicUsize = AtomicUsize::new(0);
 
-    struct CountingSettings;
+    struct BatchClearCountingSettings;
 
-    impl Settings for CountingSettings {
+    impl Settings for BatchClearCountingSettings {
         fn from_settings(_: &SettingsContent) -> Self {
-            COUNTING_SETTINGS_DERIVATIONS.fetch_add(1, Ordering::SeqCst);
+            BATCH_CLEAR_SETTINGS_DERIVATIONS.fetch_add(1, Ordering::SeqCst);
+            Self
+        }
+    }
+
+    struct GlobalClearCountingSettings;
+
+    impl Settings for GlobalClearCountingSettings {
+        fn from_settings(_: &SettingsContent) -> Self {
+            GLOBAL_CLEAR_SETTINGS_DERIVATIONS.fetch_add(1, Ordering::SeqCst);
             Self
         }
     }
@@ -2036,7 +2046,7 @@ mod tests {
     #[gpui::test]
     fn test_clear_local_settings_for_worktrees_recomputes_once(cx: &mut App) {
         let mut store = SettingsStore::new(cx, &test_settings());
-        store.register_setting::<CountingSettings>();
+        store.register_setting::<BatchClearCountingSettings>();
 
         for root_id in [WorktreeId::from_usize(1), WorktreeId::from_usize(2)] {
             store
@@ -2050,7 +2060,7 @@ mod tests {
                 .unwrap();
         }
 
-        COUNTING_SETTINGS_DERIVATIONS.store(0, Ordering::SeqCst);
+        BATCH_CLEAR_SETTINGS_DERIVATIONS.store(0, Ordering::SeqCst);
         store
             .clear_local_settings_for_worktrees(
                 [WorktreeId::from_usize(1), WorktreeId::from_usize(2)],
@@ -2058,12 +2068,12 @@ mod tests {
             )
             .unwrap();
 
-        assert_eq!(COUNTING_SETTINGS_DERIVATIONS.load(Ordering::SeqCst), 1);
+        assert_eq!(BATCH_CLEAR_SETTINGS_DERIVATIONS.load(Ordering::SeqCst), 1);
         assert!(store.local_settings.is_empty());
 
-        COUNTING_SETTINGS_DERIVATIONS.store(0, Ordering::SeqCst);
+        BATCH_CLEAR_SETTINGS_DERIVATIONS.store(0, Ordering::SeqCst);
         store.clear_local_settings_for_worktrees([], cx).unwrap();
-        assert_eq!(COUNTING_SETTINGS_DERIVATIONS.load(Ordering::SeqCst), 0);
+        assert_eq!(BATCH_CLEAR_SETTINGS_DERIVATIONS.load(Ordering::SeqCst), 0);
     }
 
     #[gpui::test]
@@ -2154,7 +2164,7 @@ mod tests {
     #[gpui::test]
     fn test_clear_local_settings_for_worktrees_if_present(cx: &mut App) {
         let mut store = SettingsStore::new(cx, &test_settings());
-        store.register_setting::<CountingSettings>();
+        store.register_setting::<GlobalClearCountingSettings>();
 
         let settings_root = WorktreeId::from_usize(1);
         let empty_root = WorktreeId::from_usize(2);
@@ -2169,19 +2179,19 @@ mod tests {
             .unwrap();
         cx.set_global(store);
 
-        COUNTING_SETTINGS_DERIVATIONS.store(0, Ordering::SeqCst);
+        GLOBAL_CLEAR_SETTINGS_DERIVATIONS.store(0, Ordering::SeqCst);
         assert!(
             SettingsStore::clear_local_settings_for_worktrees_if_present([settings_root], cx)
                 .unwrap()
         );
-        assert_eq!(COUNTING_SETTINGS_DERIVATIONS.load(Ordering::SeqCst), 1);
+        assert_eq!(GLOBAL_CLEAR_SETTINGS_DERIVATIONS.load(Ordering::SeqCst), 1);
 
-        COUNTING_SETTINGS_DERIVATIONS.store(0, Ordering::SeqCst);
+        GLOBAL_CLEAR_SETTINGS_DERIVATIONS.store(0, Ordering::SeqCst);
         assert!(
             !SettingsStore::clear_local_settings_for_worktrees_if_present([empty_root], cx)
                 .unwrap()
         );
-        assert_eq!(COUNTING_SETTINGS_DERIVATIONS.load(Ordering::SeqCst), 0);
+        assert_eq!(GLOBAL_CLEAR_SETTINGS_DERIVATIONS.load(Ordering::SeqCst), 0);
     }
 
     #[gpui::test]
