@@ -241,7 +241,7 @@ test("launcher preserves app arguments while exposing only a project hash to tel
   fs.chmodSync(path.join(macos, "zed-10x-launcher"), 0o755);
   fs.writeFileSync(
     path.join(resources, "zed-10x"),
-    "#!/bin/bash\nnode -e 'require(\"node:fs\").writeFileSync(process.env.ZED_FAKE_RESULT, JSON.stringify({traceparent: process.env.TRACEPARENT, correlation: process.env.ZED_10X_CORRELATION_ID, args: process.argv.slice(1)}))' -- \"$@\"\nsleep 3\n",
+    "#!/bin/bash\nnode -e 'require(\"node:fs\").writeFileSync(process.env.ZED_FAKE_RESULT, JSON.stringify({traceparent: process.env.TRACEPARENT, correlation: process.env.ZED_10X_CORRELATION_ID, cargoHome: process.env.CARGO_HOME, rustupHome: process.env.RUSTUP_HOME, path: process.env.PATH, args: process.argv.slice(1)}))' -- \"$@\"\nsleep 3\n",
     { mode: 0o755 },
   );
   fs.writeFileSync(
@@ -262,6 +262,8 @@ test("launcher preserves app arguments while exposing only a project hash to tel
       ZED_10X_CANARY_STORE: store,
       ZED_10X_CANARY_DEBUG_LOG: collectorLog,
       ZED_FAKE_RESULT: resultPath,
+      CARGO_HOME: "/Users/example/Documents/build/cargo",
+      RUSTUP_HOME: "/Users/example/Documents/build/rustup",
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -278,6 +280,9 @@ test("launcher preserves app arguments while exposing only a project hash to tel
   assert.deepEqual(fakeResult.args, [projectPath, "--wait"]);
   assert.match(fakeResult.traceparent, /^00-[0-9a-f]{32}-[0-9a-f]{16}-01$/);
   assert.equal(fakeResult.correlation, fakeResult.traceparent.split("-")[1]);
+  assert.equal(fakeResult.cargoHome, undefined);
+  assert.equal(fakeResult.rustupHome, undefined);
+  assert.equal(fakeResult.path.includes("/Documents/"), false);
 
   assert.equal(fs.existsSync(store), true, fs.existsSync(collectorLog) ? fs.readFileSync(collectorLog, "utf8") : "collector did not start");
   const telemetry = fs
