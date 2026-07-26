@@ -1,5 +1,5 @@
 use anyhow::{Context as _, Result};
-use collections::{BTreeMap, HashMap, TypeIdHashMap, btree_map, hash_map};
+use collections::{BTreeMap, HashMap, HashSet, TypeIdHashMap, btree_map, hash_map};
 use fs::Fs;
 use futures::{
     FutureExt, StreamExt,
@@ -1165,6 +1165,84 @@ impl SettingsStore {
         Ok(())
     }
 
+    /// Remove local settings for a batch of worktrees and recompute derived values once.
+    ///
+    /// Use this for full worktree snapshots. Calling [`Self::clear_local_settings`]
+    /// in a loop would recompute every registered setting after each worktree.
+    pub fn clear_local_settings_for_worktrees(
+        &mut self,
+        root_ids: impl IntoIterator<Item = WorktreeId>,
+        cx: &mut App,
+    ) -> Result<()> {
+        let root_ids = root_ids.into_iter().collect::<HashSet<_>>();
+        if root_ids.is_empty() {
+            return Ok(());
+        }
+
+        self.local_settings
+            .retain(|(worktree_id, _), _| !root_ids.contains(worktree_id));
+
+        self.editorconfig_store.update(cx, |store, _cx| {
+            for root_id in &root_ids {
+                store.remove_for_worktree(*root_id);
+            }
+        });
+
+        for setting_value in self.setting_values.values_mut() {
+            for root_id in &root_ids {
+                setting_value.clear_local_values(*root_id);
+            }
+        }
+        self.recompute_values(None, cx);
+        Ok(())
+    }
+
+    /// Returns whether clearing any of the given worktrees would change cached settings state.
+    ///
+    /// Callers that update this global store should check this first. GPUI notifies all global
+    /// observers after every mutable global lease, even when the mutation itself is a no-op.
+    pub fn has_local_settings_for_worktrees(
+        &self,
+        root_ids: impl IntoIterator<Item = WorktreeId>,
+        cx: &App,
+    ) -> bool {
+        let root_ids = root_ids.into_iter().collect::<HashSet<_>>();
+        if root_ids.is_empty() {
+            return false;
+        }
+
+        self.local_settings
+            .keys()
+            .any(|(worktree_id, _)| root_ids.contains(worktree_id))
+            || root_ids.iter().any(|root_id| {
+                self.editorconfig_store
+                    .read(cx)
+                    .has_worktree_state(*root_id)
+            })
+    }
+
+    /// Clear cached local settings only when doing so would change the global store.
+    ///
+    /// This owns the check-and-update boundary because every GPUI mutable global lease notifies
+    /// all observers, even if the mutation performed inside the lease turns out to be a no-op.
+    pub fn clear_local_settings_for_worktrees_if_present(
+        root_ids: impl IntoIterator<Item = WorktreeId>,
+        cx: &mut App,
+    ) -> Result<bool> {
+        let root_ids = root_ids.into_iter().collect::<Vec<_>>();
+        if !cx
+            .global::<Self>()
+            .has_local_settings_for_worktrees(root_ids.iter().copied(), cx)
+        {
+            return Ok(false);
+        }
+
+        cx.update_global::<Self, _>(|store, cx| {
+            store.clear_local_settings_for_worktrees(root_ids, cx)
+        })?;
+        Ok(true)
+    }
+
     pub fn local_settings(
         &self,
         root_id: WorktreeId,
@@ -1652,7 +1730,12 @@ impl<T: Settings> AnySettingValue for SettingValue<T> {
 
 #[cfg(test)]
 mod tests {
-    use std::{cell::RefCell, num::NonZeroU32};
+    use std::{
+        cell::RefCell,
+        num::NonZeroU32,
+        path::Path,
+        sync::atomic::{AtomicUsize, Ordering},
+    };
 
     use crate::{
         ClosePosition, ItemSettingsContent, VsCodeSettingsSource, default_settings,
@@ -1706,6 +1789,27 @@ mod tests {
                 tab_size: content.tab_size.unwrap(),
                 preferred_line_length: content.preferred_line_length.unwrap(),
             }
+        }
+    }
+
+    static BATCH_CLEAR_SETTINGS_DERIVATIONS: AtomicUsize = AtomicUsize::new(0);
+    static GLOBAL_CLEAR_SETTINGS_DERIVATIONS: AtomicUsize = AtomicUsize::new(0);
+
+    struct BatchClearCountingSettings;
+
+    impl Settings for BatchClearCountingSettings {
+        fn from_settings(_: &SettingsContent) -> Self {
+            BATCH_CLEAR_SETTINGS_DERIVATIONS.fetch_add(1, Ordering::SeqCst);
+            Self
+        }
+    }
+
+    struct GlobalClearCountingSettings;
+
+    impl Settings for GlobalClearCountingSettings {
+        fn from_settings(_: &SettingsContent) -> Self {
+            GLOBAL_CLEAR_SETTINGS_DERIVATIONS.fetch_add(1, Ordering::SeqCst);
+            Self
         }
     }
 
@@ -1807,6 +1911,34 @@ mod tests {
                 }
             ]
         );
+    }
+
+    #[gpui::test]
+    async fn test_completed_editorconfig_discovery_is_not_worktree_state(
+        cx: &mut gpui::TestAppContext,
+    ) {
+        let fs = FakeFs::new(cx.background_executor.clone());
+        let root_id = WorktreeId::from_usize(1);
+        let editorconfig_store =
+            cx.update(|cx| cx.new(|_| crate::editorconfig_store::EditorconfigStore::default()));
+
+        cx.update(|cx| {
+            editorconfig_store.update(cx, |store, cx| {
+                store.discover_local_external_configs_chain(
+                    root_id,
+                    Arc::from(Path::new("/repo/project")),
+                    fs,
+                    cx,
+                );
+            });
+            assert!(editorconfig_store.read(cx).has_worktree_state(root_id));
+        });
+
+        cx.run_until_parked();
+
+        cx.update(|cx| {
+            assert!(!editorconfig_store.read(cx).has_worktree_state(root_id));
+        });
     }
 
     #[gpui::test]
@@ -1938,6 +2070,176 @@ mod tests {
             })),
             &AutoUpdateSetting { auto_update: false }
         );
+    }
+
+    #[gpui::test]
+    fn test_clear_local_settings_for_worktrees_recomputes_once(cx: &mut App) {
+        let mut store = SettingsStore::new(cx, &test_settings());
+        store.register_setting::<BatchClearCountingSettings>();
+
+        for root_id in [WorktreeId::from_usize(1), WorktreeId::from_usize(2)] {
+            store
+                .set_local_settings(
+                    root_id,
+                    LocalSettingsPath::InWorktree(RelPath::empty_arc()),
+                    LocalSettingsKind::Settings,
+                    Some(r#"{ "tab_size": 8 }"#),
+                    cx,
+                )
+                .unwrap();
+        }
+
+        BATCH_CLEAR_SETTINGS_DERIVATIONS.store(0, Ordering::SeqCst);
+        store
+            .clear_local_settings_for_worktrees(
+                [WorktreeId::from_usize(1), WorktreeId::from_usize(2)],
+                cx,
+            )
+            .unwrap();
+
+        assert_eq!(BATCH_CLEAR_SETTINGS_DERIVATIONS.load(Ordering::SeqCst), 1);
+        assert!(store.local_settings.is_empty());
+
+        BATCH_CLEAR_SETTINGS_DERIVATIONS.store(0, Ordering::SeqCst);
+        store.clear_local_settings_for_worktrees([], cx).unwrap();
+        assert_eq!(BATCH_CLEAR_SETTINGS_DERIVATIONS.load(Ordering::SeqCst), 0);
+    }
+
+    #[gpui::test]
+    fn test_clear_local_settings_for_worktrees_preserves_unaffected_roots(cx: &mut App) {
+        let mut store = SettingsStore::new(cx, &test_settings());
+        store.register_setting::<DefaultLanguageSettings>();
+
+        for (root_id, tab_size) in [(1, 5), (2, 7), (3, 9)] {
+            store
+                .set_local_settings(
+                    WorktreeId::from_usize(root_id),
+                    LocalSettingsPath::InWorktree(RelPath::empty_arc()),
+                    LocalSettingsKind::Settings,
+                    Some(&format!(r#"{{ "tab_size": {tab_size} }}"#)),
+                    cx,
+                )
+                .unwrap();
+        }
+
+        store
+            .clear_local_settings_for_worktrees(
+                [
+                    WorktreeId::from_usize(1),
+                    WorktreeId::from_usize(2),
+                    WorktreeId::from_usize(2),
+                ],
+                cx,
+            )
+            .unwrap();
+
+        assert_eq!(
+            store
+                .local_settings
+                .keys()
+                .map(|(root_id, _)| *root_id)
+                .collect::<Vec<_>>(),
+            vec![WorktreeId::from_usize(3)]
+        );
+        assert_eq!(
+            store.get::<DefaultLanguageSettings>(Some(SettingsLocation {
+                worktree_id: WorktreeId::from_usize(3),
+                path: RelPath::empty(),
+            })),
+            &DefaultLanguageSettings {
+                tab_size: 9.try_into().unwrap(),
+                preferred_line_length: 80,
+            }
+        );
+    }
+
+    #[gpui::test]
+    fn test_has_local_settings_for_worktrees(cx: &mut App) {
+        let mut store = SettingsStore::new(cx, &test_settings());
+        store.register_setting::<DefaultLanguageSettings>();
+
+        let settings_root = WorktreeId::from_usize(1);
+        let editorconfig_root = WorktreeId::from_usize(2);
+        let empty_root = WorktreeId::from_usize(3);
+
+        assert!(!store.has_local_settings_for_worktrees([empty_root], cx));
+
+        store
+            .set_local_settings(
+                settings_root,
+                LocalSettingsPath::InWorktree(RelPath::empty_arc()),
+                LocalSettingsKind::Settings,
+                Some(r#"{ "tab_size": 8 }"#),
+                cx,
+            )
+            .unwrap();
+        store
+            .set_local_settings(
+                editorconfig_root,
+                LocalSettingsPath::InWorktree(RelPath::empty_arc()),
+                LocalSettingsKind::Editorconfig,
+                Some("root = true\n[*]\nindent_size = 2\n"),
+                cx,
+            )
+            .unwrap();
+
+        assert!(store.has_local_settings_for_worktrees([settings_root], cx));
+        assert!(store.has_local_settings_for_worktrees([editorconfig_root], cx));
+        assert!(store.has_local_settings_for_worktrees([empty_root, settings_root], cx));
+        assert!(!store.has_local_settings_for_worktrees([empty_root], cx));
+        assert!(!store.has_local_settings_for_worktrees([], cx));
+
+        store
+            .set_local_settings(
+                editorconfig_root,
+                LocalSettingsPath::InWorktree(RelPath::empty_arc()),
+                LocalSettingsKind::Editorconfig,
+                None,
+                cx,
+            )
+            .unwrap();
+        assert!(!store.has_local_settings_for_worktrees([editorconfig_root], cx));
+        assert!(
+            !store
+                .editorconfig_store
+                .read(cx)
+                .test_state()
+                .0
+                .contains(&editorconfig_root)
+        );
+    }
+
+    #[gpui::test]
+    fn test_clear_local_settings_for_worktrees_if_present(cx: &mut App) {
+        let mut store = SettingsStore::new(cx, &test_settings());
+        store.register_setting::<GlobalClearCountingSettings>();
+
+        let settings_root = WorktreeId::from_usize(1);
+        let empty_root = WorktreeId::from_usize(2);
+        store
+            .set_local_settings(
+                settings_root,
+                LocalSettingsPath::InWorktree(RelPath::empty_arc()),
+                LocalSettingsKind::Settings,
+                Some(r#"{ "tab_size": 8 }"#),
+                cx,
+            )
+            .unwrap();
+        cx.set_global(store);
+
+        GLOBAL_CLEAR_SETTINGS_DERIVATIONS.store(0, Ordering::SeqCst);
+        assert!(
+            SettingsStore::clear_local_settings_for_worktrees_if_present([settings_root], cx)
+                .unwrap()
+        );
+        assert_eq!(GLOBAL_CLEAR_SETTINGS_DERIVATIONS.load(Ordering::SeqCst), 1);
+
+        GLOBAL_CLEAR_SETTINGS_DERIVATIONS.store(0, Ordering::SeqCst);
+        assert!(
+            !SettingsStore::clear_local_settings_for_worktrees_if_present([empty_root], cx)
+                .unwrap()
+        );
+        assert_eq!(GLOBAL_CLEAR_SETTINGS_DERIVATIONS.load(Ordering::SeqCst), 0);
     }
 
     #[gpui::test]

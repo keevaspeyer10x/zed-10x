@@ -59,6 +59,14 @@ struct EditorconfigWorktreeState {
 }
 
 impl EditorconfigStore {
+    pub(crate) fn has_worktree_state(&self, root_id: WorktreeId) -> bool {
+        self.worktree_state.get(&root_id).is_some_and(|state| {
+            !state.internal_configs.is_empty() || !state.external_config_paths.is_empty()
+        }) || self
+            .local_external_config_discovery_tasks
+            .contains_key(&root_id)
+    }
+
     pub(crate) fn set_configs(
         &mut self,
         worktree_id: WorktreeId,
@@ -137,6 +145,12 @@ impl EditorconfigStore {
                         .insert(abs_path.clone(), (content.to_owned(), parsed));
                 }
             }
+        }
+        let state_is_empty = self.worktree_state.get(&worktree_id).is_some_and(|state| {
+            state.internal_configs.is_empty() && state.external_config_paths.is_empty()
+        });
+        if state_is_empty {
+            self.worktree_state.remove(&worktree_id);
         }
         Ok(())
     }
@@ -272,6 +286,8 @@ impl EditorconfigStore {
                             }
                         }
                     }
+                    this.local_external_config_discovery_tasks
+                        .remove(&worktree_id);
                 })
                 .ok();
             }
