@@ -200,7 +200,30 @@ function download_git() {
     rm -rf "$tmp_dir"
 }
 
+function assemble_zed_10x_canary() {
+    if [[ "$channel" == "dev" ]]; then
+        local launcher_path="${app_path}/Contents/MacOS/zed-10x-launcher"
+        local runtime_path="${app_path}/Contents/Resources/zed-10x"
+        local collector_path="${app_path}/Contents/Resources/zed-10x-canary.mjs"
+        local revision_path="${app_path}/Contents/Resources/zed-10x-git-commit"
+
+        mv "${app_path}/Contents/MacOS/zed-10x" "${runtime_path}"
+        install -m 0755 script/zed-10x-canary-launcher "${launcher_path}"
+        install -m 0755 script/zed-10x-canary.mjs "${collector_path}"
+        git rev-parse HEAD > "${revision_path}"
+        chmod 0644 "${revision_path}"
+        /usr/libexec/PlistBuddy \
+            -c "Set :CFBundleExecutable zed-10x-launcher" \
+            "${app_path}/Contents/Info.plist"
+    fi
+}
+
 function sign_app_binaries() {
+    local zed_executable_path="${app_path}/Contents/MacOS/zed-10x"
+    if [[ "$channel" == "dev" ]]; then
+        zed_executable_path="${app_path}/Contents/Resources/zed-10x"
+    fi
+
     rm -rf "${app_path}/Contents/Frameworks"
     mkdir -p "${app_path}/Contents/Frameworks"
 
@@ -215,7 +238,7 @@ function sign_app_binaries() {
         # sequence of codesign commands modeled after this example: https://developer.apple.com/forums/thread/701514
         /usr/bin/codesign --deep --force --timestamp --options runtime --sign "$IDENTITY" "${app_path}/Contents/MacOS/cli" -v
         /usr/bin/codesign --deep --force --timestamp --options runtime --sign "$IDENTITY" "${app_path}/Contents/MacOS/git" -v
-        /usr/bin/codesign --deep --force --timestamp --options runtime --entitlements crates/zed/resources/zed.entitlements --sign "$IDENTITY" "${app_path}/Contents/MacOS/zed-10x" -v
+        /usr/bin/codesign --deep --force --timestamp --options runtime --entitlements crates/zed/resources/zed.entitlements --sign "$IDENTITY" "${zed_executable_path}" -v
         /usr/bin/codesign --force --timestamp --options runtime --entitlements crates/zed/resources/zed.entitlements --sign "$IDENTITY" "${app_path}" -v
     else
         echo "One or more of the following variables are missing: MACOS_CERTIFICATE, MACOS_CERTIFICATE_PASSWORD, APPLE_NOTARIZATION_KEY, APPLE_NOTARIZATION_KEY_ID, APPLE_NOTARIZATION_ISSUER_ID"
@@ -346,6 +369,7 @@ upload_debug_symbols
 
 cp target/${target_triple}/${target_dir}/zed-10x "${app_path}/Contents/MacOS/zed-10x"
 cp target/${target_triple}/${target_dir}/cli "${app_path}/Contents/MacOS/cli"
+assemble_zed_10x_canary
 sign_app_binaries
 
 sign_binary "target/${target_triple}/${target_dir}/remote_server"

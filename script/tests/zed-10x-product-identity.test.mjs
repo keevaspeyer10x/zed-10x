@@ -147,3 +147,37 @@ test("macOS bundling is transaction-safe in headless shells", () => {
     "remote-server compression must use the selected build directory",
   );
 });
+
+test("the development app bundle owns the canary launcher assembly", () => {
+  const bundleScript = read("script/bundle-mac");
+  const assembly = bundleScript.match(
+    /function assemble_zed_10x_canary\(\) \{([\s\S]*?)\n\}/,
+  )?.[1];
+  assert.ok(assembly, "the bundle script must define canary assembly");
+
+  assert.match(
+    assembly,
+    /if \[\[ "\$channel" == "dev" \]\]; then[\s\S]*?Contents\/Resources\/zed-10x/,
+    "development bundling must move the real executable behind the canary launcher",
+  );
+  assert.match(
+    assembly,
+    /Contents\/MacOS\/zed-10x-launcher[\s\S]*?install -m 0755 script\/zed-10x-canary-launcher/,
+    "the launcher must be copied into the app bundle",
+  );
+  assert.match(
+    assembly,
+    /Contents\/Resources\/zed-10x-canary\.mjs[\s\S]*?install -m 0755 script\/zed-10x-canary\.mjs/,
+    "the fail-open collector must be copied into the app bundle",
+  );
+  assert.match(
+    assembly,
+    /Contents\/Resources\/zed-10x-git-commit[\s\S]*?git rev-parse HEAD/,
+    "the exact source revision must be recorded for telemetry provenance",
+  );
+  assert.match(
+    assembly,
+    /CFBundleExecutable[\s\S]*?zed-10x-launcher/,
+    "LaunchServices must enter through the telemetry launcher",
+  );
+});
