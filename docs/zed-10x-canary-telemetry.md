@@ -94,15 +94,25 @@ Daily event files and the incident queue are retained for 14 days and bounded
 to 8 MiB each. Size pruning keeps only complete JSONL records. Incident pruning
 also removes malformed or expired records. Pruning, incident evaluation, and
 comparison generation are best-effort. Any failure returns without affecting
-Zed.
+Zed. Long-lived collectors throttle full-store pruning to once every five
+minutes. Incident thresholds read only the current and previous UTC day, which
+covers their 30-minute window across midnight without repeatedly parsing the
+entire retention period.
 
 Both the Zed 10x launcher and the normal-Zed LaunchAgent execute their
 long-lived collectors through `env -i` with only `HOME`, a fixed executable
-`PATH`, the canary store path, and the telemetry disable/debug controls when
-needed. This prevents provider credentials or unrelated GUI-session
-environment values from being inherited by a collector. Never inspect a
-LaunchAgent with an unfiltered `launchctl print` on a workstation where the GUI
-namespace may contain credentials; use a bounded status projection instead.
+`PATH`, and the telemetry disable/debug controls when needed. The canary store
+is an explicit `--store` argument rather than an ambient environment value.
+This prevents provider credentials or unrelated GUI-session environment values
+from being inherited by a collector. Never inspect a LaunchAgent with an
+unfiltered `launchctl print` on a workstation where the GUI namespace may
+contain credentials; use a bounded status projection instead.
+
+`script/com.keeva.zed-control-canary.plist` is the checked-in instance for
+Keeva's current Apple Silicon canary. Before loading it on another account or
+Mac, replace the absolute `HOME`, Node executable, collector, and store paths
+with paths resolved on that host. Intel Homebrew commonly installs Node under
+`/usr/local/bin`; Apple Silicon Homebrew commonly uses `/opt/homebrew/bin`.
 
 Repeated ACP disconnects, app instability, remote-bootstrap failures,
 continuity failures, and sustained resource pressure create deduplicated

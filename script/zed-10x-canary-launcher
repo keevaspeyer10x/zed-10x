@@ -45,7 +45,10 @@ app_version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$c
 build_version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$contents_dir/Info.plist" 2>/dev/null || printf 'unknown')
 git_commit=""
 if [ -f "$resources_dir/zed-10x-git-commit" ]; then
-    git_commit=$(sed -n '1p' "$resources_dir/zed-10x-git-commit" | tr -cd '0-9a-f' | cut -c1-64)
+    git_commit=$(sed -n '1p' "$resources_dir/zed-10x-git-commit")
+    if [[ ! "$git_commit" =~ ^[0-9a-f]{7,64}$ ]]; then
+        git_commit=""
+    fi
 fi
 
 node_path=${ZED_10X_CANARY_NODE:-$(command -v node 2>/dev/null || true)}

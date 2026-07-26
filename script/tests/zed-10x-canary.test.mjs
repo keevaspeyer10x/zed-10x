@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { spawn, spawnSync } from "node:child_process";
+import { execFileSync, spawn, spawnSync } from "node:child_process";
 import test from "node:test";
 
 import {
@@ -18,6 +18,15 @@ import {
 
 function temporaryStore() {
   return fs.mkdtempSync(path.join(os.tmpdir(), "zed-10x-canary-"));
+}
+
+async function waitFor(predicate, timeoutMs = 10_000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (predicate()) return true;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  return predicate();
 }
 
 function event(overrides = {}) {
@@ -166,6 +175,28 @@ test("retention removes expired incidents and keeps bounded complete records", (
   assert.equal(fs.statSync(incidentsPath).mode & 0o777, 0o600);
 });
 
+test("recurring event appends throttle full-store retention sweeps", () => {
+  const store = temporaryStore();
+  const expired = path.join(store, "events-2026-06-01.jsonl");
+  const oldTime = new Date("2026-06-01T00:00:00Z");
+  const options = {
+    storeDir: store,
+    now: new Date("2026-07-24T13:00:00Z"),
+    retentionDays: 14,
+    pruneIntervalMs: 60_000,
+  };
+  fs.writeFileSync(expired, "old\n", { mode: 0o600 });
+  fs.utimesSync(expired, oldTime, oldTime);
+
+  assert.equal(appendEvent(event(), options), true);
+  assert.equal(fs.existsSync(expired), false);
+
+  fs.writeFileSync(expired, "old again\n", { mode: 0o600 });
+  fs.utimesSync(expired, oldTime, oldTime);
+  assert.equal(appendEvent(event({ name: "resource.sample" }), options), true);
+  assert.equal(fs.existsSync(expired), true);
+});
+
 test("repeated disconnects create one durable linked incident candidate", () => {
   const store = temporaryStore();
   for (let index = 0; index < 3; index += 1) {
@@ -193,6 +224,80 @@ test("repeated disconnects create one durable linked incident candidate", () => 
   assert.equal("prompt" in incidents[0], false);
 });
 
+test("incident thresholds read only the current and previous UTC day", () => {
+  const store = temporaryStore();
+  const unrelated = path.join(store, "events-2026-07-01.jsonl");
+  fs.writeFileSync(unrelated, "{}\n", { mode: 0o600 });
+  fs.chmodSync(unrelated, 0o000);
+
+  try {
+    for (let index = 0; index < 3; index += 1) {
+      assert.equal(
+        appendEvent(
+          event({
+            name: "acp.disconnect",
+            timestamp: `2026-07-24T12:0${index}:00.000Z`,
+            attributes: { "acp.provider": "apex", "failure.class": "transport" },
+          }),
+          { storeDir: store, now: new Date("2026-07-24T12:05:00.000Z") },
+        ),
+        true,
+      );
+    }
+    assert.equal(fs.existsSync(path.join(store, "incidents.jsonl")), true);
+  } finally {
+    fs.chmodSync(unrelated, 0o600);
+  }
+});
+
+test("incident thresholds retain the previous day across midnight", () => {
+  const store = temporaryStore();
+  for (const timestamp of [
+    "2026-07-23T23:50:00.000Z",
+    "2026-07-23T23:55:00.000Z",
+    "2026-07-24T00:05:00.000Z",
+  ]) {
+    assert.equal(
+      appendEvent(
+        event({
+          name: "acp.disconnect",
+          timestamp,
+          attributes: { "acp.provider": "apex", "failure.class": "transport" },
+        }),
+        { storeDir: store, now: new Date("2026-07-24T00:05:00.000Z") },
+      ),
+      true,
+    );
+  }
+  assert.equal(fs.existsSync(path.join(store, "incidents.jsonl")), true);
+});
+
+test("control incidents use the control cohort prefix", () => {
+  const store = temporaryStore();
+  for (let index = 0; index < 3; index += 1) {
+    assert.equal(
+      appendEvent(
+        event({
+          name: "acp.disconnect",
+          cohort: "zed",
+          buildVersion: "1.11.3",
+          timestamp: `2026-07-24T12:0${index}:00.000Z`,
+          attributes: { "acp.provider": "apex", "failure.class": "transport" },
+        }),
+        { storeDir: store },
+      ),
+      true,
+    );
+  }
+  const [incident] = fs
+    .readFileSync(path.join(store, "incidents.jsonl"), "utf8")
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line));
+  assert.match(incident.incident_id, /^zed-/);
+  assert.equal(incident.incident_id.startsWith("zed10x-"), false);
+});
+
 test("comparison is explicit about low confidence and separates cohort, lane, and build", () => {
   const records = [
     event({ name: "app.launch" }),
@@ -213,6 +318,48 @@ test("comparison is explicit about low confidence and separates cohort, lane, an
   );
 });
 
+test("credible comparisons handle equal and zero failure rates honestly", () => {
+  const comparisonRecords = (controlFailures, canaryFailures) => {
+    const records = [];
+    for (const [cohort, buildVersion, failures] of [
+      ["zed", "1.11.3", controlFailures],
+      ["zed10x", "20260724.1", canaryFailures],
+    ]) {
+      for (let index = 0; index < 5; index += 1) {
+        records.push(
+          event({
+            cohort,
+            buildVersion,
+            timestamp: new Date(Date.UTC(2026, 6, 24, 12, index * 8)).toISOString(),
+          }),
+        );
+      }
+      for (let index = 0; index < failures; index += 1) {
+        records.push(
+          event({
+            name: "acp.disconnect",
+            cohort,
+            buildVersion,
+            timestamp: new Date(Date.UTC(2026, 6, 24, 12, 10 + index)).toISOString(),
+          }),
+        );
+      }
+    }
+    return records;
+  };
+
+  assert.equal(buildComparison(comparisonRecords(0, 0)).verdict, "no_material_difference");
+  assert.equal(
+    buildComparison(comparisonRecords(2, 0)).verdict,
+    "zed10x_materially_more_reliable",
+  );
+  assert.equal(
+    buildComparison(comparisonRecords(0, 2)).verdict,
+    "zed10x_materially_less_reliable",
+  );
+  assert.equal(buildComparison(comparisonRecords(1, 1)).verdict, "no_material_difference");
+});
+
 test("trace context uses valid W3C traceparent widths", () => {
   const trace = createTraceContext();
   assert.match(trace.traceparent, /^00-[0-9a-f]{32}-[0-9a-f]{16}-01$/);
@@ -230,6 +377,20 @@ test("control observation matches only the exact official executable path", () =
   assert.deepEqual(discoverProcessIds(table, "/Applications/Zed.app/Contents/MacOS/zed"), [101]);
 });
 
+test(
+  "macOS ps comm exposes the exact executable path without command arguments",
+  { skip: process.platform !== "darwin" },
+  () => {
+    const processTable = execFileSync(
+      "/bin/ps",
+      ["-p", String(process.pid), "-o", "pid=,comm="],
+      { encoding: "utf8" },
+    );
+    assert.deepEqual(discoverProcessIds(processTable, process.execPath), [process.pid]);
+    assert.equal(processTable.includes(import.meta.filename), false);
+  },
+);
+
 test("control LaunchAgent clears inherited GUI credentials before Node starts", () => {
   const plist = fs.readFileSync(
     path.resolve("script/com.keeva.zed-control-canary.plist"),
@@ -238,7 +399,11 @@ test("control LaunchAgent clears inherited GUI credentials before Node starts", 
   const envIndex = plist.indexOf("<string>/usr/bin/env</string>");
   const clearIndex = plist.indexOf("<string>-i</string>");
   const nodeIndex = plist.indexOf("<string>/opt/homebrew/bin/node</string>");
+  const observerIndex = plist.indexOf("<string>observe-control</string>");
+  const storeArgumentIndex = plist.indexOf("<string>--store</string>");
   assert.ok(envIndex >= 0 && clearIndex > envIndex && nodeIndex > clearIndex);
+  assert.ok(observerIndex > nodeIndex && storeArgumentIndex > observerIndex);
+  assert.equal(plist.includes("ZED_10X_CANARY_STORE="), false);
   assert.equal(plist.includes("API_KEY"), false);
   assert.equal(plist.includes("TOKEN="), false);
   assert.equal(plist.includes("SECRET="), false);
@@ -301,7 +466,7 @@ test("launcher preserves app arguments while exposing only a project hash to tel
   );
   fs.writeFileSync(
     path.join(resources, "zed-10x-git-commit"),
-    "4516ad1f760ab41a1f8d3c00a1d5cc005c0c3a5b\n",
+    "abcdef\n",
   );
   fs.writeFileSync(
     fakeNodePath,
@@ -338,7 +503,11 @@ test("launcher preserves app arguments while exposing only a project hash to tel
   });
   const exitCode = await new Promise((resolve) => launcher.on("close", resolve));
   assert.equal(exitCode, 0, standardError);
-  await new Promise((resolve) => setTimeout(resolve, 750));
+  const collectorStarted = await waitFor(
+    () =>
+      fs.existsSync(store) &&
+      fs.readdirSync(store).some((file) => file.startsWith("events-")),
+  );
 
   const fakeResult = JSON.parse(fs.readFileSync(resultPath, "utf8"));
   assert.deepEqual(fakeResult.args, [
@@ -357,7 +526,11 @@ test("launcher preserves app arguments while exposing only a project hash to tel
     "anthropic=unset",
   ]);
 
-  assert.equal(fs.existsSync(store), true, fs.existsSync(collectorLog) ? fs.readFileSync(collectorLog, "utf8") : "collector did not start");
+  assert.equal(
+    collectorStarted,
+    true,
+    fs.existsSync(collectorLog) ? fs.readFileSync(collectorLog, "utf8") : "collector did not start",
+  );
   const telemetry = fs
     .readdirSync(store)
     .filter((file) => file.startsWith("events-"))
@@ -370,6 +543,10 @@ test("launcher preserves app arguments while exposing only a project hash to tel
     telemetry.some(
       (record) => record.attributes["project.id"] === hashProjectIdentifier(projectPath),
     ),
+  );
+  assert.equal(
+    telemetry.some((record) => "vcs.ref.head.revision" in record.attributes),
+    false,
   );
 });
 

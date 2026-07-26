@@ -2159,6 +2159,25 @@ mod tests {
         assert!(store.has_local_settings_for_worktrees([empty_root, settings_root], cx));
         assert!(!store.has_local_settings_for_worktrees([empty_root], cx));
         assert!(!store.has_local_settings_for_worktrees([], cx));
+
+        store
+            .set_local_settings(
+                editorconfig_root,
+                LocalSettingsPath::InWorktree(RelPath::empty_arc()),
+                LocalSettingsKind::Editorconfig,
+                None,
+                cx,
+            )
+            .unwrap();
+        assert!(!store.has_local_settings_for_worktrees([editorconfig_root], cx));
+        assert!(
+            !store
+                .editorconfig_store
+                .read(cx)
+                .test_state()
+                .0
+                .contains(&editorconfig_root)
+        );
     }
 
     #[gpui::test]

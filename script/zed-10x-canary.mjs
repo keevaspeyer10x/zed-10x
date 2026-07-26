@@ -17,6 +17,8 @@ const DEFAULT_STORE = path.join(
 );
 const DEFAULT_RETENTION_DAYS = 14;
 const DEFAULT_MAX_BYTES = 8 * 1024 * 1024;
+const DEFAULT_PRUNE_INTERVAL_MS = 5 * 60 * 1000;
+const HIGH_RSS_PRESSURE_BYTES = 8 * 1024 * 1024 * 1024;
 const TRACEPARENT_PATTERN = /^00-([0-9a-f]{32})-([0-9a-f]{16})-01$/;
 const HASH_PATTERN = /^[0-9a-f]{64}$/;
 const COMMIT_PATTERN = /^[0-9a-f]{7,64}$/;
@@ -67,6 +69,7 @@ const TOKEN_ATTRIBUTES = new Set([
 
 const HASH_ATTRIBUTES = new Set(["project.id", "session.id_hash"]);
 const SENSITIVE_ENVIRONMENT_NAME = /(api[_-]?key|token|secret|password|credential)/i;
+const lastPruneTimeByStore = new Map();
 
 export function createTraceContext() {
   const traceId = nonZeroHex(16);
@@ -263,7 +266,7 @@ export function appendEvent(input, options = {}) {
   try {
     const record = normalizeEvent(input);
     ensurePrivateDirectory(storeDir);
-    pruneStore(storeDir, options);
+    pruneStoreIfDue(storeDir, options);
     const day = new Date(Number(BigInt(record.time_unix_nano) / 1_000_000n))
       .toISOString()
       .slice(0, 10);
@@ -275,6 +278,28 @@ export function appendEvent(input, options = {}) {
   } catch {
     return false;
   }
+}
+
+function pruneStoreIfDue(storeDir, options) {
+  const now = options.now ?? new Date();
+  const nowMs = now.getTime();
+  const configuredInterval = Number(
+    options.pruneIntervalMs ?? DEFAULT_PRUNE_INTERVAL_MS,
+  );
+  const intervalMs =
+    Number.isFinite(configuredInterval) && configuredInterval >= 0
+      ? configuredInterval
+      : DEFAULT_PRUNE_INTERVAL_MS;
+  const lastPruneTime = lastPruneTimeByStore.get(storeDir);
+  if (
+    lastPruneTime !== undefined &&
+    nowMs >= lastPruneTime &&
+    nowMs - lastPruneTime < intervalMs
+  ) {
+    return;
+  }
+  pruneStore(storeDir, { ...options, now });
+  lastPruneTimeByStore.set(storeDir, nowMs);
 }
 
 export function pruneStore(storeDir, options = {}) {
@@ -302,14 +327,19 @@ export function pruneStore(storeDir, options = {}) {
   }
 }
 
-function loadEventRecords(storeDir) {
+function loadEventRecords(storeDir, selectedFiles) {
   try {
-    return fs
-      .readdirSync(storeDir)
-      .filter((file) => /^events-\d{4}-\d{2}-\d{2}\.jsonl$/.test(file))
+    const eventFiles = (
+      selectedFiles ??
+      fs
+        .readdirSync(storeDir)
+        .filter((file) => /^events-\d{4}-\d{2}-\d{2}\.jsonl$/.test(file))
+    )
       .sort()
-      .flatMap((file) =>
-        fs
+      .filter((file) => fs.existsSync(path.join(storeDir, file)));
+    return eventFiles.flatMap((file) => {
+      try {
+        return fs
           .readFileSync(path.join(storeDir, file), "utf8")
           .split("\n")
           .filter(Boolean)
@@ -319,11 +349,20 @@ function loadEventRecords(storeDir) {
             } catch {
               return [];
             }
-          }),
-      );
+          });
+      } catch {
+        return [];
+      }
+    });
   } catch {
     return [];
   }
+}
+
+function eventFilesForThresholdWindow(timestampMs) {
+  return [timestampMs - 24 * 60 * 60 * 1000, timestampMs].map(
+    (timestamp) => `events-${new Date(timestamp).toISOString().slice(0, 10)}.jsonl`,
+  );
 }
 
 function recordTimestamp(record) {
@@ -353,7 +392,10 @@ function evaluateIncidentThresholds(storeDir, latestRecord, options) {
       recordAttribute(latestRecord, "zed.lane"),
       recordAttribute(latestRecord, "zed.build_version"),
     ].join(":");
-    const recent = loadEventRecords(storeDir).filter((record) => {
+    const recent = loadEventRecords(
+      storeDir,
+      eventFilesForThresholdWindow(latestTime),
+    ).filter((record) => {
       const recordGroup = [
         recordAttribute(record, "zed.cohort"),
         recordAttribute(record, "zed.lane"),
@@ -444,9 +486,10 @@ function appendIncidentCandidate(storeDir, input, options = {}) {
     .update(`${dedupeKey}:${Math.floor(input.timestampMs / (24 * 60 * 60 * 1000))}`)
     .digest("hex")
     .slice(0, 16);
+  const incidentPrefix = input.group.startsWith("zed:") ? "zed" : "zed10x";
   appendPrivateLine(filePath, {
     schema_version: 1,
-    incident_id: `zed10x-${incidentId}`,
+    incident_id: `${incidentPrefix}-${incidentId}`,
     status: "open",
     opened_at: new Date(input.timestampMs).toISOString(),
     failure_class: input.failureClass,
@@ -525,7 +568,15 @@ export function buildComparison(records) {
     if (control && canary) {
       const controlRate = control.failure_events / Math.max(1, control.sessions);
       const canaryRate = canary.failure_events / Math.max(1, canary.sessions);
-      verdict = canaryRate <= controlRate * 0.75 ? "zed10x_materially_more_reliable" : canaryRate >= controlRate * 1.25 ? "zed10x_materially_less_reliable" : "no_material_difference";
+      if (canaryRate === controlRate) {
+        verdict = "no_material_difference";
+      } else if (canaryRate <= controlRate * 0.75) {
+        verdict = "zed10x_materially_more_reliable";
+      } else if (canaryRate >= controlRate * 1.25) {
+        verdict = "zed10x_materially_less_reliable";
+      } else {
+        verdict = "no_material_difference";
+      }
     }
   }
 
@@ -633,6 +684,18 @@ function sampleProcess(processId) {
   }
 }
 
+function resourceAttributes(processId, sample) {
+  return {
+    "app.pid": processId,
+    "process.cpu_percent": sample.cpuPercent,
+    "process.rss_bytes": sample.rssBytes,
+    "process.state": sample.state,
+    "process.elapsed_seconds": sample.elapsedSeconds,
+    "resource.pressure":
+      sample.rssBytes >= HIGH_RSS_PRESSURE_BYTES ? "high" : "normal",
+  };
+}
+
 async function observeControl(options) {
   const storeDir = options.store ?? DEFAULT_STORE;
   if (sensitiveEnvironmentNames(process.env).length > 0) return 3;
@@ -695,14 +758,7 @@ async function observeControl(options) {
             appVersion: readPlistValue(plistPath, "CFBundleShortVersionString"),
             buildVersion: readPlistValue(plistPath, "CFBundleVersion"),
             traceparent,
-            attributes: {
-              "app.pid": processId,
-              "process.cpu_percent": sample.cpuPercent,
-              "process.rss_bytes": sample.rssBytes,
-              "process.state": sample.state,
-              "process.elapsed_seconds": sample.elapsedSeconds,
-              "resource.pressure": sample.rssBytes >= 8 * 1024 * 1024 * 1024 ? "high" : "normal",
-            },
+            attributes: resourceAttributes(processId, sample),
           },
           { storeDir },
         );
@@ -746,14 +802,8 @@ async function watchProcess(options) {
 
   while (true) {
     if (isDisabled(process.env, storeDir)) return 0;
-    let sample;
-    try {
-      sample = execFileSync(
-        "/bin/ps",
-        ["-p", String(processId), "-o", "%cpu=,rss=,state=,etime="],
-        { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
-      ).trim();
-    } catch {
+    const sample = sampleProcess(processId);
+    if (!sample) {
       const exitEvent = baseEvent(tracedOptions, "app.process_exit");
       exitEvent.attributes["app.pid"] = processId;
       exitEvent.attributes["exit.class"] = "observed_vanish";
@@ -761,20 +811,9 @@ async function watchProcess(options) {
       return 0;
     }
 
-    if (!sample) return 0;
-    const match = sample.match(/^([0-9.]+)\s+(\d+)\s+(\S+)\s+(\S+)$/);
-    if (match) {
-      const resourceEvent = baseEvent(tracedOptions, "resource.sample");
-      resourceEvent.attributes = {
-        "app.pid": processId,
-        "process.cpu_percent": Number(match[1]),
-        "process.rss_bytes": Number(match[2]) * 1024,
-        "process.state": match[3].slice(0, 1).toLowerCase(),
-        "process.elapsed_seconds": parseElapsedSeconds(match[4]),
-        "resource.pressure": Number(match[2]) >= 8 * 1024 * 1024 ? "high" : "normal",
-      };
-      appendEvent(resourceEvent, { storeDir });
-    }
+    const resourceEvent = baseEvent(tracedOptions, "resource.sample");
+    resourceEvent.attributes = resourceAttributes(processId, sample);
+    appendEvent(resourceEvent, { storeDir });
     await new Promise((resolve) => setTimeout(resolve, intervalSeconds * 1000));
   }
 }
