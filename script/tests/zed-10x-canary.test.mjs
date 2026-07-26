@@ -456,7 +456,7 @@ test("launcher preserves app arguments while exposing only a project hash to tel
   );
   fs.chmodSync(path.join(macos, "zed-10x-launcher"), 0o755);
   fs.writeFileSync(
-    path.join(resources, "zed-10x"),
+    path.join(macos, "zed-10x-runtime"),
     "#!/bin/bash\nnode -e 'require(\"node:fs\").writeFileSync(process.env.ZED_FAKE_RESULT, JSON.stringify({traceparent: process.env.TRACEPARENT, correlation: process.env.ZED_10X_CORRELATION_ID, cargoHome: process.env.CARGO_HOME, rustupHome: process.env.RUSTUP_HOME, path: process.env.PATH, args: process.argv.slice(1)}))' -- \"$@\"\nsleep 3\n",
     { mode: 0o755 },
   );

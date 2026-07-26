@@ -5,6 +5,7 @@ set -eu
 original_arguments=("$@")
 
 contents_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+macos_dir="$contents_dir/MacOS"
 resources_dir="$contents_dir/Resources"
 collector="$resources_dir/zed-10x-canary.mjs"
 store_dir=${ZED_10X_CANARY_STORE:-"$HOME/Library/Application Support/Zed 10x/dogfood-canary"}
@@ -87,6 +88,6 @@ if [ -n "$node_path" ] && [ -f "$collector" ]; then
     fi
 fi
 
-exec "$resources_dir/zed-10x" \
+exec "$macos_dir/zed-10x-runtime" \
     --user-data-dir "$user_data_dir" \
     "${original_arguments[@]}"

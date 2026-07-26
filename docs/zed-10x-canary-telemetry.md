@@ -82,11 +82,12 @@ preserves the existing canary profile while the compiled identity covers
 paths that `--user-data-dir` does not override.
 
 The development bundle owns the complete canary assembly. Its
-`CFBundleExecutable` is the fail-open launcher, while the real `zed-10x`
-runtime, collector, and exact source-revision marker live in
-`Contents/Resources`. A built `.app` therefore carries the same telemetry and
-provenance contract that it will have after installation; no manual
-post-bundle surgery is required.
+`CFBundleExecutable` is the fail-open launcher, while the real runtime remains
+in `Contents/MacOS` as `zed-10x-runtime` beside Zed's bundled CLI and Git
+helpers. The collector and exact source-revision marker live in
+`Contents/Resources`. This preserves Zed's helper lookup contract while a
+built `.app` carries the same telemetry and provenance contract it will have
+after installation; no manual post-bundle surgery is required.
 
 ## Storage, retention, and redaction
 

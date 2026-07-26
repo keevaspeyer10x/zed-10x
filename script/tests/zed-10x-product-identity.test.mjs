@@ -165,8 +165,8 @@ test("the development app bundle owns the canary launcher assembly", () => {
 
   assert.match(
     assembly,
-    /if \[\[ "\$channel" == "dev" \]\]; then[\s\S]*?Contents\/Resources\/zed-10x/,
-    "development bundling must move the real executable behind the canary launcher",
+    /if \[\[ "\$channel" == "dev" \]\]; then[\s\S]*?Contents\/MacOS\/zed-10x-runtime/,
+    "development bundling must keep the real executable beside its macOS helpers",
   );
   assert.match(
     assembly,

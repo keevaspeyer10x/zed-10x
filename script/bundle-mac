@@ -203,7 +203,7 @@ function download_git() {
 function assemble_zed_10x_canary() {
     if [[ "$channel" == "dev" ]]; then
         local launcher_path="${app_path}/Contents/MacOS/zed-10x-launcher"
-        local runtime_path="${app_path}/Contents/Resources/zed-10x"
+        local runtime_path="${app_path}/Contents/MacOS/zed-10x-runtime"
         local collector_path="${app_path}/Contents/Resources/zed-10x-canary.mjs"
         local revision_path="${app_path}/Contents/Resources/zed-10x-git-commit"
 
@@ -221,7 +221,7 @@ function assemble_zed_10x_canary() {
 function sign_app_binaries() {
     local zed_executable_path="${app_path}/Contents/MacOS/zed-10x"
     if [[ "$channel" == "dev" ]]; then
-        zed_executable_path="${app_path}/Contents/Resources/zed-10x"
+        zed_executable_path="${app_path}/Contents/MacOS/zed-10x-runtime"
     fi
 
     rm -rf "${app_path}/Contents/Frameworks"
