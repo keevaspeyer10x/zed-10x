@@ -108,3 +108,42 @@ test("the macOS bundle and executable are independently addressable", () => {
     /target\/\$\{target_triple\}\/\$\{target_dir\}\/zed(?:["'\s]|$)/,
   );
 });
+
+test("macOS bundling is transaction-safe in headless shells", () => {
+  const bundleScript = read("script/bundle-mac");
+
+  assert.ok(
+    /restore_bundle_manifest\(\)[\s\S]*?mv Cargo\.toml\.backup Cargo\.toml/.test(
+      bundleScript,
+    ),
+    "the temporary bundle manifest must have an exit-safe restore function",
+  );
+  assert.ok(
+    /trap restore_bundle_manifest EXIT/.test(bundleScript),
+    "the manifest restore function must be registered before bundling",
+  );
+  assert.ok(
+    /TERM=xterm-256color cargo bundle \$\{build_flag\}/.test(bundleScript),
+    "cargo-bundle must receive a colour-capable terminal in headless shells",
+  );
+  assert.ok(
+    /restore_bundle_manifest\s+trap - EXIT/.test(bundleScript),
+    "successful bundling must restore the manifest and clear the temporary trap",
+  );
+  assert.ok(
+    !/target\/\$\{?target_triple\}?\/release\/remote_server/.test(bundleScript),
+    "remote-server packaging must not hard-code the release build directory",
+  );
+  assert.ok(
+    /sign_binary "target\/\$\{target_triple\}\/\$\{target_dir\}\/remote_server"/.test(
+      bundleScript,
+    ),
+    "remote-server signing must use the selected build directory",
+  );
+  assert.ok(
+    /gzip[\s\S]*?target\/\$\{target_triple\}\/\$\{target_dir\}\/remote_server/.test(
+      bundleScript,
+    ),
+    "remote-server compression must use the selected build directory",
+  );
+});
