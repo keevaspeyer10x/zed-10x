@@ -73,6 +73,14 @@ downloaded tooling, and remote-server state out of normal Zed's mutable
 profile. Operator arguments follow the owned profile option and are preserved
 byte-for-byte.
 
+The compiled development channel is independently addressable as `Zed-10x`.
+Its macOS bundle identifier is `ai.10xlabs.Zed10x`, its URL scheme is
+`zed-10x`, and uploaded development servers live under `.zed-10x-server`.
+These identities keep logs, cache/state, LaunchServices routing, and remote
+development binaries distinct from official Zed. The fixed user-data root
+preserves the existing canary profile while the compiled identity covers
+paths that `--user-data-dir` does not override.
+
 ## Storage, retention, and redaction
 
 Default store:
@@ -124,10 +132,11 @@ unloaded independently with:
 launchctl bootout "gui/$(id -u)" "$HOME/Library/LaunchAgents/com.keeva.zed-control-canary.plist"
 ```
 
-The native user-data root is the immediate mutable-profile boundary, not the
-complete distribution identity. macOS log, cache/state, crash attribution,
-LaunchServices, signing, and update-channel isolation still require a compiled
-`APP_NAME`/product identity and are tracked in Zed 10x issues #1 and #17.
+The native user-data root and compiled product identity together isolate the
+mutable profile, logs, cache/state, LaunchServices routing, and remote-server
+storage. Developer-ID signing, notarization/stapling, a private authenticated
+update feed, and rollback verification remain release effects tracked in Zed
+10x issues #1 and #17.
 
 ## Operator evidence
 
