@@ -66,6 +66,13 @@ directly. `TRACEPARENT`, `ZED_10X_TRACEPARENT`, and
 `ZED_10X_CORRELATION_ID` are exported by the Zed 10x launcher so child
 processes can carry the correlation boundary where their contracts permit it.
 
+The launcher also passes Zed's native `--user-data-dir` option with the fixed
+root `~/Library/Application Support/Zed 10x`. Zed resolves its configuration
+under that root's `config` directory and keeps databases, threads, extensions,
+downloaded tooling, and remote-server state out of normal Zed's mutable
+profile. Operator arguments follow the owned profile option and are preserved
+byte-for-byte.
+
 ## Storage, retention, and redaction
 
 Default store:
@@ -116,6 +123,11 @@ unloaded independently with:
 ```sh
 launchctl bootout "gui/$(id -u)" "$HOME/Library/LaunchAgents/com.keeva.zed-control-canary.plist"
 ```
+
+The native user-data root is the immediate mutable-profile boundary, not the
+complete distribution identity. macOS log, cache/state, crash attribution,
+LaunchServices, signing, and update-channel isolation still require a compiled
+`APP_NAME`/product identity and are tracked in Zed 10x issues #1 and #17.
 
 ## Operator evidence
 

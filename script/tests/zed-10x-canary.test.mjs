@@ -226,8 +226,16 @@ test("launcher preserves app arguments while exposing only a project hash to tel
   const macos = path.join(appContents, "MacOS");
   const resources = path.join(appContents, "Resources");
   const store = path.join(root, "canary-store");
+  const fakeHome = path.join(root, "home");
+  const userDataDir = path.join(
+    fakeHome,
+    "Library",
+    "Application Support",
+    "Zed 10x",
+  );
   const resultPath = path.join(root, "fake-result.json");
   const collectorLog = path.join(root, "collector.log");
+  fs.mkdirSync(fakeHome);
   fs.mkdirSync(macos, { recursive: true });
   fs.mkdirSync(resources, { recursive: true });
   fs.copyFileSync(
@@ -262,6 +270,7 @@ test("launcher preserves app arguments while exposing only a project hash to tel
       ZED_10X_CANARY_STORE: store,
       ZED_10X_CANARY_DEBUG_LOG: collectorLog,
       ZED_FAKE_RESULT: resultPath,
+      HOME: fakeHome,
       CARGO_HOME: "/Users/example/Documents/build/cargo",
       RUSTUP_HOME: "/Users/example/Documents/build/rustup",
     },
@@ -277,7 +286,12 @@ test("launcher preserves app arguments while exposing only a project hash to tel
   await new Promise((resolve) => setTimeout(resolve, 750));
 
   const fakeResult = JSON.parse(fs.readFileSync(resultPath, "utf8"));
-  assert.deepEqual(fakeResult.args, [projectPath, "--wait"]);
+  assert.deepEqual(fakeResult.args, [
+    "--user-data-dir",
+    userDataDir,
+    projectPath,
+    "--wait",
+  ]);
   assert.match(fakeResult.traceparent, /^00-[0-9a-f]{32}-[0-9a-f]{16}-01$/);
   assert.equal(fakeResult.correlation, fakeResult.traceparent.split("-")[1]);
   assert.equal(fakeResult.cargoHome, undefined);

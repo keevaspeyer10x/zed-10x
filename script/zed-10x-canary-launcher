@@ -8,6 +8,7 @@ contents_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 resources_dir="$contents_dir/Resources"
 collector="$resources_dir/zed-10x-canary.mjs"
 store_dir=${ZED_10X_CANARY_STORE:-"$HOME/Library/Application Support/Zed 10x/dogfood-canary"}
+user_data_dir="$HOME/Library/Application Support/Zed 10x"
 
 unset CARGO_HOME RUSTUP_HOME ZED_COPY_REMOTE_SERVER
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
@@ -74,4 +75,6 @@ if [ -n "$node_path" ] && [ -f "$collector" ]; then
     fi
 fi
 
-exec "$resources_dir/zed-10x" "${original_arguments[@]}"
+exec "$resources_dir/zed-10x" \
+    --user-data-dir "$user_data_dir" \
+    "${original_arguments[@]}"
