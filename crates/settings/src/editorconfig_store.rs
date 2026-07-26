@@ -286,6 +286,8 @@ impl EditorconfigStore {
                             }
                         }
                     }
+                    this.local_external_config_discovery_tasks
+                        .remove(&worktree_id);
                 })
                 .ok();
             }

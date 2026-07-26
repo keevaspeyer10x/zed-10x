@@ -154,6 +154,14 @@ test("the development app bundle owns the canary launcher assembly", () => {
     /function assemble_zed_10x_canary\(\) \{([\s\S]*?)\n\}/,
   )?.[1];
   assert.ok(assembly, "the bundle script must define canary assembly");
+  const callSites = [
+    ...bundleScript.matchAll(/^\s*assemble_zed_10x_canary\s*$/gm),
+  ];
+  assert.equal(
+    callSites.length,
+    1,
+    "the bundle script must invoke canary assembly exactly once",
+  );
 
   assert.match(
     assembly,

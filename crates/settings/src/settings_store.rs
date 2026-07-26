@@ -1733,6 +1733,7 @@ mod tests {
     use std::{
         cell::RefCell,
         num::NonZeroU32,
+        path::Path,
         sync::atomic::{AtomicUsize, Ordering},
     };
 
@@ -1910,6 +1911,34 @@ mod tests {
                 }
             ]
         );
+    }
+
+    #[gpui::test]
+    async fn test_completed_editorconfig_discovery_is_not_worktree_state(
+        cx: &mut gpui::TestAppContext,
+    ) {
+        let fs = FakeFs::new(cx.background_executor.clone());
+        let root_id = WorktreeId::from_usize(1);
+        let editorconfig_store =
+            cx.update(|cx| cx.new(|_| crate::editorconfig_store::EditorconfigStore::default()));
+
+        cx.update(|cx| {
+            editorconfig_store.update(cx, |store, cx| {
+                store.discover_local_external_configs_chain(
+                    root_id,
+                    Arc::from(Path::new("/repo/project")),
+                    fs,
+                    cx,
+                );
+            });
+            assert!(editorconfig_store.read(cx).has_worktree_state(root_id));
+        });
+
+        cx.run_until_parked();
+
+        cx.update(|cx| {
+            assert!(!editorconfig_store.read(cx).has_worktree_state(root_id));
+        });
     }
 
     #[gpui::test]
