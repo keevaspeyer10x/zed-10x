@@ -43,9 +43,9 @@ Each JSONL record contains only:
 The collector rejects unknown fields. It does not read or store prompts,
 responses, tool payloads, file contents, raw log lines, process arguments,
 environment dumps, access tokens, provider credentials, repository names, or
-raw project/session paths. The normal-Zed observer reads `ps` using only PID
-and executable path, compares the executable to one exact allow-listed path,
-and never persists the process table.
+raw project/session paths or remote hostnames. The normal-Zed observer reads
+`ps` using only PID and executable path, compares the executable to one exact
+allow-listed path, and never persists the process table.
 
 ## Events
 
@@ -90,16 +90,19 @@ Default store:
 ```
 
 The directory is mode `0700`; event and incident files are mode `0600`.
-Daily event files are retained for 14 days and bounded to 8 MiB each. Pruning,
-incident evaluation, and comparison generation are best-effort. Any failure
-returns without affecting Zed.
+Daily event files and the incident queue are retained for 14 days and bounded
+to 8 MiB each. Size pruning keeps only complete JSONL records. Incident pruning
+also removes malformed or expired records. Pruning, incident evaluation, and
+comparison generation are best-effort. Any failure returns without affecting
+Zed.
 
-The normal-Zed LaunchAgent executes the observer through `env -i` with only
-`HOME`, a fixed executable `PATH`, and the canary store path. This prevents
-provider credentials or unrelated GUI-session environment values from being
-inherited by the observer. Never inspect a LaunchAgent with an unfiltered
-`launchctl print` on a workstation where the GUI namespace may contain
-credentials; use a bounded status projection instead.
+Both the Zed 10x launcher and the normal-Zed LaunchAgent execute their
+long-lived collectors through `env -i` with only `HOME`, a fixed executable
+`PATH`, the canary store path, and the telemetry disable/debug controls when
+needed. This prevents provider credentials or unrelated GUI-session
+environment values from being inherited by a collector. Never inspect a
+LaunchAgent with an unfiltered `launchctl print` on a workstation where the GUI
+namespace may contain credentials; use a bounded status projection instead.
 
 Repeated ACP disconnects, app instability, remote-bootstrap failures,
 continuity failures, and sustained resource pressure create deduplicated

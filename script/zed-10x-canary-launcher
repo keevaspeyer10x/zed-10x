@@ -68,10 +68,19 @@ if [ -n "$node_path" ] && [ -f "$collector" ]; then
     if [ -n "$project_id" ]; then
         collector_arguments+=(--project-id "$project_id")
     fi
+    collector_environment=(
+        /usr/bin/env -i
+        "HOME=$HOME"
+        "PATH=$PATH"
+        "ZED_10X_CANARY_STORE=$store_dir"
+    )
+    if [ -n "${ZED_10X_TELEMETRY_DISABLED:-}" ]; then
+        collector_environment+=("ZED_10X_TELEMETRY_DISABLED=$ZED_10X_TELEMETRY_DISABLED")
+    fi
     if [ -n "${ZED_10X_CANARY_DEBUG_LOG:-}" ]; then
-        ZED_10X_CANARY_DEBUG=1 nohup "${collector_arguments[@]}" </dev/null >>"$ZED_10X_CANARY_DEBUG_LOG" 2>&1 &
+        nohup "${collector_environment[@]}" ZED_10X_CANARY_DEBUG=1 "${collector_arguments[@]}" </dev/null >>"$ZED_10X_CANARY_DEBUG_LOG" 2>&1 &
     else
-        nohup "${collector_arguments[@]}" </dev/null >/dev/null 2>&1 &
+        nohup "${collector_environment[@]}" "${collector_arguments[@]}" </dev/null >/dev/null 2>&1 &
     fi
 fi
 

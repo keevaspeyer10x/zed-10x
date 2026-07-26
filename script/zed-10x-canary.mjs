@@ -61,7 +61,6 @@ const TOKEN_ATTRIBUTES = new Set([
   "exit.class",
   "failure.class",
   "process.state",
-  "remote.host",
   "resource.pressure",
   "session.kind",
 ]);
@@ -197,6 +196,66 @@ function appendPrivateLine(filePath, value) {
   }
 }
 
+function retentionConfiguration(options = {}) {
+  const retentionDays = Number(options.retentionDays ?? DEFAULT_RETENTION_DAYS);
+  const maxBytes = Number(options.maxBytes ?? DEFAULT_MAX_BYTES);
+  return {
+    retentionDays:
+      Number.isFinite(retentionDays) && retentionDays >= 0
+        ? retentionDays
+        : DEFAULT_RETENTION_DAYS,
+    maxBytes:
+      Number.isSafeInteger(maxBytes) && maxBytes > 0 ? maxBytes : DEFAULT_MAX_BYTES,
+  };
+}
+
+function readBoundedCompleteLines(filePath, maxBytes) {
+  const statistics = fs.statSync(filePath);
+  if (statistics.size === 0) return [];
+  const bytesToRead = Math.min(statistics.size, maxBytes + 1);
+  const start = statistics.size - bytesToRead;
+  const descriptor = fs.openSync(filePath, "r");
+  try {
+    const buffer = Buffer.alloc(bytesToRead);
+    fs.readSync(descriptor, buffer, 0, bytesToRead, start);
+    let body = buffer.toString("utf8");
+    if (start > 0) {
+      const firstNewline = body.indexOf("\n");
+      body = firstNewline >= 0 ? body.slice(firstNewline + 1) : "";
+    }
+    return body.split("\n").filter(Boolean);
+  } finally {
+    fs.closeSync(descriptor);
+  }
+}
+
+function writePrivateLines(filePath, lines) {
+  const body = lines.length > 0 ? `${lines.join("\n")}\n` : "";
+  fs.writeFileSync(filePath, body, { mode: 0o600 });
+  fs.chmodSync(filePath, 0o600);
+}
+
+function boundJsonlFile(filePath, maxBytes) {
+  if (!fs.existsSync(filePath) || fs.statSync(filePath).size <= maxBytes) return;
+  writePrivateLines(filePath, readBoundedCompleteLines(filePath, maxBytes));
+}
+
+function pruneIncidentFile(filePath, expiry, maxBytes) {
+  if (!fs.existsSync(filePath)) return;
+  const retained = readBoundedCompleteLines(filePath, maxBytes).flatMap((line) => {
+    try {
+      const incident = JSON.parse(line);
+      const openedAt = Date.parse(incident.opened_at);
+      return Number.isFinite(openedAt) && openedAt >= expiry
+        ? [JSON.stringify(incident)]
+        : [];
+    } catch {
+      return [];
+    }
+  });
+  writePrivateLines(filePath, retained);
+}
+
 export function appendEvent(input, options = {}) {
   const storeDir = options.storeDir ?? DEFAULT_STORE;
   if (options.disabled || isDisabled(options.environment, storeDir)) return false;
@@ -208,8 +267,10 @@ export function appendEvent(input, options = {}) {
     const day = new Date(Number(BigInt(record.time_unix_nano) / 1_000_000n))
       .toISOString()
       .slice(0, 10);
-    appendPrivateLine(path.join(storeDir, `events-${day}.jsonl`), record);
-    evaluateIncidentThresholds(storeDir, record);
+    const eventPath = path.join(storeDir, `events-${day}.jsonl`);
+    appendPrivateLine(eventPath, record);
+    boundJsonlFile(eventPath, retentionConfiguration(options).maxBytes);
+    evaluateIncidentThresholds(storeDir, record, options);
     return true;
   } catch {
     return false;
@@ -220,8 +281,7 @@ export function pruneStore(storeDir, options = {}) {
   try {
     if (!fs.existsSync(storeDir) || !fs.statSync(storeDir).isDirectory()) return;
     const now = options.now ?? new Date();
-    const retentionDays = options.retentionDays ?? DEFAULT_RETENTION_DAYS;
-    const maxBytes = options.maxBytes ?? DEFAULT_MAX_BYTES;
+    const { retentionDays, maxBytes } = retentionConfiguration(options);
     const expiry = now.getTime() - retentionDays * 24 * 60 * 60 * 1000;
     const eventFiles = fs
       .readdirSync(storeDir)
@@ -234,21 +294,9 @@ export function pruneStore(storeDir, options = {}) {
         fs.unlinkSync(filePath);
         continue;
       }
-      if (statistics.size > maxBytes) {
-        const descriptor = fs.openSync(filePath, "r");
-        try {
-          const start = statistics.size - maxBytes;
-          const buffer = Buffer.alloc(maxBytes);
-          fs.readSync(descriptor, buffer, 0, maxBytes, start);
-          const firstNewline = buffer.indexOf(0x0a);
-          const retained = firstNewline >= 0 ? buffer.subarray(firstNewline + 1) : buffer;
-          fs.writeFileSync(filePath, retained, { mode: 0o600 });
-          fs.chmodSync(filePath, 0o600);
-        } finally {
-          fs.closeSync(descriptor);
-        }
-      }
+      boundJsonlFile(filePath, maxBytes);
     }
+    pruneIncidentFile(path.join(storeDir, "incidents.jsonl"), expiry, maxBytes);
   } catch {
     // Retention is deliberately best-effort and may not affect editor startup.
   }
@@ -297,7 +345,7 @@ function recordAttribute(record, key) {
   return mapping[key] ? record[mapping[key]] : undefined;
 }
 
-function evaluateIncidentThresholds(storeDir, latestRecord) {
+function evaluateIncidentThresholds(storeDir, latestRecord, options) {
   try {
     const latestTime = recordTimestamp(latestRecord);
     const group = [
@@ -351,14 +399,18 @@ function evaluateIncidentThresholds(storeDir, latestRecord) {
 
     for (const threshold of thresholds) {
       if (threshold.count >= threshold.threshold) {
-        appendIncidentCandidate(storeDir, {
-          failureClass: threshold.failureClass,
-          group,
-          count: threshold.count,
-          threshold: threshold.threshold,
-          timestampMs: latestTime,
-          traceId: latestRecord.trace_id,
-        });
+        appendIncidentCandidate(
+          storeDir,
+          {
+            failureClass: threshold.failureClass,
+            group,
+            count: threshold.count,
+            threshold: threshold.threshold,
+            timestampMs: latestTime,
+            traceId: latestRecord.trace_id,
+          },
+          options,
+        );
       }
     }
   } catch {
@@ -366,7 +418,7 @@ function evaluateIncidentThresholds(storeDir, latestRecord) {
   }
 }
 
-function appendIncidentCandidate(storeDir, input) {
+function appendIncidentCandidate(storeDir, input, options = {}) {
   const filePath = path.join(storeDir, "incidents.jsonl");
   const dedupeKey = `${input.failureClass}:${input.group}`;
   const existing = fs.existsSync(filePath)
@@ -405,6 +457,10 @@ function appendIncidentCandidate(storeDir, input) {
     tracking_issue: TRACKING_ISSUE,
     dedupe_key: dedupeKey,
   });
+  const { retentionDays, maxBytes } = retentionConfiguration(options);
+  const now = options.now ?? new Date();
+  const expiry = now.getTime() - retentionDays * 24 * 60 * 60 * 1000;
+  pruneIncidentFile(filePath, expiry, maxBytes);
 }
 
 export function buildComparison(records) {
@@ -513,7 +569,6 @@ function baseEvent(options, name) {
   if (options["failure-class"]) attributes["failure.class"] = options["failure-class"];
   if (options["continuity-trigger"]) attributes["continuity.trigger"] = options["continuity-trigger"];
   if (options["continuity-result"]) attributes["continuity.result"] = options["continuity-result"];
-  if (options["remote-host"]) attributes["remote.host"] = options["remote-host"];
   if (options["session-kind"]) attributes["session.kind"] = options["session-kind"];
   if (options.resumed !== undefined) attributes["session.resumed"] = ["1", "true", "yes"].includes(String(options.resumed).toLowerCase());
   return {

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import test from "node:test";
 
 import {
@@ -125,6 +125,47 @@ test("retention removes expired and excess event files", () => {
   assert.equal(fs.statSync(current).size <= 1024, true);
 });
 
+test("retention removes expired incidents and keeps bounded complete records", () => {
+  const store = temporaryStore();
+  const incidentsPath = path.join(store, "incidents.jsonl");
+  const incident = (incidentId, openedAt) =>
+    JSON.stringify({
+      schema_version: 1,
+      incident_id: incidentId,
+      opened_at: openedAt,
+      failure_class: "repeated_acp_disconnect",
+      cohort_lane_build: "zed10x:local:20260724.1",
+    });
+  fs.writeFileSync(
+    incidentsPath,
+    [
+      incident("expired", "2026-06-01T00:00:00.000Z"),
+      ...Array.from({ length: 8 }, (_, index) =>
+        incident(`current-${index}`, `2026-07-24T12:0${index}:00.000Z`),
+      ),
+      "",
+    ].join("\n"),
+    { mode: 0o600 },
+  );
+
+  pruneStore(store, {
+    now: new Date("2026-07-24T13:00:00Z"),
+    retentionDays: 14,
+    maxBytes: 512,
+  });
+
+  const retained = fs
+    .readFileSync(incidentsPath, "utf8")
+    .trim()
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => JSON.parse(line));
+  assert.equal(fs.statSync(incidentsPath).size <= 512, true);
+  assert.equal(retained.some((record) => record.incident_id === "expired"), false);
+  assert.equal(retained.at(-1).incident_id, "current-7");
+  assert.equal(fs.statSync(incidentsPath).mode & 0o777, 0o600);
+});
+
 test("repeated disconnects create one durable linked incident candidate", () => {
   const store = temporaryStore();
   for (let index = 0; index < 3; index += 1) {
@@ -235,6 +276,8 @@ test("launcher preserves app arguments while exposing only a project hash to tel
   );
   const resultPath = path.join(root, "fake-result.json");
   const collectorLog = path.join(root, "collector.log");
+  const collectorEnvironmentPath = path.join(root, "collector-environment.txt");
+  const fakeNodePath = path.join(root, "fake-node");
   fs.mkdirSync(fakeHome);
   fs.mkdirSync(macos, { recursive: true });
   fs.mkdirSync(resources, { recursive: true });
@@ -260,16 +303,28 @@ test("launcher preserves app arguments while exposing only a project hash to tel
     path.join(resources, "zed-10x-git-commit"),
     "4516ad1f760ab41a1f8d3c00a1d5cc005c0c3a5b\n",
   );
+  fs.writeFileSync(
+    fakeNodePath,
+    [
+      "#!/bin/bash",
+      `{ printf 'github=%s\\n' "\${GITHUB_TOKEN-unset}"; printf 'anthropic=%s\\n' "\${ANTHROPIC_API_KEY-unset}"; } > ${JSON.stringify(collectorEnvironmentPath)}`,
+      `exec ${JSON.stringify(process.execPath)} "$@"`,
+      "",
+    ].join("\n"),
+    { mode: 0o755 },
+  );
 
   const projectPath = path.join(root, "private project");
   fs.mkdirSync(projectPath);
   const launcher = spawn(path.join(macos, "zed-10x-launcher"), [projectPath, "--wait"], {
     env: {
       ...process.env,
-      ZED_10X_CANARY_NODE: process.execPath,
+      ZED_10X_CANARY_NODE: fakeNodePath,
       ZED_10X_CANARY_STORE: store,
       ZED_10X_CANARY_DEBUG_LOG: collectorLog,
       ZED_FAKE_RESULT: resultPath,
+      GITHUB_TOKEN: "collector-must-not-inherit",
+      ANTHROPIC_API_KEY: "collector-must-not-inherit",
       HOME: fakeHome,
       CARGO_HOME: "/Users/example/Documents/build/cargo",
       RUSTUP_HOME: "/Users/example/Documents/build/rustup",
@@ -297,6 +352,10 @@ test("launcher preserves app arguments while exposing only a project hash to tel
   assert.equal(fakeResult.cargoHome, undefined);
   assert.equal(fakeResult.rustupHome, undefined);
   assert.equal(fakeResult.path.includes("/Documents/"), false);
+  assert.deepEqual(fs.readFileSync(collectorEnvironmentPath, "utf8").trim().split("\n"), [
+    "github=unset",
+    "anthropic=unset",
+  ]);
 
   assert.equal(fs.existsSync(store), true, fs.existsSync(collectorLog) ? fs.readFileSync(collectorLog, "utf8") : "collector did not start");
   const telemetry = fs
@@ -312,4 +371,36 @@ test("launcher preserves app arguments while exposing only a project hash to tel
       (record) => record.attributes["project.id"] === hashProjectIdentifier(projectPath),
     ),
   );
+});
+
+test("record command never persists a raw remote hostname", () => {
+  const store = temporaryStore();
+  const privateHostname = "intrepid.private.example";
+  const result = spawnSync(
+    process.execPath,
+    [
+      path.resolve("script/zed-10x-canary.mjs"),
+      "record",
+      "remote.bootstrap.start",
+      "--cohort",
+      "zed10x",
+      "--lane",
+      "intrepid",
+      "--remote-host",
+      privateHostname,
+      "--store",
+      store,
+    ],
+    { encoding: "utf8" },
+  );
+  assert.equal(result.status, 0, result.stderr);
+
+  const stored = fs
+    .readdirSync(store)
+    .filter((file) => file.startsWith("events-"))
+    .map((file) => fs.readFileSync(path.join(store, file), "utf8"))
+    .join("");
+  const record = JSON.parse(stored.trim());
+  assert.equal(stored.includes(privateHostname), false);
+  assert.equal("remote.host" in record.attributes, false);
 });
