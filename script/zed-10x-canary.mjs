@@ -560,33 +560,64 @@ export function buildComparison(records) {
       [left.cohort, left.lane, left.build_version].join(":").localeCompare([right.cohort, right.lane, right.build_version].join(":")),
     );
 
-  const credible = resultGroups.length >= 2 && resultGroups.every((group) => group.sessions >= 5 && group.observed_minutes >= 30);
-  let verdict = "insufficient_evidence";
-  if (credible) {
-    const control = resultGroups.find((group) => group.cohort === "zed");
-    const canary = resultGroups.find((group) => group.cohort === "zed10x");
-    if (control && canary) {
+  const comparisons = [];
+  const controls = resultGroups.filter((group) => group.cohort === "zed");
+  const canaries = resultGroups.filter((group) => group.cohort === "zed10x");
+  for (const control of controls) {
+    for (const canary of canaries) {
+      if (control.lane !== canary.lane) continue;
+      const credible =
+        control.sessions >= 5 &&
+        control.observed_minutes >= 30 &&
+        canary.sessions >= 5 &&
+        canary.observed_minutes >= 30;
       const controlRate = control.failure_events / Math.max(1, control.sessions);
       const canaryRate = canary.failure_events / Math.max(1, canary.sessions);
-      if (canaryRate === controlRate) {
-        verdict = "no_material_difference";
-      } else if (canaryRate <= controlRate * 0.75) {
-        verdict = "zed10x_materially_more_reliable";
-      } else if (canaryRate >= controlRate * 1.25) {
-        verdict = "zed10x_materially_less_reliable";
-      } else {
-        verdict = "no_material_difference";
+      let comparisonVerdict = "insufficient_evidence";
+      if (credible) {
+        if (canaryRate === controlRate) {
+          comparisonVerdict = "no_material_difference";
+        } else if (canaryRate <= controlRate * 0.75) {
+          comparisonVerdict = "zed10x_materially_more_reliable";
+        } else if (canaryRate >= controlRate * 1.25) {
+          comparisonVerdict = "zed10x_materially_less_reliable";
+        } else {
+          comparisonVerdict = "no_material_difference";
+        }
       }
+      comparisons.push({
+        lane: control.lane,
+        control_build_version: control.build_version,
+        canary_build_version: canary.build_version,
+        control_sessions: control.sessions,
+        canary_sessions: canary.sessions,
+        control_failure_events: control.failure_events,
+        canary_failure_events: canary.failure_events,
+        control_failure_rate_per_launch: controlRate,
+        canary_failure_rate_per_launch: canaryRate,
+        confidence: credible ? "moderate" : "low",
+        verdict: comparisonVerdict,
+      });
     }
   }
+
+  const credibleComparisons = comparisons.filter((comparison) => comparison.confidence === "moderate");
+  const credibleVerdicts = new Set(credibleComparisons.map((comparison) => comparison.verdict));
+  const verdict =
+    credibleVerdicts.size === 0
+      ? "insufficient_evidence"
+      : credibleVerdicts.size === 1
+        ? credibleComparisons[0].verdict
+        : "mixed_results";
 
   return {
     schema_version: 1,
     generated_at: new Date().toISOString(),
     tracking_issue: TRACKING_ISSUE,
-    confidence: credible ? "moderate" : "low",
+    confidence: credibleComparisons.length > 0 ? "moderate" : "low",
     verdict,
     groups: resultGroups,
+    comparisons,
   };
 }
 
