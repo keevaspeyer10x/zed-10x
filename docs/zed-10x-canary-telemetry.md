@@ -143,8 +143,7 @@ with paths resolved on that host. Intel Homebrew commonly installs Node under
 `/usr/local/bin`; Apple Silicon Homebrew commonly uses `/opt/homebrew/bin`.
 
 Repeated ACP disconnects, app instability, remote-bootstrap failures,
-continuity failures, packaged CLI launch failures, and sustained resource
-pressure create deduplicated
+continuity failures, and sustained resource pressure create deduplicated
 `incidents.jsonl` records linked to issue #15. This is the durable local
 incident queue; later campaign slices may promote those records through Apex
 to a dedicated GitHub incident while preserving the same trace ID and failure

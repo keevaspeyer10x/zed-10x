@@ -281,11 +281,13 @@ test("repeated packaged CLI failures create an issue-20 incident without content
     );
   }
 
-  const [incident] = fs
+  const incidents = fs
     .readFileSync(path.join(store, "incidents.jsonl"), "utf8")
     .trim()
     .split("\n")
     .map((line) => JSON.parse(line));
+  assert.equal(incidents.length, 1);
+  const [incident] = incidents;
   assert.equal(
     incident.tracking_issue,
     "https://github.com/keevaspeyer10x/zed-10x/issues/20",

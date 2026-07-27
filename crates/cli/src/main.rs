@@ -1425,6 +1425,18 @@ mod mac_os {
         },
     }
 
+    fn open_secure_launch_log(log_path: &Path) -> Option<(fs::File, fs::File)> {
+        let stdout = fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .mode(0o600)
+            .open(log_path)
+            .ok()?;
+        fs::set_permissions(log_path, fs::Permissions::from_mode(0o600)).ok()?;
+        let stderr = stdout.try_clone().ok()?;
+        Some((stdout, stderr))
+    }
+
     fn locate_bundle() -> Result<PathBuf> {
         let cli_path = std::env::current_exe()?.canonicalize()?;
         let mut app_path = cli_path.clone();
@@ -1487,8 +1499,9 @@ mod mac_os {
                     ..
                 } => {
                     let logs_dir = paths::logs_dir();
-                    fs::create_dir_all(logs_dir)
-                        .with_context(|| format!("Creating CLI log directory {logs_dir:?}"))?;
+                    // Diagnostic logging is deliberately fail-open: an unavailable log
+                    // directory must never keep the editor from launching.
+                    let _ = fs::create_dir_all(logs_dir);
                     self.launch_executable(
                         url,
                         user_data_dir,
@@ -1626,17 +1639,7 @@ mod mac_os {
             launch_lane: &str,
             log_path: PathBuf,
         ) -> anyhow::Result<()> {
-            let subprocess_stdout_file = fs::OpenOptions::new()
-                .create(true)
-                .append(true)
-                .mode(0o600)
-                .open(&log_path)
-                .with_context(|| format!("Opening CLI launch log {log_path:?}"))?;
-            fs::set_permissions(&log_path, fs::Permissions::from_mode(0o600))
-                .with_context(|| format!("Securing CLI launch log {log_path:?}"))?;
-            let subprocess_stderr_file = subprocess_stdout_file
-                .try_clone()
-                .with_context(|| format!("Cloning descriptor for CLI launch log {log_path:?}"))?;
+            let log_files = open_secure_launch_log(&log_path);
             let executable = self.executable_path();
             let mut command = std::process::Command::new(&executable);
             command
@@ -1645,10 +1648,16 @@ mod mac_os {
             if let Some(dir) = user_data_dir {
                 command.arg("--user-data-dir").arg(dir);
             }
-            command
-                .stderr(subprocess_stderr_file)
-                .stdout(subprocess_stdout_file)
-                .arg(url);
+            if let Some((subprocess_stdout_file, subprocess_stderr_file)) = log_files {
+                command
+                    .stderr(subprocess_stderr_file)
+                    .stdout(subprocess_stdout_file);
+            } else {
+                command
+                    .stderr(std::process::Stdio::null())
+                    .stdout(std::process::Stdio::null());
+            }
+            command.arg(url);
 
             command
                 .spawn()
@@ -1799,6 +1808,44 @@ mod mac_os {
             assert_eq!(
                 fs::metadata(log_path).unwrap().permissions().mode() & 0o777,
                 0o600
+            );
+        }
+
+        #[test]
+        fn direct_launch_is_fail_open_when_the_diagnostic_log_is_unavailable() {
+            let temp_dir = tempfile::tempdir().unwrap();
+            let launch_evidence = temp_dir.path().join("launched.txt");
+            let executable = temp_dir.path().join("launcher");
+            fs::write(
+                &executable,
+                format!(
+                    "#!/bin/sh\nprintf 'launched\\n' > '{}'\n",
+                    launch_evidence.display(),
+                ),
+            )
+            .unwrap();
+            fs::set_permissions(&executable, fs::Permissions::from_mode(0o755)).unwrap();
+            let bundle = Bundle::LocalPath { executable };
+            let unavailable_log = temp_dir.path().join("missing").join("launcher.log");
+
+            bundle
+                .launch_executable(
+                    "zed-cli://fixture".to_string(),
+                    None,
+                    "local",
+                    unavailable_log,
+                )
+                .unwrap();
+            for _ in 0..100 {
+                if launch_evidence.exists() {
+                    break;
+                }
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            assert_eq!(
+                fs::read_to_string(launch_evidence).unwrap(),
+                "launched\n",
+                "diagnostic-log failure must not block the editor launcher"
             );
         }
 
