@@ -172,6 +172,70 @@ test("comparison is explicit about low confidence and separates cohort, lane, an
   );
 });
 
+test("comparison only judges matched lanes and ignores sparse unrelated groups", () => {
+  const credibleGroup = (cohort, lane, buildVersion, failureName) => [
+    ...Array.from({ length: 5 }, (_, index) =>
+      event({
+        cohort,
+        lane,
+        buildVersion,
+        name: "app.launch",
+        timestamp: `2026-07-24T12:0${index}:00.000Z`,
+      }),
+    ),
+    event({
+      cohort,
+      lane,
+      buildVersion,
+      name: failureName,
+      timestamp: "2026-07-24T12:15:00.000Z",
+    }),
+    event({
+      cohort,
+      lane,
+      buildVersion,
+      name: "resource.sample",
+      timestamp: "2026-07-24T12:31:00.000Z",
+    }),
+  ];
+  const records = [
+    ...credibleGroup("zed", "local", "1.11.3", "acp.disconnect"),
+    ...credibleGroup("zed10x", "local", "20260727.1", "acp.complete"),
+    event({
+      cohort: "zed10x",
+      lane: "intrepid",
+      buildVersion: "20260727.1",
+      name: "app.launch",
+    }),
+  ];
+
+  const comparison = buildComparison(records);
+  assert.equal(comparison.verdict, "zed10x_materially_more_reliable");
+  assert.equal(comparison.confidence, "moderate");
+  assert.deepEqual(comparison.comparisons, [
+    {
+      lane: "local",
+      control_build_version: "1.11.3",
+      canary_build_version: "20260727.1",
+      control_sessions: 5,
+      canary_sessions: 5,
+      control_failure_events: 1,
+      canary_failure_events: 0,
+      control_failure_rate_per_launch: 0.2,
+      canary_failure_rate_per_launch: 0,
+      confidence: "moderate",
+      verdict: "zed10x_materially_more_reliable",
+    },
+  ]);
+
+  const cleanComparison = buildComparison([
+    ...credibleGroup("zed", "local", "1.11.3", "acp.complete"),
+    ...credibleGroup("zed10x", "local", "20260727.1", "acp.complete"),
+  ]);
+  assert.equal(cleanComparison.verdict, "no_material_difference");
+  assert.equal(cleanComparison.comparisons[0].verdict, "no_material_difference");
+});
+
 test("trace context uses valid W3C traceparent widths", () => {
   const trace = createTraceContext();
   assert.match(trace.traceparent, /^00-[0-9a-f]{32}-[0-9a-f]{16}-01$/);

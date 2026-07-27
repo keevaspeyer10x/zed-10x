@@ -127,11 +127,14 @@ node script/zed-10x-canary.mjs compare --output comparison.json
 
 The receipt separates cohort, lane, and build and reports session count,
 observed minutes, ACP completions/disconnects/reconnects, continuity outcomes,
-hang/crash/forced-quit counts, peak RSS, and failure events. It reports
+hang/crash/forced-quit counts, peak RSS, and failure events. Its `comparisons`
+only pair control and canary builds observed in the same lane, so a local
+control can never be used to judge an Intrepid canary. Each pair reports
 `insufficient_evidence` with low confidence until both cohorts have at least
-five launches and 30 observed minutes. Only then can it state whether Zed 10x
-is materially more reliable, materially less reliable, or not materially
-different for the measured lane/build.
+five launches and 30 observed minutes; sparse unrelated builds do not suppress
+a credible pair. Only then can it state whether Zed 10x is materially more
+reliable, materially less reliable, or not materially different for that
+lane/build pair.
 
 ## Current boundary
 
