@@ -547,46 +547,96 @@ export function buildComparison(records) {
     groups.set(key, group);
   }
 
-  const resultGroups = [...groups.values()]
+  const comparisonGroups = [...groups.values()]
     .map((group) => ({
       ...group,
+      observed_duration_ms: Number.isFinite(group.first_timestamp_ms)
+        ? Math.max(0, group.last_timestamp_ms - group.first_timestamp_ms)
+        : 0,
       observed_minutes: Number.isFinite(group.first_timestamp_ms)
         ? Math.max(0, Math.round((group.last_timestamp_ms - group.first_timestamp_ms) / 6000) / 10)
         : 0,
       failure_events: group.acp_disconnects + group.continuity_failures + group.hangs + group.crashes + group.forced_quits,
-    }))
-    .map(({ first_timestamp_ms, last_timestamp_ms, ...group }) => group)
+    }));
+  const resultGroups = comparisonGroups
+    .map(({ first_timestamp_ms, last_timestamp_ms, observed_duration_ms, ...group }) => group)
     .sort((left, right) =>
       [left.cohort, left.lane, left.build_version].join(":").localeCompare([right.cohort, right.lane, right.build_version].join(":")),
     );
 
-  const credible = resultGroups.length >= 2 && resultGroups.every((group) => group.sessions >= 5 && group.observed_minutes >= 30);
-  let verdict = "insufficient_evidence";
-  if (credible) {
-    const control = resultGroups.find((group) => group.cohort === "zed");
-    const canary = resultGroups.find((group) => group.cohort === "zed10x");
-    if (control && canary) {
-      const controlRate = control.failure_events / Math.max(1, control.sessions);
-      const canaryRate = canary.failure_events / Math.max(1, canary.sessions);
+  const comparisons = [];
+  const knownLanes = [...new Set(
+    comparisonGroups
+      .map((group) => group.lane)
+      .filter((lane) => lane !== "unknown"),
+  )].sort();
+  const latestGroup = (cohort, lane) =>
+    comparisonGroups
+      .filter((group) => group.cohort === cohort && group.lane === lane)
+      .sort(
+        (left, right) =>
+          right.last_timestamp_ms - left.last_timestamp_ms ||
+          right.first_timestamp_ms - left.first_timestamp_ms ||
+          right.build_version.localeCompare(left.build_version),
+      )[0];
+
+  for (const lane of knownLanes) {
+    const control = latestGroup("zed", lane);
+    const canary = latestGroup("zed10x", lane);
+    if (!control || !canary) continue;
+    const credible =
+      control.sessions >= 5 &&
+      control.observed_duration_ms >= 30 * 60 * 1000 &&
+      canary.sessions >= 5 &&
+      canary.observed_duration_ms >= 30 * 60 * 1000;
+    const controlRate =
+      control.sessions > 0 ? control.failure_events / control.sessions : null;
+    const canaryRate =
+      canary.sessions > 0 ? canary.failure_events / canary.sessions : null;
+    let comparisonVerdict = "insufficient_evidence";
+    if (credible) {
       if (canaryRate === controlRate) {
-        verdict = "no_material_difference";
+        comparisonVerdict = "no_material_difference";
       } else if (canaryRate <= controlRate * 0.75) {
-        verdict = "zed10x_materially_more_reliable";
+        comparisonVerdict = "zed10x_materially_more_reliable";
       } else if (canaryRate >= controlRate * 1.25) {
-        verdict = "zed10x_materially_less_reliable";
+        comparisonVerdict = "zed10x_materially_less_reliable";
       } else {
-        verdict = "no_material_difference";
+        comparisonVerdict = "no_material_difference";
       }
     }
+    comparisons.push({
+      lane,
+      control_build_version: control.build_version,
+      canary_build_version: canary.build_version,
+      control_sessions: control.sessions,
+      canary_sessions: canary.sessions,
+      control_failure_events: control.failure_events,
+      canary_failure_events: canary.failure_events,
+      control_failure_rate_per_launch: controlRate,
+      canary_failure_rate_per_launch: canaryRate,
+      confidence: credible ? "moderate" : "low",
+      verdict: comparisonVerdict,
+    });
   }
+
+  const credibleComparisons = comparisons.filter((comparison) => comparison.confidence === "moderate");
+  const credibleVerdicts = new Set(credibleComparisons.map((comparison) => comparison.verdict));
+  const verdict =
+    credibleVerdicts.size === 0
+      ? "insufficient_evidence"
+      : credibleVerdicts.size === 1
+        ? credibleComparisons[0].verdict
+        : "mixed_results";
 
   return {
     schema_version: 1,
     generated_at: new Date().toISOString(),
     tracking_issue: TRACKING_ISSUE,
-    confidence: credible ? "moderate" : "low",
+    confidence: credibleComparisons.length > 0 ? "moderate" : "low",
     verdict,
     groups: resultGroups,
+    comparisons,
   };
 }
 

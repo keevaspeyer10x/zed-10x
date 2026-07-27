@@ -43,6 +43,44 @@ function event(overrides = {}) {
   };
 }
 
+function comparisonGroup({
+  cohort,
+  lane = "local",
+  buildVersion,
+  sessions = 5,
+  failureEvents = 0,
+  startMs = Date.parse("2026-07-24T12:00:00.000Z"),
+  durationMs = 30 * 60 * 1000,
+}) {
+  return [
+    ...Array.from({ length: sessions }, (_, index) =>
+      event({
+        cohort,
+        lane,
+        buildVersion,
+        name: "app.launch",
+        timestamp: new Date(startMs + index * 1000).toISOString(),
+      }),
+    ),
+    ...Array.from({ length: failureEvents }, (_, index) =>
+      event({
+        cohort,
+        lane,
+        buildVersion,
+        name: "acp.disconnect",
+        timestamp: new Date(startMs + 60_000 + index * 1000).toISOString(),
+      }),
+    ),
+    event({
+      cohort,
+      lane,
+      buildVersion,
+      name: "resource.sample",
+      timestamp: new Date(startMs + durationMs).toISOString(),
+    }),
+  ];
+}
+
 test("disabled telemetry writes nothing", () => {
   const store = temporaryStore();
   assert.equal(isDisabled({ ZED_10X_TELEMETRY_DISABLED: "1" }, store), true);
@@ -318,6 +356,63 @@ test("comparison is explicit about low confidence and separates cohort, lane, an
   );
 });
 
+test("comparison only judges matched lanes and ignores sparse unrelated groups", () => {
+  const credibleGroup = (cohort, lane, buildVersion, failureName) => [
+    ...Array.from({ length: 5 }, (_, index) =>
+      event({
+        cohort,
+        lane,
+        buildVersion,
+        name: "app.launch",
+        timestamp: `2026-07-24T12:0${index}:00.000Z`,
+      }),
+    ),
+    event({
+      cohort,
+      lane,
+      buildVersion,
+      name: failureName,
+      timestamp: "2026-07-24T12:15:00.000Z",
+    }),
+    event({
+      cohort,
+      lane,
+      buildVersion,
+      name: "resource.sample",
+      timestamp: "2026-07-24T12:31:00.000Z",
+    }),
+  ];
+  const records = [
+    ...credibleGroup("zed", "local", "1.11.3", "acp.disconnect"),
+    ...credibleGroup("zed10x", "local", "20260727.1", "acp.complete"),
+    event({
+      cohort: "zed10x",
+      lane: "intrepid",
+      buildVersion: "20260727.1",
+      name: "app.launch",
+    }),
+  ];
+
+  const comparison = buildComparison(records);
+  assert.equal(comparison.verdict, "zed10x_materially_more_reliable");
+  assert.equal(comparison.confidence, "moderate");
+  assert.deepEqual(comparison.comparisons, [
+    {
+      lane: "local",
+      control_build_version: "1.11.3",
+      canary_build_version: "20260727.1",
+      control_sessions: 5,
+      canary_sessions: 5,
+      control_failure_events: 1,
+      canary_failure_events: 0,
+      control_failure_rate_per_launch: 0.2,
+      canary_failure_rate_per_launch: 0,
+      confidence: "moderate",
+      verdict: "zed10x_materially_more_reliable",
+    },
+  ]);
+});
+
 test("credible comparisons handle equal and zero failure rates honestly", () => {
   const comparisonRecords = (controlFailures, canaryFailures) => {
     const records = [];
@@ -358,6 +453,158 @@ test("credible comparisons handle equal and zero failure rates honestly", () => 
     "zed10x_materially_less_reliable",
   );
   assert.equal(buildComparison(comparisonRecords(1, 1)).verdict, "no_material_difference");
+});
+
+test("comparison credibility uses the unrounded 30-minute boundary", () => {
+  const shortComparison = buildComparison([
+    ...comparisonGroup({
+      cohort: "zed",
+      buildVersion: "1.11.3",
+      durationMs: 30 * 60 * 1000 - 1,
+    }),
+    ...comparisonGroup({
+      cohort: "zed10x",
+      buildVersion: "20260727.1",
+    }),
+  ]);
+  assert.equal(shortComparison.groups[0].observed_minutes, 30);
+  assert.equal(shortComparison.comparisons[0].confidence, "low");
+  assert.equal(shortComparison.verdict, "insufficient_evidence");
+
+  const exactComparison = buildComparison([
+    ...comparisonGroup({ cohort: "zed", buildVersion: "1.11.3" }),
+    ...comparisonGroup({ cohort: "zed10x", buildVersion: "20260727.1" }),
+  ]);
+  assert.equal(exactComparison.comparisons[0].confidence, "moderate");
+});
+
+test("comparison selects only the most recently observed build in each known lane", () => {
+  const early = Date.parse("2026-07-24T08:00:00.000Z");
+  const late = Date.parse("2026-07-24T12:00:00.000Z");
+  const comparison = buildComparison([
+    ...comparisonGroup({
+      cohort: "zed",
+      buildVersion: "9.9.9",
+      startMs: early,
+      failureEvents: 2,
+    }),
+    ...comparisonGroup({
+      cohort: "zed",
+      buildVersion: "1.0.0",
+      startMs: late,
+      failureEvents: 1,
+    }),
+    ...comparisonGroup({
+      cohort: "zed10x",
+      buildVersion: "99999999.1",
+      startMs: early,
+      failureEvents: 2,
+    }),
+    ...comparisonGroup({
+      cohort: "zed10x",
+      buildVersion: "20260727.1",
+      startMs: late,
+    }),
+  ]);
+
+  assert.equal(comparison.comparisons.length, 1);
+  assert.equal(comparison.comparisons[0].control_build_version, "1.0.0");
+  assert.equal(comparison.comparisons[0].canary_build_version, "20260727.1");
+  assert.equal(comparison.verdict, "zed10x_materially_more_reliable");
+});
+
+test("unknown lanes are reported as groups but never compared", () => {
+  const comparison = buildComparison([
+    ...comparisonGroup({
+      cohort: "zed",
+      lane: "unknown",
+      buildVersion: "1.11.3",
+    }),
+    ...comparisonGroup({
+      cohort: "zed10x",
+      lane: "unknown",
+      buildVersion: "20260727.1",
+    }),
+  ]);
+
+  assert.equal(comparison.groups.length, 2);
+  assert.deepEqual(comparison.comparisons, []);
+  assert.equal(comparison.verdict, "insufficient_evidence");
+});
+
+test("credible lane verdicts agree explicitly or produce mixed results", () => {
+  const agreeing = buildComparison([
+    ...comparisonGroup({
+      cohort: "zed",
+      lane: "local",
+      buildVersion: "1.11.3",
+      failureEvents: 2,
+    }),
+    ...comparisonGroup({
+      cohort: "zed10x",
+      lane: "local",
+      buildVersion: "20260727.1",
+    }),
+    ...comparisonGroup({
+      cohort: "zed",
+      lane: "intrepid",
+      buildVersion: "1.11.3",
+      failureEvents: 2,
+    }),
+    ...comparisonGroup({
+      cohort: "zed10x",
+      lane: "intrepid",
+      buildVersion: "20260727.1",
+    }),
+  ]);
+  assert.equal(agreeing.comparisons.length, 2);
+  assert.equal(agreeing.verdict, "zed10x_materially_more_reliable");
+
+  const mixed = buildComparison([
+    ...comparisonGroup({
+      cohort: "zed",
+      lane: "local",
+      buildVersion: "1.11.3",
+      failureEvents: 2,
+    }),
+    ...comparisonGroup({
+      cohort: "zed10x",
+      lane: "local",
+      buildVersion: "20260727.1",
+    }),
+    ...comparisonGroup({
+      cohort: "zed",
+      lane: "intrepid",
+      buildVersion: "1.11.3",
+    }),
+    ...comparisonGroup({
+      cohort: "zed10x",
+      lane: "intrepid",
+      buildVersion: "20260727.1",
+      failureEvents: 2,
+    }),
+  ]);
+  assert.equal(mixed.verdict, "mixed_results");
+});
+
+test("zero-launch low-confidence groups do not invent a failure rate", () => {
+  const comparison = buildComparison([
+    ...comparisonGroup({
+      cohort: "zed",
+      buildVersion: "1.11.3",
+      sessions: 0,
+      failureEvents: 1,
+    }),
+    ...comparisonGroup({
+      cohort: "zed10x",
+      buildVersion: "20260727.1",
+      sessions: 0,
+    }),
+  ]);
+
+  assert.equal(comparison.comparisons[0].control_failure_rate_per_launch, null);
+  assert.equal(comparison.comparisons[0].canary_failure_rate_per_launch, null);
+  assert.equal(comparison.comparisons[0].confidence, "low");
 });
 
 test("trace context uses valid W3C traceparent widths", () => {

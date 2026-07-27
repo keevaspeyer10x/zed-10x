@@ -169,11 +169,23 @@ node script/zed-10x-canary.mjs compare --output comparison.json
 
 The receipt separates cohort, lane, and build and reports session count,
 observed minutes, ACP completions/disconnects/reconnects, continuity outcomes,
-hang/crash/forced-quit counts, peak RSS, and failure events. It reports
-`insufficient_evidence` with low confidence until both cohorts have at least
-five launches and 30 observed minutes. Only then can it state whether Zed 10x
-is materially more reliable, materially less reliable, or not materially
-different for the measured lane/build.
+hang/crash/forced-quit counts, peak RSS, and failure events. Its `comparisons`
+select one pair per known lane: the most recently observed control build and
+the most recently observed canary build in that lane. This prevents both
+cross-lane judgments and synthetic Cartesian comparisons between historical
+builds. The `unknown` lane remains visible in the group evidence but is never
+used for a reliability judgment.
+
+Each selected pair reports `insufficient_evidence` with low confidence until
+both cohorts have at least five launches and a raw observation span of at
+least 1,800,000 milliseconds. The displayed minutes remain rounded for
+readability but are not used for this boundary. A newer sparse build therefore
+stays explicitly low-confidence instead of inheriting an older build's
+evidence, while unmatched groups in other lanes do not suppress a credible
+pair. Only then can the receipt state whether Zed 10x is materially more
+reliable, materially less reliable, or not materially different for that
+lane/build pair. Credible lane verdicts must agree for a single headline;
+otherwise the headline is `mixed_results`.
 
 ## Current boundary
 
