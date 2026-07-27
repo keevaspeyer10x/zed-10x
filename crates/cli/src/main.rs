@@ -799,11 +799,15 @@ fn run() -> Result<()> {
             move || {
                 let (_, handshake) = match server.accept().context("Handshake after Zed spawn") {
                     Ok(handshake) => {
-                        let _ = handshake_status_tx.send(Ok(()));
+                        if handshake_status_tx.send(Ok(())).is_err() {
+                            eprintln!("The Zed CLI handshake status receiver was unavailable");
+                        }
                         handshake
                     }
                     Err(error) => {
-                        let _ = handshake_status_tx.send(Err(format!("{error:#}")));
+                        if handshake_status_tx.send(Err(format!("{error:#}"))).is_err() {
+                            eprintln!("The Zed CLI handshake status receiver was unavailable");
+                        }
                         return Err(error);
                     }
                 };
@@ -1426,6 +1430,12 @@ mod mac_os {
     }
 
     fn open_secure_launch_log(log_path: &Path) -> Option<(fs::File, fs::File)> {
+        if let Some(logs_dir) = log_path.parent()
+            && let Err(error) = fs::create_dir_all(logs_dir)
+        {
+            eprintln!("Failed to create the Zed CLI log directory: {error}");
+            return None;
+        }
         let stdout = fs::OpenOptions::new()
             .create(true)
             .append(true)
@@ -1499,9 +1509,6 @@ mod mac_os {
                     ..
                 } => {
                     let logs_dir = paths::logs_dir();
-                    // Diagnostic logging is deliberately fail-open: an unavailable log
-                    // directory must never keep the editor from launching.
-                    let _ = fs::create_dir_all(logs_dir);
                     self.launch_executable(
                         url,
                         user_data_dir,
@@ -1826,7 +1833,9 @@ mod mac_os {
             .unwrap();
             fs::set_permissions(&executable, fs::Permissions::from_mode(0o755)).unwrap();
             let bundle = Bundle::LocalPath { executable };
-            let unavailable_log = temp_dir.path().join("missing").join("launcher.log");
+            let unavailable_parent = temp_dir.path().join("unavailable");
+            fs::write(&unavailable_parent, "").unwrap();
+            let unavailable_log = unavailable_parent.join("launcher.log");
 
             bundle
                 .launch_executable(
