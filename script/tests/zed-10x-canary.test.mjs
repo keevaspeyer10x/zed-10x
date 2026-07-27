@@ -341,6 +341,39 @@ test("repeated disconnects create one durable linked incident candidate", () => 
   assert.equal("prompt" in incidents[0], false);
 });
 
+test("repeated packaged CLI failures create an issue-20 incident without content", () => {
+  const store = temporaryStore();
+  for (let index = 0; index < 2; index += 1) {
+    assert.equal(
+      appendEvent(
+        event({
+          name: "cli.launch.failure",
+          timestamp: `2026-07-24T12:0${index}:00.000Z`,
+          attributes: {
+            "failure.class": "handshake_timeout",
+            "session.kind": "cli",
+          },
+        }),
+        { storeDir: store },
+      ),
+      true,
+    );
+  }
+
+  const [incident] = fs
+    .readFileSync(path.join(store, "incidents.jsonl"), "utf8")
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line));
+  assert.equal(
+    incident.tracking_issue,
+    "https://github.com/keevaspeyer10x/zed-10x/issues/20",
+  );
+  assert.equal(incident.failure_class, "repeated_cli_launch_failure");
+  assert.equal("path" in incident, false);
+  assert.equal("arguments" in incident, false);
+});
+
 test("incident thresholds read only the current and previous UTC day", () => {
   const store = temporaryStore();
   const unrelated = path.join(store, "events-2026-07-01.jsonl");
@@ -433,6 +466,23 @@ test("comparison is explicit about low confidence and separates cohort, lane, an
       ["zed10x", "local", "20260724.1"],
     ],
   );
+});
+
+test("comparison counts packaged CLI failures separately from runtime failures", () => {
+  const comparison = buildComparison([
+    event({ name: "app.launch" }),
+    event({
+      name: "cli.launch.failure",
+      attributes: {
+        "failure.class": "handshake_timeout",
+        "session.kind": "cli",
+      },
+    }),
+  ]);
+
+  assert.equal(comparison.groups[0].cli_launch_failures, 1);
+  assert.equal(comparison.groups[0].crashes, 0);
+  assert.equal(comparison.groups[0].failure_events, 1);
 });
 
 test("comparison only judges matched lanes and ignores sparse unrelated groups", () => {

@@ -214,6 +214,7 @@ function assemble_zed_10x_canary() {
         chmod 0644 "${revision_path}"
         /usr/libexec/PlistBuddy \
             -c "Set :CFBundleExecutable zed-10x-launcher" \
+            -c "Add :ZedCliLaunchExecutableDirectly bool true" \
             "${app_path}/Contents/Info.plist"
     fi
 }

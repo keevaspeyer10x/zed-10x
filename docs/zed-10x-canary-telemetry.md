@@ -52,6 +52,7 @@ allow-listed path, and never persists the process table.
 The allow-list covers:
 
 - app launch, exit, restart, hang, crash, and forced quit;
+- packaged CLI launch failure, classified separately from an app runtime exit;
 - project-open request and completion;
 - remote bootstrap start, completion, and failure;
 - ACP start, completion, disconnect, and reconnect;
@@ -73,6 +74,13 @@ downloaded tooling, and remote-server state out of normal Zed's mutable
 profile. Operator arguments follow the owned profile option and are preserved
 byte-for-byte.
 
+Because the Zed 10x CLI starts the launcher as a direct child, the launcher
+removes known direct model-provider API/OAuth environment variables before
+executing the editor. Apex/10x OS routing variables and ordinary development
+credentials remain available. This prevents a terminal's provider key from
+silently bypassing the account broker while preserving local and Intrepid
+lanes.
+
 The compiled development channel is independently addressable as `Zed-10x`.
 Its macOS bundle identifier is `ai.10xlabs.Zed10x`, its URL scheme is
 `zed-10x`, and uploaded development servers live under `.zed-10x-server`.
@@ -88,6 +96,18 @@ helpers. The collector and exact source-revision marker live in
 `Contents/Resources`. This preserves Zed's helper lookup contract while a
 built `.app` carries the same telemetry and provenance contract it will have
 after installation; no manual post-bundle surgery is required.
+
+The bundle also sets the private Boolean
+`ZedCliLaunchExecutableDirectly`. The packaged CLI reads the standard
+`CFBundleExecutable` value and, only for this explicit opt-in, starts that
+launcher directly instead of routing it through LaunchServices. Official Zed
+and other bundles retain the upstream LaunchServices path. A successful app
+launch must complete the CLI IPC handshake within 30 seconds; startup failures
+therefore return a stage-specific error instead of leaving the CLI blocked
+forever. The `--wait` lifecycle after a successful handshake remains
+intentionally unbounded. Direct-launch stdout and stderr append to
+`~/Library/Logs/Zed-10x/zed-cli.log`, outside the signed application bundle;
+the file is forced to owner-only mode `0600`.
 
 ## Storage, retention, and redaction
 
@@ -130,11 +150,23 @@ with paths resolved on that host. Intel Homebrew commonly installs Node under
 `/usr/local/bin`; Apple Silicon Homebrew commonly uses `/opt/homebrew/bin`.
 
 Repeated ACP disconnects, app instability, remote-bootstrap failures,
-continuity failures, and sustained resource pressure create deduplicated
+continuity failures, packaged CLI launch failures, and sustained resource
+pressure create deduplicated
 `incidents.jsonl` records linked to issue #15. This is the durable local
 incident queue; later campaign slices may promote those records through Apex
 to a dedicated GitHub incident while preserving the same trace ID and failure
 class.
+
+Repeated packaged CLI failures are instead linked directly to distribution
+issue #20. The CLI invokes the same allow-listed collector in a cleared
+environment and records only cohort, lane, app/build version,
+`failure.class`, and `session.kind=cli`. Missing Node, a missing collector, or
+any write error is ignored so observability can never extend or replace the
+30-second editor-start deadline. The hook preserves a configured canary store
+and normalizes the telemetry-disable flag before clearing the rest of its
+environment. The CLI also passes its already-classified local/Intrepid lane to
+the launcher, so the IPC URL cannot collapse remote sessions into the local
+cohort.
 
 ## Disable and rollback
 

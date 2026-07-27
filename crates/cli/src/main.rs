@@ -22,8 +22,9 @@ use std::{
     fs, io,
     path::{Path, PathBuf},
     process::ExitStatus,
-    sync::Arc,
+    sync::{Arc, mpsc},
     thread::{self, JoinHandle},
+    time::Duration,
 };
 use tempfile::{NamedTempFile, TempDir};
 use util::paths::PathWithPosition;
@@ -37,11 +38,18 @@ struct Detect;
 
 trait InstalledApp {
     fn zed_version_string(&self) -> String;
-    fn launch(&self, ipc_url: String, user_data_dir: Option<&str>) -> anyhow::Result<()>;
+    fn launch(
+        &self,
+        ipc_url: String,
+        user_data_dir: Option<&str>,
+        launch_lane: &str,
+    ) -> anyhow::Result<()>;
+    fn record_cli_launch_failure(&self, _failure_class: &str, _lane: &str) {}
     fn run_foreground(
         &self,
         ipc_url: String,
         user_data_dir: Option<&str>,
+        launch_lane: &str,
     ) -> io::Result<ExitStatus>;
     fn path(&self) -> PathBuf;
 }
@@ -307,6 +315,63 @@ fn create_empty_stub(temp_dir: &mut TempDir, rel: &Path) -> anyhow::Result<PathB
     Ok(stub_path)
 }
 
+const APP_HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(30);
+
+#[derive(Debug)]
+enum AppHandshakeFailure {
+    App(String),
+    Timeout(Duration),
+    WorkerDisconnected,
+}
+
+impl AppHandshakeFailure {
+    fn failure_class(&self) -> &'static str {
+        match self {
+            Self::App(_) => "handshake_failed",
+            Self::Timeout(_) => "handshake_timeout",
+            Self::WorkerDisconnected => "handshake_worker_exit",
+        }
+    }
+}
+
+impl std::fmt::Display for AppHandshakeFailure {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::App(error) => {
+                write!(
+                    formatter,
+                    "Zed failed before completing the CLI handshake: {error}"
+                )
+            }
+            Self::Timeout(timeout) => write!(
+                formatter,
+                "timed out after {timeout:?} waiting for Zed to complete the CLI handshake; \
+                 the app launch request was accepted but no matching Zed instance connected"
+            ),
+            Self::WorkerDisconnected => {
+                write!(
+                    formatter,
+                    "Zed CLI handshake worker exited before connecting"
+                )
+            }
+        }
+    }
+}
+
+impl std::error::Error for AppHandshakeFailure {}
+
+fn wait_for_app_handshake(
+    receiver: mpsc::Receiver<Result<(), String>>,
+    timeout: Duration,
+) -> std::result::Result<(), AppHandshakeFailure> {
+    match receiver.recv_timeout(timeout) {
+        Ok(Ok(())) => Ok(()),
+        Ok(Err(error)) => Err(AppHandshakeFailure::App(error)),
+        Err(mpsc::RecvTimeoutError::Timeout) => Err(AppHandshakeFailure::Timeout(timeout)),
+        Err(mpsc::RecvTimeoutError::Disconnected) => Err(AppHandshakeFailure::WorkerDisconnected),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -426,6 +491,20 @@ mod tests {
         })
         .unwrap();
         assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_cli_handshake_timeout_is_bounded() {
+        let (_sender, receiver) = std::sync::mpsc::sync_channel(1);
+        let error =
+            wait_for_app_handshake(receiver, std::time::Duration::from_millis(1)).unwrap_err();
+
+        assert!(
+            error
+                .to_string()
+                .contains("timed out after 1ms waiting for Zed to complete the CLI handshake"),
+            "{error:#}"
+        );
     }
 }
 
@@ -690,6 +769,14 @@ fn run() -> Result<()> {
             paths.push(parse_path_with_position(path)?);
         }
     }
+    let launch_lane = if urls
+        .iter()
+        .any(|url| url.starts_with("ssh://") || url.starts_with("zed://ssh/"))
+    {
+        "intrepid"
+    } else {
+        "local"
+    };
 
     anyhow::ensure!(
         args.dev_server_token.is_none(),
@@ -703,13 +790,23 @@ fn run() -> Result<()> {
         .build_global()
         .unwrap();
 
+    let (handshake_status_tx, handshake_status_rx) = mpsc::sync_channel(1);
     let sender: JoinHandle<anyhow::Result<()>> = thread::Builder::new()
         .name("CliReceiver".to_string())
         .spawn({
             let exit_status = exit_status.clone();
             let user_data_dir_for_thread = user_data_dir.clone();
             move || {
-                let (_, handshake) = server.accept().context("Handshake after Zed spawn")?;
+                let (_, handshake) = match server.accept().context("Handshake after Zed spawn") {
+                    Ok(handshake) => {
+                        let _ = handshake_status_tx.send(Ok(()));
+                        handshake
+                    }
+                    Err(error) => {
+                        let _ = handshake_status_tx.send(Err(format!("{error:#}")));
+                        return Err(error);
+                    }
+                };
                 let (tx, rx) = (handshake.requests, handshake.responses);
 
                 #[cfg(target_os = "windows")]
@@ -780,9 +877,16 @@ fn run() -> Result<()> {
         .collect();
 
     if args.foreground {
-        app.run_foreground(url, user_data_dir.as_deref())?;
+        app.run_foreground(url, user_data_dir.as_deref(), launch_lane)?;
     } else {
-        app.launch(url, user_data_dir.as_deref())?;
+        if let Err(error) = app.launch(url, user_data_dir.as_deref(), launch_lane) {
+            app.record_cli_launch_failure("launcher_spawn_failed", launch_lane);
+            return Err(error);
+        }
+        if let Err(error) = wait_for_app_handshake(handshake_status_rx, APP_HANDSHAKE_TIMEOUT) {
+            app.record_cli_launch_failure(error.failure_class(), launch_lane);
+            return Err(error.into());
+        }
         sender.join().unwrap()?;
         if let Some(handle) = stdin_pipe_handle {
             handle.join().unwrap()?;
@@ -940,7 +1044,12 @@ mod linux {
             )
         }
 
-        fn launch(&self, ipc_url: String, user_data_dir: Option<&str>) -> anyhow::Result<()> {
+        fn launch(
+            &self,
+            ipc_url: String,
+            user_data_dir: Option<&str>,
+            _launch_lane: &str,
+        ) -> anyhow::Result<()> {
             let data_dir = user_data_dir
                 .map(PathBuf::from)
                 .unwrap_or_else(|| paths::data_dir().clone());
@@ -962,6 +1071,7 @@ mod linux {
             &self,
             ipc_url: String,
             user_data_dir: Option<&str>,
+            _launch_lane: &str,
         ) -> io::Result<ExitStatus> {
             let mut cmd = std::process::Command::new(self.0.clone());
             cmd.arg(ipc_url);
@@ -1187,7 +1297,12 @@ mod windows {
             )
         }
 
-        fn launch(&self, ipc_url: String, user_data_dir: Option<&str>) -> anyhow::Result<()> {
+        fn launch(
+            &self,
+            ipc_url: String,
+            user_data_dir: Option<&str>,
+            _launch_lane: &str,
+        ) -> anyhow::Result<()> {
             if check_single_instance() {
                 let mut cmd = std::process::Command::new(self.0.clone());
                 cmd.arg(ipc_url);
@@ -1222,6 +1337,7 @@ mod windows {
             &self,
             ipc_url: String,
             user_data_dir: Option<&str>,
+            _launch_lane: &str,
         ) -> io::Result<ExitStatus> {
             let mut cmd = std::process::Command::new(self.0.clone());
             cmd.arg(ipc_url).arg("--foreground");
@@ -1277,6 +1393,7 @@ mod mac_os {
     use std::{
         ffi::OsStr,
         fs, io,
+        os::unix::fs::{OpenOptionsExt as _, PermissionsExt as _},
         path::{Path, PathBuf},
         process::{Command, ExitStatus},
         ptr,
@@ -1290,6 +1407,12 @@ mod mac_os {
     struct InfoPlist {
         #[serde(rename = "CFBundleShortVersionString")]
         bundle_short_version_string: String,
+        #[serde(rename = "CFBundleVersion")]
+        bundle_version: String,
+        #[serde(rename = "CFBundleExecutable")]
+        bundle_executable: String,
+        #[serde(default, rename = "ZedCliLaunchExecutableDirectly")]
+        launch_executable_directly: bool,
     }
 
     enum Bundle {
@@ -1345,11 +1468,35 @@ mod mac_os {
 
     impl InstalledApp for Bundle {
         fn zed_version_string(&self) -> String {
-            format!("Zed {} – {}", self.version(), self.path().display(),)
+            format!("Zed {} – {}", self.version(), self.display_path().display(),)
         }
 
-        fn launch(&self, url: String, user_data_dir: Option<&str>) -> anyhow::Result<()> {
+        fn launch(
+            &self,
+            url: String,
+            user_data_dir: Option<&str>,
+            launch_lane: &str,
+        ) -> anyhow::Result<()> {
             match self {
+                Self::App {
+                    plist:
+                        InfoPlist {
+                            launch_executable_directly: true,
+                            ..
+                        },
+                    ..
+                } => {
+                    let logs_dir = paths::logs_dir();
+                    fs::create_dir_all(logs_dir)
+                        .with_context(|| format!("Creating CLI log directory {logs_dir:?}"))?;
+                    self.launch_executable(
+                        url,
+                        user_data_dir,
+                        launch_lane,
+                        logs_dir.join("zed-cli.log"),
+                    )?;
+                }
+
                 Self::App { app_bundle, .. } => {
                     let app_path = app_bundle;
 
@@ -1389,45 +1536,54 @@ mod mac_os {
                     let executable_parent = executable
                         .parent()
                         .with_context(|| format!("Executable {executable:?} path has no parent"))?;
-                    let subprocess_stdout_file = fs::File::create(
+                    self.launch_executable(
+                        url,
+                        user_data_dir,
+                        launch_lane,
                         executable_parent.join("zed_dev.log"),
-                    )
-                    .with_context(|| format!("Log file creation in {executable_parent:?}"))?;
-                    let subprocess_stdin_file =
-                        subprocess_stdout_file.try_clone().with_context(|| {
-                            format!("Cloning descriptor for file {subprocess_stdout_file:?}")
-                        })?;
-                    let mut command = std::process::Command::new(executable);
-                    command.env(FORCE_CLI_MODE_ENV_VAR_NAME, "");
-                    if let Some(dir) = user_data_dir {
-                        command.arg("--user-data-dir").arg(dir);
-                    }
-                    command
-                        .stderr(subprocess_stdout_file)
-                        .stdout(subprocess_stdin_file)
-                        .arg(url);
-
-                    command
-                        .spawn()
-                        .with_context(|| format!("Spawning {command:?}"))?;
+                    )?;
                 }
             }
 
             Ok(())
         }
 
+        fn record_cli_launch_failure(&self, failure_class: &str, lane: &str) {
+            let telemetry_disabled =
+                std::env::var("ZED_10X_TELEMETRY_DISABLED").is_ok_and(|value| {
+                    matches!(
+                        value.to_ascii_lowercase().as_str(),
+                        "1" | "true" | "yes" | "on"
+                    )
+                });
+            for node_path in [
+                Path::new("/opt/homebrew/bin/node"),
+                Path::new("/usr/local/bin/node"),
+            ] {
+                if node_path.is_file() {
+                    if self
+                        .record_cli_launch_failure_with_node(
+                            node_path,
+                            failure_class,
+                            lane,
+                            telemetry_disabled,
+                        )
+                        .is_ok()
+                    {
+                        return;
+                    }
+                }
+            }
+        }
+
         fn run_foreground(
             &self,
             ipc_url: String,
             user_data_dir: Option<&str>,
+            launch_lane: &str,
         ) -> io::Result<ExitStatus> {
-            let path = match self {
-                Bundle::App { app_bundle, .. } => app_bundle.join("Contents/MacOS/zed"),
-                Bundle::LocalPath { executable, .. } => executable.clone(),
-            };
-
-            let mut cmd = std::process::Command::new(path);
-            cmd.arg(ipc_url);
+            let mut cmd = std::process::Command::new(self.executable_path());
+            cmd.env("ZED_10X_LAUNCH_LANE", launch_lane).arg(ipc_url);
             if let Some(dir) = user_data_dir {
                 cmd.arg("--user-data-dir").arg(dir);
             }
@@ -1435,10 +1591,7 @@ mod mac_os {
         }
 
         fn path(&self) -> PathBuf {
-            match self {
-                Bundle::App { app_bundle, .. } => app_bundle.join("Contents/MacOS/zed"),
-                Bundle::LocalPath { executable, .. } => executable.clone(),
-            }
+            self.executable_path()
         }
     }
 
@@ -1450,11 +1603,257 @@ mod mac_os {
             }
         }
 
-        fn path(&self) -> &Path {
+        fn display_path(&self) -> &Path {
             match self {
                 Self::App { app_bundle, .. } => app_bundle,
                 Self::LocalPath { executable, .. } => executable,
             }
+        }
+
+        fn executable_path(&self) -> PathBuf {
+            match self {
+                Self::App { app_bundle, plist } => app_bundle
+                    .join("Contents/MacOS")
+                    .join(&plist.bundle_executable),
+                Self::LocalPath { executable, .. } => executable.clone(),
+            }
+        }
+
+        fn launch_executable(
+            &self,
+            url: String,
+            user_data_dir: Option<&str>,
+            launch_lane: &str,
+            log_path: PathBuf,
+        ) -> anyhow::Result<()> {
+            let subprocess_stdout_file = fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .mode(0o600)
+                .open(&log_path)
+                .with_context(|| format!("Opening CLI launch log {log_path:?}"))?;
+            fs::set_permissions(&log_path, fs::Permissions::from_mode(0o600))
+                .with_context(|| format!("Securing CLI launch log {log_path:?}"))?;
+            let subprocess_stderr_file = subprocess_stdout_file
+                .try_clone()
+                .with_context(|| format!("Cloning descriptor for CLI launch log {log_path:?}"))?;
+            let executable = self.executable_path();
+            let mut command = std::process::Command::new(&executable);
+            command
+                .env(FORCE_CLI_MODE_ENV_VAR_NAME, "")
+                .env("ZED_10X_LAUNCH_LANE", launch_lane);
+            if let Some(dir) = user_data_dir {
+                command.arg("--user-data-dir").arg(dir);
+            }
+            command
+                .stderr(subprocess_stderr_file)
+                .stdout(subprocess_stdout_file)
+                .arg(url);
+
+            command
+                .spawn()
+                .with_context(|| format!("Spawning bundle executable {executable:?}"))?;
+            Ok(())
+        }
+
+        fn record_cli_launch_failure_with_node(
+            &self,
+            node_path: &Path,
+            failure_class: &str,
+            lane: &str,
+            telemetry_disabled: bool,
+        ) -> anyhow::Result<()> {
+            let (
+                app_bundle,
+                InfoPlist {
+                    bundle_short_version_string,
+                    bundle_version,
+                    launch_executable_directly,
+                    ..
+                },
+            ) = match self {
+                Self::App { app_bundle, plist } => (app_bundle, plist),
+                Self::LocalPath { .. } => return Ok(()),
+            };
+            if !launch_executable_directly {
+                return Ok(());
+            }
+
+            let collector = app_bundle
+                .join("Contents/Resources")
+                .join("zed-10x-canary.mjs");
+            if !collector.is_file() {
+                return Ok(());
+            }
+
+            let store_dir = std::env::var_os("ZED_10X_CANARY_STORE")
+                .map(PathBuf::from)
+                .unwrap_or_else(|| {
+                    paths::home_dir().join("Library/Application Support/Zed 10x/dogfood-canary")
+                });
+            let mut command = std::process::Command::new(node_path);
+            command
+                .env_clear()
+                .env("HOME", paths::home_dir())
+                .env(
+                    "PATH",
+                    "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+                )
+                .arg(collector)
+                .args([
+                    "record",
+                    "cli.launch.failure",
+                    "--cohort",
+                    "zed10x",
+                    "--lane",
+                    lane,
+                    "--app-version",
+                    bundle_short_version_string,
+                    "--build-version",
+                    bundle_version,
+                    "--failure-class",
+                    failure_class,
+                    "--session-kind",
+                    "cli",
+                ])
+                .arg("--store")
+                .arg(store_dir)
+                .stdin(std::process::Stdio::null())
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null());
+            if telemetry_disabled {
+                command.env("ZED_10X_TELEMETRY_DISABLED", "1");
+            }
+            command
+                .spawn()
+                .context("Starting fail-open CLI failure telemetry")?;
+            Ok(())
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        use std::time::Duration;
+
+        #[test]
+        fn custom_bundle_executable_is_used_for_direct_launch_contract() {
+            let bundle = Bundle::App {
+                app_bundle: PathBuf::from("/Applications/Zed 10x.app"),
+                plist: InfoPlist {
+                    bundle_short_version_string: "0.1.0".to_string(),
+                    bundle_version: "1".to_string(),
+                    bundle_executable: "zed-10x-launcher".to_string(),
+                    launch_executable_directly: true,
+                },
+            };
+
+            assert_eq!(
+                bundle.executable_path(),
+                PathBuf::from("/Applications/Zed 10x.app/Contents/MacOS/zed-10x-launcher")
+            );
+            assert!(matches!(
+                bundle,
+                Bundle::App {
+                    plist: InfoPlist {
+                        launch_executable_directly: true,
+                        ..
+                    },
+                    ..
+                }
+            ));
+        }
+
+        #[test]
+        fn direct_launch_passes_the_preclassified_lane_to_the_launcher() {
+            let temp_dir = tempfile::tempdir().unwrap();
+            let lane_evidence = temp_dir.path().join("lane.txt");
+            let executable = temp_dir.path().join("launcher");
+            fs::write(
+                &executable,
+                format!(
+                    "#!/bin/sh\nprintf '%s\\n' \"$ZED_10X_LAUNCH_LANE\" > '{}'\n",
+                    lane_evidence.display(),
+                ),
+            )
+            .unwrap();
+            fs::set_permissions(&executable, fs::Permissions::from_mode(0o755)).unwrap();
+            let bundle = Bundle::LocalPath { executable };
+            let log_path = temp_dir.path().join("launcher.log");
+
+            bundle
+                .launch_executable(
+                    "zed-cli://fixture".to_string(),
+                    None,
+                    "intrepid",
+                    log_path.clone(),
+                )
+                .unwrap();
+            for _ in 0..100 {
+                if lane_evidence.exists() {
+                    break;
+                }
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            assert_eq!(fs::read_to_string(lane_evidence).unwrap(), "intrepid\n");
+            assert_eq!(
+                fs::metadata(log_path).unwrap().permissions().mode() & 0o777,
+                0o600
+            );
+        }
+
+        #[test]
+        fn direct_bundle_records_a_sanitized_content_free_cli_failure() {
+            let temp_dir = tempfile::tempdir().unwrap();
+            let app_bundle = temp_dir.path().join("Zed 10x.app");
+            let resources = app_bundle.join("Contents/Resources");
+            fs::create_dir_all(&resources).unwrap();
+            let collector = resources.join("zed-10x-canary.mjs");
+            fs::write(&collector, "").unwrap();
+
+            let evidence_path = temp_dir.path().join("collector-arguments.txt");
+            let fake_node = temp_dir.path().join("fake-node");
+            fs::write(
+                &fake_node,
+                format!(
+                    "#!/bin/sh\nprintf '%s\\n' \"$@\" > '{}'\nprintf 'github=%s\\n' \"${{GITHUB_TOKEN+set}}\" >> '{}'\n",
+                    evidence_path.display(),
+                    evidence_path.display(),
+                ),
+            )
+            .unwrap();
+            fs::set_permissions(&fake_node, fs::Permissions::from_mode(0o755)).unwrap();
+
+            let bundle = Bundle::App {
+                app_bundle,
+                plist: InfoPlist {
+                    bundle_short_version_string: "1.13.0-10x".to_string(),
+                    bundle_version: "20260727.1".to_string(),
+                    bundle_executable: "zed-10x-launcher".to_string(),
+                    launch_executable_directly: true,
+                },
+            };
+            bundle
+                .record_cli_launch_failure_with_node(
+                    &fake_node,
+                    "handshake_timeout",
+                    "local",
+                    false,
+                )
+                .unwrap();
+
+            for _ in 0..100 {
+                if evidence_path.exists() {
+                    break;
+                }
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            let evidence = fs::read_to_string(evidence_path).unwrap();
+            assert!(evidence.contains("cli.launch.failure"));
+            assert!(evidence.contains("handshake_timeout"));
+            assert!(evidence.contains("20260727.1"));
+            assert!(evidence.contains("github=\n"));
+            assert!(!evidence.contains("GITHUB_TOKEN"));
         }
     }
 
