@@ -1,0 +1,46 @@
+name: minds Code Review (Required)
+
+# MINDS_REVIEW_ATOMIC_ROUTER_V1 — thin caller (vps-infra#1464).
+#
+# The router, admission policy, and their contract tests live in ONE place:
+#   keeva-devtools/.github/workflows/minds-review-authorize-router.yml
+# pinned at @main so a policy fix lands fleet-wide in one pull request. That
+# is deliberate (vps-infra#1464): a SHA pin here would recreate the eleven-repo
+# propagation the consolidation exists to end. keeva-devtools main is branch-
+# protected behind its own required checks.
+#
+# This file must keep this exact path AND the marker above: compatibility
+# workflows (vps-infra, apex minds-review.yml) read the BASE blob of
+# .github/workflows/minds-review-authorize.yml for the marker and would re-own
+# the required review context if it vanished.
+#
+# Per-repo variance is passed as inputs, never edited into a copy:
+#   with:
+#     extra_denied_paths: scripts/rollout-ci-gates.sh   # keeva-devtools only
+#     prerequisite_check: Gateway + MCP Test Suite      # apex only
+#     admission: repo-runner                            # apex only
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
+
+permissions:
+  contents: read
+  pull-requests: write
+  # Only used when prerequisite_check is set (reading commit check-runs);
+  # harmless otherwise, kept uniform so callers never diverge on grants.
+  checks: read
+
+concurrency:
+  group: minds-review-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
+  # A projection event must not cancel its originating exact-head review.
+  cancel-in-progress: false
+
+jobs:
+  router:
+    uses: keevaspeyer10x/keeva-devtools/.github/workflows/minds-review-authorize-router.yml@main
+    # Explicit, least-privilege secret passing — never blanket inheritance.
+    # The router resolves from @main, so inheriting would hand every consumer
+    # secret to any future router change; the declared interface needs one.
+    secrets:
+      INTREPID_SSH_KEY: ${{ secrets.INTREPID_SSH_KEY }}

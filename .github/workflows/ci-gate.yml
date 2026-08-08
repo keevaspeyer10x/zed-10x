@@ -1,0 +1,35 @@
+name: CI Gate
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  # journey-gate reads the live PR body; a called workflow cannot expand the
+  # caller's grants (kd#198 — omitting this startup_failures the whole gate).
+  pull-requests: read
+
+jobs:
+  gate:
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    uses: keevaspeyer10x/keeva-devtools/.github/workflows/agent-ci-gate.yml@8f20df85591ac1c14f6c9b1986cfdc9220bf29c1 # v1
+    secrets:
+      # First-party private package index (agent-COO#137). Empty for repos that
+      # don't set it; the gate only uses it when pyproject declares the keeva uv
+      # index. Declared required:false in the reusable workflow, so this is safe
+      # for every repo (least-privilege: passes only this secret, not inherit).
+      KEEVA_PYPI_TOKEN: ${{ secrets.KEEVA_PYPI_TOKEN }}
+
+  scan:
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    # Scanner half (kd#198 size-cap split). Same pin as gate; second required
+    # check: scan / scan-summary.
+    uses: keevaspeyer10x/keeva-devtools/.github/workflows/agent-ci-gate-scan.yml@8f20df85591ac1c14f6c9b1986cfdc9220bf29c1 # v1

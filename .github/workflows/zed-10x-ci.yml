@@ -1,0 +1,33 @@
+name: Zed 10x CI
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+
+concurrency:
+  group: zed-10x-ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  focused-rust:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Check out the exact pull-request revision
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+
+      - name: Install Linux build dependencies
+        run: ./script/linux
+
+      - name: Verify formatting
+        run: cargo fmt --all -- --check
+
+      - name: Check the Zed 10x binary
+        run: cargo check --locked -p zed --bin zed-10x
+
+      - name: Test liveness detection
+        run: cargo test --locked -p zed --bin zed-10x reliability::hang_detection::liveness::tests
