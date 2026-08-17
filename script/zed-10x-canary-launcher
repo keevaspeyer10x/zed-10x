@@ -55,6 +55,7 @@ esac
 unset ZED_10X_LAUNCH_LANE
 session_kind="launcher"
 project_id=""
+has_user_data_dir=false
 for argument in "$@"; do
     case "$argument" in
         zed-cli://*)
@@ -62,6 +63,9 @@ for argument in "$@"; do
             ;;
         ssh://*|zed://ssh/*)
             lane="intrepid"
+            ;;
+        --user-data-dir|--user-data-dir=*)
+            has_user_data_dir=true
             ;;
         -*|zed://*)
             ;;
@@ -130,6 +134,10 @@ if [ -n "$node_path" ] && [ -f "$collector" ]; then
     fi
 fi
 
-exec "$macos_dir/zed-10x-runtime" \
-    --user-data-dir "$user_data_dir" \
-    "${original_arguments[@]}"
+runtime_arguments=()
+if [ "$has_user_data_dir" = false ]; then
+    runtime_arguments+=(--user-data-dir "$user_data_dir")
+fi
+runtime_arguments+=("${original_arguments[@]}")
+
+exec "$macos_dir/zed-10x-runtime" "${runtime_arguments[@]}"

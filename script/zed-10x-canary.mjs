@@ -663,8 +663,7 @@ export function buildComparison(records) {
         group.continuity_failures +
         group.hangs +
         group.crashes +
-        group.forced_quits +
-        group.cli_launch_failures,
+        group.forced_quits,
     }));
   const resultGroups = comparisonGroups
     .map(({ first_timestamp_ms, last_timestamp_ms, observed_duration_ms, ...group }) => group)

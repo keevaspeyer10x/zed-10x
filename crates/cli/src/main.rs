@@ -1664,7 +1664,8 @@ mod mac_os {
                     .stderr(std::process::Stdio::null())
                     .stdout(std::process::Stdio::null());
             }
-            command.arg(url);
+            command.stdin(std::process::Stdio::null()).arg(url);
+            util::set_pre_exec_to_start_new_session(&mut command);
 
             command
                 .spawn()
@@ -1816,6 +1817,49 @@ mod mac_os {
                 fs::metadata(log_path).unwrap().permissions().mode() & 0o777,
                 0o600
             );
+        }
+
+        #[test]
+        fn direct_launch_detaches_from_the_cli_process_group_and_nulls_stdin() {
+            let temp_dir = tempfile::tempdir().unwrap();
+            let launch_evidence = temp_dir.path().join("launch-evidence.txt");
+            let executable = temp_dir.path().join("launcher");
+            fs::write(
+                &executable,
+                format!(
+                    "#!/bin/sh\nprintf '%s\\n%s\\n%s\\n%s\\n' \"$$\" \"$(ps -o pgid= -p $$ | tr -d ' ')\" \"$(stat -f '%d:%i' /dev/fd/0)\" \"$(stat -f '%d:%i' /dev/null)\" > '{}'\n",
+                    launch_evidence.display(),
+                ),
+            )
+            .unwrap();
+            fs::set_permissions(&executable, fs::Permissions::from_mode(0o755)).unwrap();
+            let bundle = Bundle::LocalPath { executable };
+
+            bundle
+                .launch_executable(
+                    "zed-cli://fixture".to_string(),
+                    None,
+                    "local",
+                    temp_dir.path().join("launcher.log"),
+                )
+                .unwrap();
+            for _ in 0..100 {
+                if launch_evidence.exists() {
+                    break;
+                }
+                std::thread::sleep(Duration::from_millis(10));
+            }
+
+            let evidence = fs::read_to_string(launch_evidence)
+                .unwrap()
+                .lines()
+                .map(str::to_string)
+                .collect::<Vec<_>>();
+            assert_eq!(
+                evidence[0], evidence[1],
+                "launcher must lead its process group"
+            );
+            assert_eq!(evidence[2], evidence[3], "launcher stdin must be /dev/null");
         }
 
         #[test]
