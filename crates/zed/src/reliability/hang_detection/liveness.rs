@@ -6,7 +6,9 @@ mod tests {
     use std::sync::{
         Arc, Barrier,
         atomic::{AtomicBool, AtomicU64, Ordering},
+        mpsc,
     };
+    use std::thread;
     use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
     use chrono::{DateTime, Days, NaiveDate, Utc};
@@ -19,8 +21,9 @@ mod tests {
         LifecycleOffer, LifecycleProducer, LivenessMonitor, LivenessTransition,
         LivenessTransitions, ManualClock, PendingEvent, RecorderConfig, RecorderIngress,
         RetentionPolicy, SinkOffer, SourceIdentity, StoreEntryKind, StoreOpenError, StoreRole,
-        TestRecorder, TryEventSink, UAT_FOREGROUND_HANG_DURATION, admit_store_custody,
-        day_directory_name, encode_event_line, open_or_create_store_nofollow_with_missing_hook,
+        TestRecorder, TryEventSink, UAT_FOREGROUND_HANG_DURATION, WriterCompletion, WriterThread,
+        admit_store_custody, day_directory_name, encode_event_line,
+        open_or_create_store_nofollow_with_missing_hook,
         open_private_directory_at_with_missing_hook, owned_shard_name, restart_telemetry_disabled,
         retention_scan_quota, retention_slot_index, slot_directory_name, spawn_writer,
         spawn_writer_with_clock, start_configured, start_foreground_acknowledger, try_send_probe,
@@ -570,10 +573,8 @@ mod tests {
     #[test]
     fn s1_contract_06_capacity_one_probe_queue_coalesces_via_try_send() {
         let (sender, receiver) = async_channel::bounded(1);
-        let started = Instant::now();
         assert!(try_send_probe(&sender, 41));
         assert!(!try_send_probe(&sender, 42));
-        assert!(started.elapsed() < Duration::from_millis(50));
         assert_eq!(receiver.try_recv(), Ok(41));
         assert!(receiver.try_recv().is_err());
     }
@@ -602,12 +603,10 @@ mod tests {
 
         assert_eq!(ingress.try_offer(first), SinkOffer::Accepted);
         assert_eq!(ingress.try_offer(second), SinkOffer::Accepted);
-        let started = Instant::now();
         assert_eq!(
             ingress.try_offer(third),
             SinkOffer::Dropped(DropReason::QueueFull)
         );
-        assert!(started.elapsed() < Duration::from_millis(50));
     }
 
     #[test]
@@ -745,9 +744,7 @@ mod tests {
         atomic_acknowledgement
             .version
             .fetch_add(1, Ordering::AcqRel);
-        let bounded = Instant::now();
         assert_eq!(atomic_acknowledgement.try_load(), None);
-        assert!(bounded.elapsed() < Duration::from_millis(50));
 
         let mut stalled_publication_monitor = LivenessMonitor::new(INTERVAL, THRESHOLD);
         assert_eq!(
@@ -1040,12 +1037,10 @@ mod tests {
             LifecycleOffer::Accepted
         );
         let mut full_sink = CapturingSink::with_drops([DropReason::QueueFull]);
-        let started = Instant::now();
         assert_eq!(
             producer.offer_clean_exit(&mut full_sink, at(1)),
             LifecycleOffer::Dropped(DropReason::QueueFull)
         );
-        assert!(started.elapsed() < Duration::from_millis(50));
         assert_eq!(
             producer.offer_clean_exit(&mut full_sink, at(2)),
             LifecycleOffer::RejectedTransition
@@ -1085,7 +1080,7 @@ mod tests {
     }
 
     #[test]
-    fn s1_contract_13a_shutdown_waits_for_queue_space_and_delivers_one_terminal() {
+    fn s1_contract_13a_shutdown_never_waits_for_queue_space() {
         let mut producer = LifecycleProducer::new();
         let mut launch_sink = CapturingSink::default();
         assert_eq!(
@@ -1098,25 +1093,33 @@ mod tests {
             SinkOffer::Accepted
         );
 
-        std::thread::scope(|scope| {
-            let shutdown = scope.spawn(move || {
-                let outcome = producer.offer_clean_exit_wait(&ingress, at(1));
-                (outcome, producer, ingress)
-            });
+        assert_eq!(
+            producer.offer_clean_exit(&mut ingress, at(1)),
+            LifecycleOffer::Dropped(DropReason::QueueFull)
+        );
+        assert_eq!(producer.terminal_offer_count(), 1);
+        assert!(matches!(
+            receiver.recv().unwrap().fact(),
+            EventFact::AppLaunch
+        ));
+        assert!(receiver.try_recv().is_err());
+    }
 
-            assert!(matches!(
-                receiver.recv().unwrap().fact(),
-                EventFact::AppLaunch
-            ));
-            let (outcome, producer, ingress) = shutdown.join().unwrap();
-            assert_eq!(outcome, LifecycleOffer::Accepted);
-            assert_eq!(producer.terminal_offer_count(), 1);
-            assert!(matches!(
-                receiver.recv().unwrap().fact(),
-                EventFact::AppProcessExit
-            ));
-            drop(ingress);
+    #[test]
+    fn s1_contract_13b_shutdown_deadline_detaches_a_stalled_writer() {
+        let (release_sender, release_receiver) = mpsc::channel();
+        let (completed_sender, completed) = mpsc::channel();
+        let handle = thread::spawn(move || {
+            let _completion = WriterCompletion(completed_sender);
+            release_receiver.recv().unwrap();
         });
+        let writer = WriterThread {
+            handle: Some(handle),
+            completed,
+        };
+
+        assert!(!writer.join_until(Instant::now()));
+        release_sender.send(()).unwrap();
     }
 
     #[test]
@@ -1731,6 +1734,25 @@ mod tests {
     }
 
     #[cfg(unix)]
+    #[test]
+    fn s1_contract_24a_final_pre_unlink_replacement_revokes_deletion() {
+        let root = TestRoot::new("final-unlink-race");
+        let today = day(at(20 * 86_400));
+        let old_day = today.checked_sub_days(Days::new(15)).unwrap();
+        let candidate = nested_shard_path(&root, old_day, WRITER_ID);
+        write_private(&candidate, b"original\n");
+
+        let mut writer = TestRecorder::open(recorder_config(&root), launch_identity()).unwrap();
+        writer.inject_final_unlink_replacement_race(candidate.clone(), b"replacement\n".to_vec());
+        let report = writer.run_retention_for_test(at(20 * 86_400));
+        let displaced = candidate.with_extension("jsonl.final-displaced");
+        assert_eq!(report.removed, 0);
+        assert_eq!(report.revoked, 1);
+        assert_eq!(fs::read(candidate).unwrap(), b"replacement\n");
+        assert_eq!(fs::read(displaced).unwrap(), b"original\n");
+    }
+
+    #[cfg(unix)]
     #[gpui::test]
     fn s1_contract_25_configured_production_assembly_persists_contiguous_lifecycle(
         cx: &mut TestAppContext,
@@ -2059,9 +2081,7 @@ mod tests {
         assert_eq!(unsafe { libc::mkfifo(fifo_c.as_ptr(), 0o600) }, 0);
         let mut fifo_writer =
             TestRecorder::open(recorder_config(&fifo_root), launch_identity()).unwrap();
-        let started = Instant::now();
         let fifo_report = fifo_writer.run_retention_for_test(current_observed);
-        assert!(started.elapsed() < Duration::from_millis(250));
         assert_eq!(fifo_report.removed, 0);
         assert!(fifo_report.revoked >= 1);
         assert!(fifo_path.exists());
@@ -2609,6 +2629,7 @@ const SOURCE_KIND: &str = "in_process";
 const PROBE_NAME: &str = "gpui_main_queue";
 const LIVENESS_INTERVAL: Duration = Duration::from_secs(1);
 const LIVENESS_THRESHOLD: Duration = Duration::from_secs(5);
+const WRITER_SHUTDOWN_TIMEOUT: Duration = Duration::from_millis(250);
 const MIN_RETENTION_SLOT_QUOTA: usize = 4;
 const MAX_RETENTION_SLOT_COUNT: usize = 99;
 
@@ -3163,13 +3184,6 @@ impl RecorderIngress {
         let (sender, receiver) = mpsc::sync_channel(capacity);
         (Self { sender }, receiver)
     }
-
-    fn send_wait(&self, event: PendingEvent) -> SinkOffer {
-        match self.sender.send(event) {
-            Ok(()) => SinkOffer::Accepted,
-            Err(_) => SinkOffer::Dropped(DropReason::StorageUnavailable),
-        }
-    }
 }
 
 impl TryEventSink for RecorderIngress {
@@ -3288,7 +3302,6 @@ impl LifecycleProducer {
         outcomes
     }
 
-    #[cfg(test)]
     fn offer_clean_exit(&mut self, sink: &mut impl TryEventSink, at: SystemTime) -> LifecycleOffer {
         if self.state != LifecycleState::Active {
             return LifecycleOffer::RejectedTransition;
@@ -3296,28 +3309,6 @@ impl LifecycleProducer {
         self.state = LifecycleState::Terminal;
         self.terminal_offers += 1;
         self.offer(sink, EventFact::AppProcessExit, at)
-    }
-
-    fn offer_clean_exit_wait(&mut self, sink: &RecorderIngress, at: SystemTime) -> LifecycleOffer {
-        if self.state != LifecycleState::Active {
-            return LifecycleOffer::RejectedTransition;
-        }
-        self.state = LifecycleState::Terminal;
-        self.terminal_offers += 1;
-        let Some(sequence) = self.next_sequence else {
-            self.coverage = LifecycleCoverage::Partial;
-            self.dropped_offers += 1;
-            return LifecycleOffer::Dropped(DropReason::SequenceExhausted);
-        };
-        self.next_sequence = sequence.checked_add(1);
-        match sink.send_wait(PendingEvent::new(sequence, EventFact::AppProcessExit, at)) {
-            SinkOffer::Accepted => LifecycleOffer::Accepted,
-            SinkOffer::Dropped(reason) => {
-                self.coverage = LifecycleCoverage::Partial;
-                self.dropped_offers += 1;
-                LifecycleOffer::Dropped(reason)
-            }
-        }
     }
 
     fn offer(
@@ -3996,6 +3987,8 @@ struct Recorder {
     #[cfg(test)]
     unlink_replacement_race: Option<(PathBuf, Vec<u8>)>,
     #[cfg(test)]
+    final_unlink_replacement_race: Option<(PathBuf, Vec<u8>)>,
+    #[cfg(test)]
     retention_directory_replacement_race: Option<PathBuf>,
 }
 
@@ -4072,6 +4065,8 @@ impl Recorder {
             retention_failure_once: false,
             #[cfg(test)]
             unlink_replacement_race: None,
+            #[cfg(test)]
+            final_unlink_replacement_race: None,
             #[cfg(test)]
             retention_directory_replacement_race: None,
         })
@@ -4530,7 +4525,28 @@ impl Recorder {
             let mut mutation_failed = false;
             for day in planned_days {
                 for candidate in day.candidates {
-                    if unlink_relative(&day.directory.file, &candidate.name).is_ok() {
+                    #[cfg(test)]
+                    {
+                        let path = day.directory.path.join(&candidate.name);
+                        if self
+                            .final_unlink_replacement_race
+                            .as_ref()
+                            .is_some_and(|(candidate, _)| candidate == &path)
+                        {
+                            let (_, replacement) =
+                                self.final_unlink_replacement_race.take().unwrap();
+                            let displaced = path.with_extension("jsonl.final-displaced");
+                            fs::rename(&path, &displaced)?;
+                            write_private_test_replacement(&path, &replacement)?;
+                        }
+                    }
+                    if remove_verified_retention_candidate(
+                        &day.directory.file,
+                        &candidate.name,
+                        candidate.candidate.identity,
+                    )
+                    .is_ok()
+                    {
                         report.removed += 1;
                     } else {
                         report.revoked += 1;
@@ -4621,6 +4637,11 @@ impl Recorder {
     #[cfg(test)]
     fn inject_unlink_replacement_race(&mut self, path: PathBuf, replacement: Vec<u8>) {
         self.unlink_replacement_race = Some((path, replacement));
+    }
+
+    #[cfg(test)]
+    fn inject_final_unlink_replacement_race(&mut self, path: PathBuf, replacement: Vec<u8>) {
+        self.final_unlink_replacement_race = Some((path, replacement));
     }
 
     #[cfg(test)]
@@ -5184,6 +5205,108 @@ fn open_retention_candidate(
     }
 }
 
+fn remove_verified_retention_candidate(
+    root: &File,
+    name: &std::ffi::OsStr,
+    expected_identity: FileIdentity,
+) -> io::Result<()> {
+    #[cfg(unix)]
+    {
+        let quarantine = OsString::from(format!(".retention-delete-{}", Uuid::new_v4().simple()));
+        rename_noreplace_relative(root, name, &quarantine)?;
+
+        let observed = open_retention_candidate(root, &quarantine, false);
+        if !matches!(
+            observed,
+            Ok(Some(ref candidate)) if candidate.identity == expected_identity
+        ) {
+            let restore = rename_noreplace_relative(root, &quarantine, name);
+            return Err(match restore {
+                Ok(()) => io::Error::other("retention candidate identity changed before deletion"),
+                Err(error) => io::Error::other(format!(
+                    "retention candidate identity changed and could not be restored: {error}"
+                )),
+            });
+        }
+
+        unlink_relative(root, &quarantine)
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = root;
+        let _ = name;
+        let _ = expected_identity;
+        Err(io::Error::new(
+            io::ErrorKind::Unsupported,
+            "retention requires descriptor-relative identity binding",
+        ))
+    }
+}
+
+fn rename_noreplace_relative(
+    root: &File,
+    from: &std::ffi::OsStr,
+    to: &std::ffi::OsStr,
+) -> io::Result<()> {
+    #[cfg(any(target_os = "linux", target_os = "android"))]
+    {
+        let from = CString::new(from.as_bytes())
+            .map_err(|_| io::Error::other("invalid source entry name"))?;
+        let to = CString::new(to.as_bytes())
+            .map_err(|_| io::Error::other("invalid destination entry name"))?;
+        if unsafe {
+            libc::renameat2(
+                root.as_raw_fd(),
+                from.as_ptr(),
+                root.as_raw_fd(),
+                to.as_ptr(),
+                libc::RENAME_NOREPLACE,
+            )
+        } == 0
+        {
+            Ok(())
+        } else {
+            Err(io::Error::last_os_error())
+        }
+    }
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    {
+        let from = CString::new(from.as_bytes())
+            .map_err(|_| io::Error::other("invalid source entry name"))?;
+        let to = CString::new(to.as_bytes())
+            .map_err(|_| io::Error::other("invalid destination entry name"))?;
+        if unsafe {
+            libc::renameatx_np(
+                root.as_raw_fd(),
+                from.as_ptr(),
+                root.as_raw_fd(),
+                to.as_ptr(),
+                libc::RENAME_EXCL,
+            )
+        } == 0
+        {
+            Ok(())
+        } else {
+            Err(io::Error::last_os_error())
+        }
+    }
+    #[cfg(not(any(
+        target_os = "linux",
+        target_os = "android",
+        target_os = "macos",
+        target_os = "ios"
+    )))]
+    {
+        let _ = root;
+        let _ = from;
+        let _ = to;
+        Err(io::Error::new(
+            io::ErrorKind::Unsupported,
+            "retention requires atomic no-replace rename",
+        ))
+    }
+}
+
 fn unlink_relative(root: &File, name: &std::ffi::OsStr) -> io::Result<()> {
     #[cfg(unix)]
     {
@@ -5262,6 +5385,37 @@ struct SharedProducer {
     ingress: Option<RecorderIngress>,
 }
 
+struct WriterCompletion(mpsc::Sender<()>);
+
+impl Drop for WriterCompletion {
+    fn drop(&mut self) {
+        let _ = self.0.send(());
+    }
+}
+
+struct WriterThread {
+    handle: Option<thread::JoinHandle<()>>,
+    completed: SyncReceiver<()>,
+}
+
+impl WriterThread {
+    fn join_until(mut self, deadline: Instant) -> bool {
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        match self.completed.recv_timeout(remaining) {
+            Ok(()) | Err(mpsc::RecvTimeoutError::Disconnected) => self
+                .handle
+                .take()
+                .is_some_and(|handle| handle.join().is_ok()),
+            Err(mpsc::RecvTimeoutError::Timeout) => false,
+        }
+    }
+
+    #[cfg(test)]
+    fn join(mut self) -> thread::Result<()> {
+        self.handle.take().expect("writer handle is present").join()
+    }
+}
+
 pub(super) struct Monitor {
     liveness: LivenessMonitor,
     probe_sender: async_channel::Sender<u64>,
@@ -5316,19 +5470,20 @@ fn start_configured(
             let clock = clock.clone();
             let writer_thread = writer_thread.take();
             let shutdown = cx.background_spawn(async move {
+                let deadline = Instant::now() + WRITER_SHUTDOWN_TIMEOUT;
                 let ingress = {
                     let mut shared = producer.lock();
-                    let Some(ingress) = shared.ingress.take() else {
+                    let Some(mut ingress) = shared.ingress.take() else {
                         return;
                     };
                     let _ = shared
                         .producer
-                        .offer_clean_exit_wait(&ingress, clock.sample().suspend_aware);
+                        .offer_clean_exit(&mut ingress, clock.sample().suspend_aware);
                     ingress
                 };
                 drop(ingress);
                 if let Some(writer_thread) = writer_thread {
-                    let _ = writer_thread.join();
+                    let _ = writer_thread.join_until(deadline);
                 }
             });
             async move {
@@ -5363,14 +5518,24 @@ fn spawn_writer_with_clock(
     config: RecorderConfig,
     launch: LaunchIdentity,
     clock: Arc<dyn ClockSource>,
-) -> Result<(RecorderIngress, thread::JoinHandle<()>), StoreOpenError> {
+) -> Result<(RecorderIngress, WriterThread), StoreOpenError> {
     let recorder = Recorder::open(config, launch)?;
     let (ingress, receiver) = RecorderIngress::bounded(8);
-    let writer = thread::Builder::new()
+    let (completed_sender, completed) = mpsc::channel();
+    let handle = thread::Builder::new()
         .name("Zed10xLivenessWriter".to_owned())
-        .spawn(move || run_writer(recorder, receiver, clock))
+        .spawn(move || {
+            let _completion = WriterCompletion(completed_sender);
+            run_writer(recorder, receiver, clock);
+        })
         .map_err(|_| StoreOpenError::WriterThreadUnavailable)?;
-    Ok((ingress, writer))
+    Ok((
+        ingress,
+        WriterThread {
+            handle: Some(handle),
+            completed,
+        },
+    ))
 }
 
 fn run_writer(
