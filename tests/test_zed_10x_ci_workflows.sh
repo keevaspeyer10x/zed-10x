@@ -78,7 +78,7 @@ check "trusted-base review workflow exists" test -f "$REVIEW"
 check "trusted-base review workflow handles reopened pull requests" \
     contains "$REVIEW" "types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]"
 check "trusted-base review delegates to the canonical router" \
-    contains "$REVIEW" "uses: keevaspeyer10x/keeva-devtools/.github/workflows/minds-review-authorize-router.yml@main"
+    contains "$REVIEW" "uses: keevaspeyer10x/keeva-devtools/.github/workflows/minds-review-authorize-router.yml@b7f30483dc0cb4f35de20d9310cf639443dd5ef5"
 check "trusted-base review maps only the review-host secret" \
     contains "$REVIEW" 'INTREPID_SSH_KEY: ${{ secrets.INTREPID_SSH_KEY }}'
 check "trusted-base review workflow never checks out pull-request code" \
