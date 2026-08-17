@@ -354,7 +354,7 @@ test("repeated packaged CLI failures create an issue-20 incident without content
             "session.kind": "cli",
           },
         }),
-        { storeDir: store },
+        { storeDir: store, now: new Date("2026-07-24T12:05:00.000Z") },
       ),
       true,
     );
