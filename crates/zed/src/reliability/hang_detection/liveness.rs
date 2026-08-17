@@ -37,6 +37,7 @@ mod tests {
     const WRITER_ID: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
     const OTHER_WRITER_ID: &str = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
     const BASE_UNIX_SECONDS: u64 = 1_785_715_200;
+    const TEST_RETENTION_DAYS: usize = 14;
 
     struct TestRoot {
         path: PathBuf,
@@ -162,7 +163,7 @@ mod tests {
             false,
             8 * 1024 * 1024,
             RetentionPolicy {
-                inclusive_days: 14,
+                retained_days: TEST_RETENTION_DAYS as u64,
                 scan_cap: 64,
             },
         )
@@ -238,9 +239,10 @@ mod tests {
         if !root.store().exists() {
             create_private_directory(&root.store());
         }
-        let slot = root
-            .store()
-            .join(slot_directory_name(retention_slot_index(shard_day, 15)));
+        let slot = root.store().join(slot_directory_name(retention_slot_index(
+            shard_day,
+            TEST_RETENTION_DAYS,
+        )));
         if !slot.exists() {
             create_private_directory(&slot);
         }
@@ -1263,6 +1265,36 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
+    fn s1_contract_16a_shared_disabled_sentinel_stops_and_resumes_live_writer() {
+        let root = TestRoot::new("shared-disabled-sentinel");
+        let sentinel = root.path.join("DISABLED");
+        let mut writer = TestRecorder::open(recorder_config(&root), launch_identity()).unwrap();
+
+        write_private(&sentinel, b"disabled by operator\n");
+        assert_eq!(
+            writer.append(EventFact::AppLaunch, at(1), at(1)),
+            AppendOutcome::Dropped(DropReason::Disabled)
+        );
+        assert!(!root.store().exists());
+
+        fs::remove_file(&sentinel).unwrap();
+        assert_eq!(
+            writer.append(EventFact::AppLaunch, at(2), at(2)),
+            AppendOutcome::Appended
+        );
+        let shard = writer.current_shard_path().unwrap().to_path_buf();
+        let before = fs::read(&shard).unwrap();
+
+        write_private(&sentinel, b"disabled by operator\n");
+        assert_eq!(
+            writer.append(EventFact::AppProcessExit, at(3), at(3)),
+            AppendOutcome::Dropped(DropReason::Disabled)
+        );
+        assert_eq!(fs::read(&shard).unwrap(), before);
+    }
+
+    #[cfg(unix)]
+    #[test]
     fn s1_contract_17_restart_flag_is_snapshotted_and_cannot_reconfigure_writer() {
         let build_identity = SourceIdentity::from_build().expect("compile-time identity is valid");
         assert_eq!(build_identity.service_version, env!("CARGO_PKG_VERSION"));
@@ -1599,7 +1631,7 @@ mod tests {
             WRITER_ID,
         ));
         write_private(&legacy_flat_path, b"legacy-flat-observer\n");
-        let retained = today.checked_sub_days(Days::new(14)).unwrap();
+        let retained = today.checked_sub_days(Days::new(13)).unwrap();
         let current_paths = (0..100)
             .map(|index| {
                 let writer = format!("{index:032x}");
@@ -1616,10 +1648,13 @@ mod tests {
                 path
             })
             .collect::<Vec<_>>();
-        let expired_days = [15, 16, 17].map(|age| today.checked_sub_days(Days::new(age)).unwrap());
+        let expired_days = [14, 15, 16].map(|age| today.checked_sub_days(Days::new(age)).unwrap());
         let expired_day_paths = expired_days.map(|expired_day| {
             root.store()
-                .join(slot_directory_name(retention_slot_index(expired_day, 15)))
+                .join(slot_directory_name(retention_slot_index(
+                    expired_day,
+                    TEST_RETENTION_DAYS,
+                )))
                 .join(day_directory_name(expired_day))
         });
         let mut expired_paths = Vec::new();
@@ -1784,6 +1819,55 @@ mod tests {
     }
 
     #[cfg(unix)]
+    #[test]
+    fn s1_contract_24c_restart_completes_file_quarantine_deletion() {
+        let root = TestRoot::new("file-quarantine-recovery");
+        let observed = at(20 * 86_400);
+        let expired_day = day(observed).checked_sub_days(Days::new(14)).unwrap();
+        let candidate = nested_shard_path(&root, expired_day, WRITER_ID);
+        write_private(&candidate, b"expired\n");
+        let quarantine = candidate.with_file_name(format!(
+            "{}{}",
+            super::RETENTION_FILE_QUARANTINE_PREFIX,
+            "c".repeat(32)
+        ));
+        fs::rename(&candidate, &quarantine).unwrap();
+
+        let mut writer = TestRecorder::open(recorder_config(&root), launch_identity()).unwrap();
+        let report = writer.run_retention_for_test(observed);
+
+        assert!(report.removed >= 2);
+        assert_eq!(report.revoked, 0);
+        assert!(!quarantine.exists());
+        assert!(!candidate.parent().unwrap().exists());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn s1_contract_24d_restart_completes_directory_quarantine_deletion() {
+        let root = TestRoot::new("directory-quarantine-recovery");
+        let observed = at(20 * 86_400);
+        let expired_day = day(observed).checked_sub_days(Days::new(14)).unwrap();
+        let candidate = nested_shard_path(&root, expired_day, WRITER_ID);
+        write_private(&candidate, b"expired\n");
+        fs::remove_file(&candidate).unwrap();
+        let day_directory = candidate.parent().unwrap().to_path_buf();
+        let quarantine = day_directory.with_file_name(format!(
+            "{}{}",
+            super::RETENTION_DIRECTORY_QUARANTINE_PREFIX,
+            "d".repeat(32)
+        ));
+        fs::rename(&day_directory, &quarantine).unwrap();
+
+        let mut writer = TestRecorder::open(recorder_config(&root), launch_identity()).unwrap();
+        let report = writer.run_retention_for_test(observed);
+
+        assert_eq!(report.removed, 1);
+        assert_eq!(report.revoked, 0);
+        assert!(!quarantine.exists());
+    }
+
+    #[cfg(unix)]
     #[gpui::test]
     fn s1_contract_25_configured_production_assembly_persists_contiguous_lifecycle(
         cx: &mut TestAppContext,
@@ -1921,7 +2005,8 @@ mod tests {
 
         let shard = writer.current_shard_path().unwrap();
         let expected_day = format!("day-{}", observed_day.format("%Y%m%d"));
-        let expected_slot = slot_directory_name(retention_slot_index(observed_day, 15));
+        let expected_slot =
+            slot_directory_name(retention_slot_index(observed_day, TEST_RETENTION_DAYS));
         assert_eq!(
             shard
                 .parent()
@@ -1963,15 +2048,23 @@ mod tests {
             NaiveDate::from_ymd_opt(2024, 3, 1).unwrap(),
             NaiveDate::from_ymd_opt(2025, 1, 1).unwrap(),
         ] {
-            let retained_slots = (0..=14)
+            let retained_slots = (0..TEST_RETENTION_DAYS)
                 .map(|age| {
-                    retention_slot_index(today.checked_sub_days(Days::new(age)).unwrap(), 15)
+                    retention_slot_index(
+                        today.checked_sub_days(Days::new(age as u64)).unwrap(),
+                        TEST_RETENTION_DAYS,
+                    )
                 })
                 .collect::<BTreeSet<_>>();
-            assert_eq!(retained_slots.len(), 15);
+            assert_eq!(retained_slots.len(), TEST_RETENTION_DAYS);
             assert_eq!(
-                retention_slot_index(today, 15),
-                retention_slot_index(today.checked_sub_days(Days::new(15)).unwrap(), 15)
+                retention_slot_index(today, TEST_RETENTION_DAYS),
+                retention_slot_index(
+                    today
+                        .checked_sub_days(Days::new(TEST_RETENTION_DAYS as u64))
+                        .unwrap(),
+                    TEST_RETENTION_DAYS,
+                )
             );
         }
     }
@@ -2040,7 +2133,7 @@ mod tests {
         create_private_directory(&root.store());
         let observed = at(80 * 86_400);
         let today = day(observed);
-        let dirty_slot_index = retention_slot_index(today, 15);
+        let dirty_slot_index = retention_slot_index(today, TEST_RETENTION_DAYS);
         let dirty_slot = root.store().join(slot_directory_name(dirty_slot_index));
         create_private_directory(&dirty_slot);
         let malformed_entries = (0..12)
@@ -2052,12 +2145,15 @@ mod tests {
             })
             .collect::<Vec<_>>();
         let mis_slotted_day = today.checked_sub_days(Days::new(1)).unwrap();
-        assert_ne!(retention_slot_index(mis_slotted_day, 15), dirty_slot_index);
+        assert_ne!(
+            retention_slot_index(mis_slotted_day, TEST_RETENTION_DAYS),
+            dirty_slot_index
+        );
         let mis_slotted_path = dirty_slot.join(day_directory_name(mis_slotted_day));
         create_private_directory(&mis_slotted_path);
 
         let clean_day = today.checked_sub_days(Days::new(16)).unwrap();
-        let clean_slot_index = retention_slot_index(clean_day, 15);
+        let clean_slot_index = retention_slot_index(clean_day, TEST_RETENTION_DAYS);
         assert_ne!(dirty_slot_index, clean_slot_index);
         let clean_path = nested_shard_path(&root, clean_day, WRITER_ID);
         write_private(&clean_path, b"expired\n");
@@ -2192,7 +2288,8 @@ mod tests {
         );
 
         let observed_day = day(at(0));
-        let slot_name = slot_directory_name(retention_slot_index(observed_day, 15));
+        let slot_name =
+            slot_directory_name(retention_slot_index(observed_day, TEST_RETENTION_DAYS));
         let slot_start = Arc::new(Barrier::new(2));
         let [first_slot, second_slot] = std::thread::scope(|scope| {
             let first_parent_path = store_path.clone();
@@ -2297,37 +2394,47 @@ mod tests {
         let observed = at(80 * 86_400);
         let today = day(observed);
         assert_eq!(today, NaiveDate::from_ymd_opt(2026, 10, 22).unwrap());
-        let expected = [4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 4, 4, 4, 4, 4];
-        let today_actual = std::array::from_fn(|slot| retention_scan_quota(today, 15, 64, slot));
-        assert_eq!(today_actual, expected);
-        assert_eq!(expected.iter().sum::<usize>(), 64);
-        assert_eq!(expected.iter().filter(|quota| **quota == 5).count(), 4);
-        assert_eq!(expected.iter().filter(|quota| **quota == 4).count(), 11);
+        let today_actual: [usize; TEST_RETENTION_DAYS] =
+            std::array::from_fn(|slot| retention_scan_quota(today, TEST_RETENTION_DAYS, 64, slot));
+        assert_eq!(today_actual.iter().sum::<usize>(), 64);
+        assert_eq!(today_actual.iter().filter(|quota| **quota == 5).count(), 8);
+        assert_eq!(today_actual.iter().filter(|quota| **quota == 4).count(), 6);
         let tomorrow = today.succ_opt().unwrap();
         assert_eq!(tomorrow, NaiveDate::from_ymd_opt(2026, 10, 23).unwrap());
-        let tomorrow_expected = [4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 4, 4, 4, 4];
-        let tomorrow_actual =
-            std::array::from_fn(|slot| retention_scan_quota(tomorrow, 15, 64, slot));
-        assert_eq!(tomorrow_actual, tomorrow_expected);
-        assert_ne!(expected, tomorrow_expected);
-        assert_eq!(expected[retention_slot_index(today, 15)], 5);
-        assert_eq!(tomorrow_expected[retention_slot_index(today, 15)], 4);
+        let tomorrow_actual: [usize; TEST_RETENTION_DAYS] = std::array::from_fn(|slot| {
+            retention_scan_quota(tomorrow, TEST_RETENTION_DAYS, 64, slot)
+        });
+        assert_ne!(today_actual, tomorrow_actual);
+        assert_eq!(
+            today_actual[retention_slot_index(today, TEST_RETENTION_DAYS)],
+            5
+        );
+        assert_eq!(
+            tomorrow_actual[retention_slot_index(today, TEST_RETENTION_DAYS)],
+            4
+        );
 
-        let mut retained_paths: [Option<PathBuf>; 15] = std::array::from_fn(|_| None);
-        let mut expired_paths: [Vec<PathBuf>; 15] = std::array::from_fn(|_| Vec::new());
-        for slot_index in 0..15 {
-            let retained_day = (0..15)
-                .map(|offset| today.checked_sub_days(Days::new(offset)).unwrap())
-                .find(|candidate| retention_slot_index(*candidate, 15) == slot_index)
+        let mut retained_paths: [Option<PathBuf>; TEST_RETENTION_DAYS] =
+            std::array::from_fn(|_| None);
+        let mut expired_paths: [Vec<PathBuf>; TEST_RETENTION_DAYS] =
+            std::array::from_fn(|_| Vec::new());
+        for slot_index in 0..TEST_RETENTION_DAYS {
+            let retained_day = (0..TEST_RETENTION_DAYS)
+                .map(|offset| today.checked_sub_days(Days::new(offset as u64)).unwrap())
+                .find(|candidate| {
+                    retention_slot_index(*candidate, TEST_RETENTION_DAYS) == slot_index
+                })
                 .unwrap();
             let retained =
                 nested_shard_path(&root, retained_day, &format!("{:032x}", 1_000 + slot_index));
             write_private(&retained, b"retained\n");
             retained_paths[slot_index] = Some(retained);
 
-            let expired_day = (15..30)
-                .map(|offset| today.checked_sub_days(Days::new(offset)).unwrap())
-                .find(|candidate| retention_slot_index(*candidate, 15) == slot_index)
+            let expired_day = (TEST_RETENTION_DAYS..TEST_RETENTION_DAYS * 2)
+                .map(|offset| today.checked_sub_days(Days::new(offset as u64)).unwrap())
+                .find(|candidate| {
+                    retention_slot_index(*candidate, TEST_RETENTION_DAYS) == slot_index
+                })
                 .unwrap();
             for leaf_index in 0..6 {
                 let expired = nested_shard_path(
@@ -2343,7 +2450,7 @@ mod tests {
         let mut writer = TestRecorder::open(recorder_config(&root), launch_identity()).unwrap();
         let report = writer.run_retention_for_test(observed);
         assert_eq!(report.scanned, 64);
-        assert_eq!(report.slot_scanned.as_slice(), expected.as_slice());
+        assert_eq!(report.slot_scanned.as_slice(), today_actual.as_slice());
         assert!(
             retained_paths
                 .iter()
@@ -2362,7 +2469,7 @@ mod tests {
     fn s1_contract_33a_test_report_covers_every_valid_retention_slot() {
         let root = TestRoot::new("retention-dynamic-report");
         let retention = RetentionPolicy {
-            inclusive_days: 20,
+            retained_days: 20,
             scan_cap: 84,
         };
         let config = RecorderConfig::for_test(
@@ -2387,11 +2494,11 @@ mod tests {
         let root = TestRoot::new("retention-whole-slot-blocker");
         let observed = at(80 * 86_400);
         let today = day(observed);
-        let safe_day = today.checked_sub_days(Days::new(30)).unwrap();
-        let blocker_day = today.checked_sub_days(Days::new(15)).unwrap();
+        let safe_day = today.checked_sub_days(Days::new(28)).unwrap();
+        let blocker_day = today.checked_sub_days(Days::new(14)).unwrap();
         assert_eq!(
-            retention_slot_index(safe_day, 15),
-            retention_slot_index(blocker_day, 15)
+            retention_slot_index(safe_day, TEST_RETENTION_DAYS),
+            retention_slot_index(blocker_day, TEST_RETENTION_DAYS)
         );
         let safe = nested_shard_path(&root, safe_day, WRITER_ID);
         write_private(&safe, b"safe-but-blocked\n");
@@ -2525,9 +2632,10 @@ mod tests {
                 let observed = at(80 * 86_400);
                 let today = day(observed);
                 let expired_day = today.checked_sub_days(Days::new(15)).unwrap();
-                let slot = root
-                    .store()
-                    .join(slot_directory_name(retention_slot_index(expired_day, 15)));
+                let slot = root.store().join(slot_directory_name(retention_slot_index(
+                    expired_day,
+                    TEST_RETENTION_DAYS,
+                )));
                 let target = match level {
                     "source" => root.store(),
                     "slot" => {
@@ -2663,6 +2771,8 @@ const LIVENESS_THRESHOLD: Duration = Duration::from_secs(5);
 const WRITER_SHUTDOWN_TIMEOUT: Duration = Duration::from_millis(100);
 const MIN_RETENTION_SLOT_QUOTA: usize = 4;
 const MAX_RETENTION_SLOT_COUNT: usize = 99;
+const RETENTION_FILE_QUARANTINE_PREFIX: &str = ".retention-delete-";
+const RETENTION_DIRECTORY_QUARANTINE_PREFIX: &str = ".retention-directory-delete-";
 
 pub(super) const UAT_FOREGROUND_HANG_DURATION: Duration =
     LIVENESS_THRESHOLD.saturating_add(LIVENESS_INTERVAL.saturating_mul(3));
@@ -3157,6 +3267,7 @@ fn require_exact_keys<'a>(
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum DropReason {
+    Disabled,
     QueueFull,
     StorageUnavailable,
     SerializationRejected,
@@ -3834,17 +3945,17 @@ fn restart_telemetry_disabled(value: Option<&str>) -> bool {
 
 #[derive(Clone, Copy, Debug)]
 struct RetentionPolicy {
-    inclusive_days: u64,
+    retained_days: u64,
     scan_cap: usize,
 }
 
 impl RetentionPolicy {
     fn slot_count(self) -> Option<usize> {
-        usize::try_from(self.inclusive_days.checked_add(1)?).ok()
+        usize::try_from(self.retained_days).ok()
     }
 
     fn is_valid(self) -> bool {
-        self.inclusive_days > 0
+        self.retained_days > 0
             && self.slot_count().is_some_and(|slot_count| {
                 slot_count <= MAX_RETENTION_SLOT_COUNT
                     && self.scan_cap >= slot_count.saturating_mul(MIN_RETENTION_SLOT_QUOTA)
@@ -3855,6 +3966,7 @@ impl RetentionPolicy {
 #[derive(Clone, Debug)]
 struct RecorderConfig {
     store_path: PathBuf,
+    disabled_sentinel_path: PathBuf,
     source: SourceIdentity,
     disabled_at_restart: bool,
     max_shard_bytes: u64,
@@ -3864,14 +3976,14 @@ struct RecorderConfig {
 impl RecorderConfig {
     fn for_app(source: SourceIdentity, disabled_at_restart: bool) -> Self {
         let retention = RetentionPolicy {
-            inclusive_days: 14,
+            retained_days: 14,
             scan_cap: 64,
         };
         debug_assert!(retention.is_valid());
+        let canary_store = paths::data_dir().join("dogfood-canary");
         Self {
-            store_path: paths::data_dir()
-                .join("dogfood-canary")
-                .join("zed10x-in-process"),
+            store_path: canary_store.join("zed10x-in-process"),
+            disabled_sentinel_path: canary_store.join("DISABLED"),
             source,
             disabled_at_restart,
             max_shard_bytes: 8 * 1024 * 1024,
@@ -3891,6 +4003,10 @@ impl RecorderConfig {
             return Err("invalid recorder configuration");
         }
         Ok(Self {
+            disabled_sentinel_path: store_path
+                .parent()
+                .unwrap_or(store_path.as_path())
+                .join("DISABLED"),
             store_path,
             source,
             disabled_at_restart,
@@ -3902,6 +4018,14 @@ impl RecorderConfig {
     #[cfg(test)]
     fn set_disabled_at_restart_for_test(&mut self, disabled: bool) {
         self.disabled_at_restart = disabled;
+    }
+
+    fn disabled_by_sentinel(&self) -> bool {
+        match fs::symlink_metadata(&self.disabled_sentinel_path) {
+            Ok(_) => true,
+            Err(error) if error.kind() == io::ErrorKind::NotFound => false,
+            Err(_) => true,
+        }
     }
 }
 
@@ -4130,6 +4254,9 @@ impl Recorder {
         event_time: SystemTime,
         observed_time: SystemTime,
     ) -> AppendOutcome {
+        if self.config.disabled_by_sentinel() {
+            return AppendOutcome::Dropped(DropReason::Disabled);
+        }
         // Wall time can move backwards between occurrence and persistence. The event contract
         // still requires observation to be no earlier than the fact it records.
         let observed_time = observed_time.max(event_time);
@@ -4344,8 +4471,9 @@ impl Recorder {
         }
         self.ensure_root()?;
         let today = DateTime::<Utc>::from(observed_time).date_naive();
-        let Some(cutoff) = today.checked_sub_days(Days::new(self.config.retention.inclusive_days))
-        else {
+        let Some(cutoff) = today.checked_sub_days(Days::new(
+            self.config.retention.retained_days.saturating_sub(1),
+        )) else {
             return Ok(RetentionReport::default());
         };
         let slot_count = self
@@ -4417,6 +4545,39 @@ impl Recorder {
                 {
                     report.slot_scanned[slot_index] += 1;
                 }
+                if is_retention_directory_quarantine_name(&day_name) {
+                    let cleanup =
+                        match open_private_directory_at(&slot.file, &slot.path, &day_name, false) {
+                            Ok(Some(directory))
+                                if lock_directory(&directory.file, true).is_ok()
+                                    && root_binding_is_valid(
+                                        root,
+                                        &self.config.store_path,
+                                        root_identity,
+                                    )
+                                    && private_directory_binding_is_valid(root, &slot)
+                                    && private_directory_binding_is_valid(
+                                        &slot.file, &directory,
+                                    ) =>
+                            {
+                                remove_verified_retention_directory(
+                                    &slot.file,
+                                    &day_name,
+                                    directory.identity,
+                                )
+                            }
+                            _ => Err(io::Error::other(
+                                "retention directory quarantine custody was not valid",
+                            )),
+                        };
+                    if cleanup.is_ok() {
+                        report.removed += 1;
+                    } else {
+                        report.revoked += 1;
+                        slot_blocked = true;
+                    }
+                    continue;
+                }
                 let Some(day) = parse_day_directory_name(&day_name) else {
                     report.revoked += 1;
                     slot_blocked = true;
@@ -4474,6 +4635,41 @@ impl Recorder {
                         #[cfg(test)]
                         {
                             report.slot_scanned[slot_index] += 1;
+                        }
+                        if is_retention_file_quarantine_name(&shard_name) {
+                            let cleanup = match open_retention_candidate(
+                                &day_directory.file,
+                                &shard_name,
+                                true,
+                            ) {
+                                Ok(Some(candidate))
+                                    if root_binding_is_valid(
+                                        root,
+                                        &self.config.store_path,
+                                        root_identity,
+                                    ) && private_directory_binding_is_valid(root, &slot)
+                                        && private_directory_binding_is_valid(
+                                            &slot.file,
+                                            &day_directory,
+                                        ) =>
+                                {
+                                    remove_verified_retention_candidate(
+                                        &day_directory.file,
+                                        &shard_name,
+                                        candidate.identity,
+                                    )
+                                }
+                                _ => Err(io::Error::other(
+                                    "retention file quarantine custody was not valid",
+                                )),
+                            };
+                            if cleanup.is_ok() {
+                                report.removed += 1;
+                            } else {
+                                report.revoked += 1;
+                                slot_blocked = true;
+                            }
+                            continue;
                         }
                         if parse_owned_shard_name(&shard_name)
                             .is_none_or(|(shard_day, _)| shard_day != day)
@@ -4770,6 +4966,20 @@ fn parse_day_directory_name(name: &std::ffi::OsStr) -> Option<NaiveDate> {
     }
     let day = NaiveDate::parse_from_str(name.strip_prefix("day-")?, "%Y%m%d").ok()?;
     (day_directory_name(day) == name).then_some(day)
+}
+
+fn is_retention_quarantine_name(name: &std::ffi::OsStr, prefix: &str) -> bool {
+    name.to_str()
+        .and_then(|name| name.strip_prefix(prefix))
+        .is_some_and(|suffix| valid_lower_hex(suffix, 32))
+}
+
+fn is_retention_file_quarantine_name(name: &std::ffi::OsStr) -> bool {
+    is_retention_quarantine_name(name, RETENTION_FILE_QUARANTINE_PREFIX)
+}
+
+fn is_retention_directory_quarantine_name(name: &std::ffi::OsStr) -> bool {
+    is_retention_quarantine_name(name, RETENTION_DIRECTORY_QUARANTINE_PREFIX)
 }
 
 fn parse_owned_shard_name(name: &std::ffi::OsStr) -> Option<(NaiveDate, &str)> {
@@ -5285,7 +5495,10 @@ fn remove_verified_retention_candidate(
 ) -> io::Result<()> {
     #[cfg(unix)]
     {
-        let quarantine = OsString::from(format!(".retention-delete-{}", Uuid::new_v4().simple()));
+        let quarantine = OsString::from(format!(
+            "{RETENTION_FILE_QUARANTINE_PREFIX}{}",
+            Uuid::new_v4().simple()
+        ));
         rename_noreplace_relative(root, name, &quarantine)?;
 
         let observed = open_retention_candidate(root, &quarantine, false);
@@ -5324,7 +5537,7 @@ fn remove_verified_retention_directory(
     #[cfg(unix)]
     {
         let quarantine = OsString::from(format!(
-            ".retention-directory-delete-{}",
+            "{RETENTION_DIRECTORY_QUARANTINE_PREFIX}{}",
             Uuid::new_v4().simple()
         ));
         rename_noreplace_relative(root, name, &quarantine)?;
