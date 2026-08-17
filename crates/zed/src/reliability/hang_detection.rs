@@ -7,6 +7,7 @@ use gpui::{AppContext, TasksIncluded, profiler};
 use parking_lot::Mutex;
 use ui::App;
 
+mod liveness;
 mod logging;
 mod task_traces;
 mod telemetry;
@@ -40,7 +41,11 @@ pub(crate) fn start(client: Arc<Client>, cx: &mut App) {
         log::warn!("debug build, only reporting hangs longer then {hang_time:?}");
     }
 
-    start_hang_detection(hang_time, client, cx);
+    let liveness = liveness::start(cx);
+    start_hang_detection(hang_time, client, liveness, cx);
+    let foreground_uat_hang_time = hang_time
+        .max(liveness::UAT_FOREGROUND_HANG_DURATION)
+        .saturating_add(Duration::from_micros(1));
 
     cx.on_action(move |_: &HangAction, _| {
         log::warn!(
@@ -64,18 +69,23 @@ pub(crate) fn start(client: Arc<Client>, cx: &mut App) {
     cx.on_action(move |_: &HangForeground, cx| {
         cx.spawn(async move |_| {
             log::warn!(
-                "Hanging the foreground executor for {hang_time:?} seconds to test \
+                "Hanging the foreground executor for {foreground_uat_hang_time:?} to test \
                 performance monitoring! Zed will be unresponsive for that time. \
                 This should trigger a report in the log"
             );
-            thread::sleep(hang_time + Duration::from_micros(1));
+            thread::sleep(foreground_uat_hang_time);
             log::warn!("Hang ended");
         })
         .detach();
     });
 }
 
-fn start_hang_detection(report_longer_then: Duration, client: Arc<Client>, cx: &App) {
+fn start_hang_detection(
+    report_longer_then: Duration,
+    client: Arc<Client>,
+    mut liveness: Option<liveness::Monitor>,
+    cx: &App,
+) {
     let foreground_thread = thread::current().id();
     let monitor_interval = Duration::from_secs(1);
     let telemetry = Arc::new(Mutex::new(telemetry::Reporter::new(foreground_thread)));
@@ -100,6 +110,9 @@ fn start_hang_detection(report_longer_then: Duration, client: Arc<Client>, cx: &
             thread::sleep(Duration::from_millis(200));
             loop {
                 thread::sleep(monitor_interval);
+                if let Some(liveness) = &mut liveness {
+                    liveness.poll();
+                }
                 // TODO(yara) the telemetry should not include still running tasks while the
                 // reports being logged should.
                 let task_stats = profiler::take_all_stats(TasksIncluded::CompletedAndRunning);
