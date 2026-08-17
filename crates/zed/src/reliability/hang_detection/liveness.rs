@@ -1391,7 +1391,12 @@ mod tests {
         }
     }
 
-    #[cfg(not(unix))]
+    #[cfg(not(any(
+        target_os = "linux",
+        target_os = "android",
+        target_os = "macos",
+        target_os = "ios"
+    )))]
     #[test]
     fn s1_contract_18_private_creation_and_custody_reject_owner_mode_or_type_drift() {
         let root = TestRoot::new("unsupported-platform");
@@ -1750,6 +1755,32 @@ mod tests {
         assert_eq!(report.revoked, 1);
         assert_eq!(fs::read(candidate).unwrap(), b"replacement\n");
         assert_eq!(fs::read(displaced).unwrap(), b"original\n");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn s1_contract_24b_final_day_replacement_revokes_directory_deletion() {
+        let root = TestRoot::new("final-day-removal-race");
+        let today = day(at(20 * 86_400));
+        let old_day = today.checked_sub_days(Days::new(15)).unwrap();
+        let candidate = nested_shard_path(&root, old_day, WRITER_ID);
+        write_private(&candidate, b"original\n");
+        let day_directory = candidate.parent().unwrap().to_path_buf();
+        let displaced = day_directory.with_file_name(format!(
+            "{}-displaced",
+            day_directory.file_name().unwrap().to_string_lossy()
+        ));
+
+        let mut writer = TestRecorder::open(recorder_config(&root), launch_identity()).unwrap();
+        writer.inject_final_directory_removal_replacement_race(day_directory.clone());
+        let report = writer.run_retention_for_test(at(20 * 86_400));
+
+        assert_eq!(report.removed, 1);
+        assert_eq!(report.revoked, 1);
+        assert!(day_directory.exists());
+        assert!(displaced.exists());
+        assert_eq!(fs::read_dir(day_directory).unwrap().count(), 0);
+        assert_eq!(fs::read_dir(displaced).unwrap().count(), 0);
     }
 
     #[cfg(unix)]
@@ -2629,7 +2660,7 @@ const SOURCE_KIND: &str = "in_process";
 const PROBE_NAME: &str = "gpui_main_queue";
 const LIVENESS_INTERVAL: Duration = Duration::from_secs(1);
 const LIVENESS_THRESHOLD: Duration = Duration::from_secs(5);
-const WRITER_SHUTDOWN_TIMEOUT: Duration = Duration::from_millis(250);
+const WRITER_SHUTDOWN_TIMEOUT: Duration = Duration::from_millis(100);
 const MIN_RETENTION_SLOT_QUOTA: usize = 4;
 const MAX_RETENTION_SLOT_COUNT: usize = 99;
 
@@ -3877,7 +3908,12 @@ impl RecorderConfig {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum StoreOpenError {
     DisabledAtRestart,
-    #[cfg(not(unix))]
+    #[cfg(not(any(
+        target_os = "linux",
+        target_os = "android",
+        target_os = "macos",
+        target_os = "ios"
+    )))]
     UnsupportedPlatform,
     WriterThreadUnavailable,
 }
@@ -3990,6 +4026,8 @@ struct Recorder {
     final_unlink_replacement_race: Option<(PathBuf, Vec<u8>)>,
     #[cfg(test)]
     retention_directory_replacement_race: Option<PathBuf>,
+    #[cfg(test)]
+    final_directory_removal_replacement_race: Option<PathBuf>,
 }
 
 #[cfg(test)]
@@ -4045,9 +4083,19 @@ impl Recorder {
         if config.disabled_at_restart {
             return Err(StoreOpenError::DisabledAtRestart);
         }
-        #[cfg(not(unix))]
+        #[cfg(not(any(
+            target_os = "linux",
+            target_os = "android",
+            target_os = "macos",
+            target_os = "ios"
+        )))]
         return Err(StoreOpenError::UnsupportedPlatform);
-        #[cfg(unix)]
+        #[cfg(any(
+            target_os = "linux",
+            target_os = "android",
+            target_os = "macos",
+            target_os = "ios"
+        ))]
         Ok(Self {
             config,
             launch,
@@ -4069,6 +4117,8 @@ impl Recorder {
             final_unlink_replacement_race: None,
             #[cfg(test)]
             retention_directory_replacement_race: None,
+            #[cfg(test)]
+            final_directory_removal_replacement_race: None,
         })
     }
 
@@ -4575,7 +4625,25 @@ impl Recorder {
                         && private_directory_binding_is_valid(root, &slot)
                         && private_directory_binding_is_valid(&slot.file, &day.directory)
                     {
-                        if remove_directory_relative(&slot.file, &day.name).is_ok() {
+                        #[cfg(test)]
+                        if self
+                            .final_directory_removal_replacement_race
+                            .as_ref()
+                            .is_some_and(|path| path == &day.directory.path)
+                        {
+                            let path = self
+                                .final_directory_removal_replacement_race
+                                .take()
+                                .unwrap();
+                            replace_private_test_directory(&path)?;
+                        }
+                        if remove_verified_retention_directory(
+                            &slot.file,
+                            &day.name,
+                            day.directory.identity,
+                        )
+                        .is_ok()
+                        {
                             report.removed += 1;
                         } else {
                             report.revoked += 1;
@@ -4647,6 +4715,11 @@ impl Recorder {
     #[cfg(test)]
     fn inject_retention_directory_replacement_race(&mut self, path: PathBuf) {
         self.retention_directory_replacement_race = Some(path);
+    }
+
+    #[cfg(test)]
+    fn inject_final_directory_removal_replacement_race(&mut self, path: PathBuf) {
+        self.final_directory_removal_replacement_race = Some(path);
     }
 }
 
@@ -5243,6 +5316,57 @@ fn remove_verified_retention_candidate(
     }
 }
 
+fn remove_verified_retention_directory(
+    root: &File,
+    name: &std::ffi::OsStr,
+    expected_identity: FileIdentity,
+) -> io::Result<()> {
+    #[cfg(unix)]
+    {
+        let quarantine = OsString::from(format!(
+            ".retention-directory-delete-{}",
+            Uuid::new_v4().simple()
+        ));
+        rename_noreplace_relative(root, name, &quarantine)?;
+
+        let quarantine_c = CString::new(quarantine.as_bytes())
+            .map_err(|_| io::Error::other("invalid quarantine directory name"))?;
+        let observed = open_directory_at(root, &quarantine_c).and_then(|directory| {
+            let metadata = directory.metadata()?;
+            Ok((FileIdentity::from_metadata(&metadata), metadata))
+        });
+        if !matches!(
+            observed,
+            Ok((identity, ref metadata))
+                if identity == expected_identity
+                    && admit_store_custody(
+                        StoreRole::PrivateDirectory,
+                        root_custody_facts(metadata),
+                    )
+        ) {
+            let restore = rename_noreplace_relative(root, &quarantine, name);
+            return Err(match restore {
+                Ok(()) => io::Error::other("retention directory identity changed before deletion"),
+                Err(error) => io::Error::other(format!(
+                    "retention directory identity changed and could not be restored: {error}"
+                )),
+            });
+        }
+
+        remove_directory_relative(root, &quarantine)
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = root;
+        let _ = name;
+        let _ = expected_identity;
+        Err(io::Error::new(
+            io::ErrorKind::Unsupported,
+            "retention requires descriptor-relative identity binding",
+        ))
+    }
+}
+
 fn rename_noreplace_relative(
     root: &File,
     from: &std::ffi::OsStr,
@@ -5510,7 +5634,7 @@ fn start_configured(
 fn spawn_writer(
     config: RecorderConfig,
     launch: LaunchIdentity,
-) -> Result<(RecorderIngress, thread::JoinHandle<()>), StoreOpenError> {
+) -> Result<(RecorderIngress, WriterThread), StoreOpenError> {
     spawn_writer_with_clock(config, launch, Arc::new(SystemClock::new()))
 }
 
