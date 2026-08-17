@@ -29,5 +29,5 @@ jobs:
       - name: Check the Zed 10x binary
         run: cargo check --locked -p zed --bin zed-10x
 
-      - name: Test liveness detection
-        run: cargo test --locked -p zed --bin zed-10x reliability::hang_detection::liveness::tests
+      - name: Test the Zed 10x binary
+        run: cargo test --locked -p zed --bin zed-10x

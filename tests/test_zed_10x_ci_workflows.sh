@@ -72,8 +72,10 @@ if [[ -f "$RUST_CI" ]]; then
         contains "$RUST_CI" "cargo fmt --all -- --check"
     check "focused Zed check command is exact" \
         contains "$RUST_CI" "cargo check --locked -p zed --bin zed-10x"
-    check "focused liveness test command is exact" \
-        contains "$RUST_CI" "cargo test --locked -p zed --bin zed-10x reliability::hang_detection::liveness::tests"
+    check "focused Zed test command is exact" \
+        contains "$RUST_CI" "run: cargo test --locked -p zed --bin zed-10x"
+    check "focused Zed tests are not filtered to an absent module" \
+        not_contains "$RUST_CI" "reliability::hang_detection::liveness::tests"
     check "focused Rust CI has no cache action" \
         not_contains "$RUST_CI" "cache"
     check "focused Rust CI has no secret interpolation" \
