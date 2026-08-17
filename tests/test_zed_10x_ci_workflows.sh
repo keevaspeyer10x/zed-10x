@@ -29,7 +29,15 @@ contains() {
 }
 
 not_contains() {
-    ! grep -Fq -- "$2" "$1"
+    local rc
+    [[ -r "$1" && ! -L "$1" ]] || return 2
+    if grep -Fq -- "$2" "$1"; then
+        return 1
+    else
+        rc=$?
+    fi
+    [[ "$rc" -eq 1 ]] && return 0
+    return "$rc"
 }
 
 check "standard CI caller exists" test -f "$CI"

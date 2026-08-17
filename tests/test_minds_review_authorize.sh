@@ -33,15 +33,27 @@ contains() {
 }
 
 not_contains() {
-    ! grep -Fq -- "$2" "$1"
-}
-
-matches() {
-    grep -Eq -- "$2" "$1"
+    local rc
+    [[ -r "$1" && ! -L "$1" ]] || return 2
+    if grep -Fq -- "$2" "$1"; then
+        return 1
+    else
+        rc=$?
+    fi
+    [[ "$rc" -eq 1 ]] && return 0
+    return "$rc"
 }
 
 not_matches() {
-    ! grep -Eq -- "$2" "$1"
+    local rc
+    [[ -r "$1" && ! -L "$1" ]] || return 2
+    if grep -Eq -- "$2" "$1"; then
+        return 1
+    else
+        rc=$?
+    fi
+    [[ "$rc" -eq 1 ]] && return 0
+    return "$rc"
 }
 
 sha256_file() {
