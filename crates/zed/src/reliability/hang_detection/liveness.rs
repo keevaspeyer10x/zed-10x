@@ -42,7 +42,14 @@ mod tests {
     impl TestRoot {
         fn new(label: &str) -> Self {
             static NEXT: AtomicU64 = AtomicU64::new(1);
-            let path = std::env::temp_dir().join(format!(
+            // The recorder intentionally rejects world-writable ancestors such as Linux /tmp.
+            let private_parent = std::env::var_os("HOME")
+                .map(PathBuf::from)
+                .filter(|path| path.is_absolute())
+                .unwrap_or_else(|| {
+                    std::env::current_dir().expect("test process must have an absolute directory")
+                });
+            let path = private_parent.join(format!(
                 "zed-10x-s1-{label}-{}-{}",
                 std::process::id(),
                 NEXT.fetch_add(1, Ordering::Relaxed)
