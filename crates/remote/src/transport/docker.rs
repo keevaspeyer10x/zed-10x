@@ -650,7 +650,7 @@ impl RemoteConnection for DockerExecConnection {
     fn start_proxy(
         &self,
         unique_identifier: String,
-        reconnect: bool,
+        mode: crate::proxy::ProxyMode,
         incoming_tx: UnboundedSender<Envelope>,
         outgoing_rx: UnboundedReceiver<Envelope>,
         connection_activity_tx: Sender<()>,
@@ -699,9 +699,7 @@ impl RemoteConnection for DockerExecConnection {
         docker_args.push("proxy".to_string());
         docker_args.push("--identifier".to_string());
         docker_args.push(unique_identifier);
-        if reconnect {
-            docker_args.push("--reconnect".to_string());
-        }
+        mode.append_cli_args(&mut docker_args);
         let mut command = util::command::new_command(self.docker_cli());
         command
             .kill_on_drop(true)

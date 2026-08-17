@@ -617,6 +617,13 @@ pub fn connect_reusing_pool(
     })
 }
 
+/// Creates a non-interactive delegate for bounded background reconnects.
+/// If the transport requires user input, the prompt sender is dropped so the
+/// caller can fall back to the normal reconnect UI.
+pub fn background_remote_client_delegate() -> Arc<dyn remote::RemoteClientDelegate> {
+    Arc::new(BackgroundRemoteClientDelegate)
+}
+
 /// Delegate for remote connections that reuse an existing pooled
 /// connection. Password prompts are not expected (the SSH transport
 /// is already established), but server binary downloads are supported
@@ -626,14 +633,11 @@ struct BackgroundRemoteClientDelegate;
 impl remote::RemoteClientDelegate for BackgroundRemoteClientDelegate {
     fn ask_password(
         &self,
-        prompt: String,
+        _prompt: String,
         _tx: oneshot::Sender<EncryptedPassword>,
         _cx: &mut AsyncApp,
     ) {
-        log::warn!(
-            "Pooled remote connection unexpectedly requires a password \
-             (prompt: {prompt})"
-        );
+        log::warn!("Background remote connection requires interactive authentication");
     }
 
     fn set_status(&self, _status: Option<&str>, _cx: &mut AsyncApp) {}

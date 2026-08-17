@@ -34,7 +34,7 @@ use remote::{
     RemoteClient,
     json_log::LogRecord,
     protocol::{read_message, write_message},
-    proxy::ProxyLaunchError,
+    proxy::{ProxyLaunchError, ProxyMode},
 };
 use reqwest_client::ReqwestClient;
 use rpc::proto::{self, Envelope, REMOTE_SERVER_PROJECT_ID};
@@ -48,7 +48,7 @@ use smol::{
 };
 use std::{
     ffi::{OsStr, OsString},
-    fs::File,
+    fs::{File, OpenOptions},
     io::Write,
     mem,
     path::{Path, PathBuf},
@@ -74,8 +74,10 @@ pub enum Commands {
         stderr_socket: PathBuf,
     },
     Proxy {
-        #[arg(long)]
+        #[arg(long, conflicts_with = "reconnect_or_start")]
         reconnect: bool,
+        #[arg(long, conflicts_with = "reconnect")]
+        reconnect_or_start: bool,
         #[arg(long)]
         identifier: String,
     },
@@ -110,7 +112,18 @@ pub fn run(command: Commands) -> anyhow::Result<()> {
         Commands::Proxy {
             identifier,
             reconnect,
-        } => execute_proxy(identifier, reconnect).context("running proxy on the remote server"),
+            reconnect_or_start,
+        } => execute_proxy(
+            identifier,
+            if reconnect {
+                ProxyMode::Reconnect
+            } else if reconnect_or_start {
+                ProxyMode::ReconnectOrStart
+            } else {
+                ProxyMode::Start
+            },
+        )
+        .context("running proxy on the remote server"),
         Commands::EnvExec { command } => {
             execute_env_exec(command).context("starting command with stdin environment")
         }
@@ -880,6 +893,7 @@ pub enum ServerPathError {
 #[derive(Clone, Debug)]
 struct ServerPaths {
     log_file: PathBuf,
+    launch_lock: PathBuf,
     pid_file: PathBuf,
     stdin_socket: PathBuf,
     stdout_socket: PathBuf,
@@ -902,6 +916,7 @@ impl ServerPaths {
         })?;
 
         let pid_file = server_dir.join("server.pid");
+        let launch_lock = server_dir.join("server.lock");
         let stdin_socket = server_dir.join("stdin.sock");
         let stdout_socket = server_dir.join("stdout.sock");
         let stderr_socket = server_dir.join("stderr.sock");
@@ -909,6 +924,7 @@ impl ServerPaths {
 
         Ok(Self {
             pid_file,
+            launch_lock,
             stdin_socket,
             stdout_socket,
             stderr_socket,
@@ -929,6 +945,13 @@ pub enum ExecuteProxyError {
     CheckPidFile {
         #[source]
         source: CheckPidError,
+        path: PathBuf,
+    },
+
+    #[error("Failed to lock remote server state '{path}': {source:#}")]
+    LockServerState {
+        #[source]
+        source: std::io::Error,
         path: PathBuf,
     },
 
@@ -957,9 +980,42 @@ impl ExecuteProxyError {
     }
 }
 
+#[derive(Debug, Eq, PartialEq)]
+enum ServerLaunchAction {
+    Attach(u32),
+    Start,
+    Restart(u32),
+}
+
+fn server_launch_action(
+    proxy_mode: ProxyMode,
+    running_pid: Option<u32>,
+) -> Result<ServerLaunchAction, ProxyLaunchError> {
+    match (proxy_mode, running_pid) {
+        (ProxyMode::Start, Some(pid)) => Ok(ServerLaunchAction::Restart(pid)),
+        (ProxyMode::Start | ProxyMode::ReconnectOrStart, None) => Ok(ServerLaunchAction::Start),
+        (ProxyMode::Reconnect | ProxyMode::ReconnectOrStart, Some(pid)) => {
+            Ok(ServerLaunchAction::Attach(pid))
+        }
+        (ProxyMode::Reconnect, None) => Err(ProxyLaunchError::ServerNotRunning),
+    }
+}
+
+fn spawn_and_read_server_pid(paths: &ServerPaths) -> Result<u32, ExecuteProxyError> {
+    gpui::block_on(spawn_server(paths)).map_err(ExecuteProxyError::SpawnServer)?;
+    std::fs::read_to_string(&paths.pid_file)
+        .and_then(|contents| {
+            contents.parse::<u32>().map_err(|_| {
+                std::io::Error::new(std::io::ErrorKind::InvalidData, "Invalid PID file contents")
+            })
+        })
+        .map_err(SpawnServerError::ProcessStatus)
+        .map_err(ExecuteProxyError::SpawnServer)
+}
+
 pub(crate) fn execute_proxy(
     identifier: String,
-    is_reconnecting: bool,
+    proxy_mode: ProxyMode,
 ) -> Result<(), ExecuteProxyError> {
     init_logging_proxy();
 
@@ -990,42 +1046,40 @@ pub(crate) fn execute_proxy(
     };
     log::info!("starting proxy process. PID: {}", std::process::id());
     let server_pid = {
+        let lock_file = OpenOptions::new()
+            .create(true)
+            .truncate(false)
+            .read(true)
+            .write(true)
+            .open(&server_paths.launch_lock)
+            .map_err(|source| ExecuteProxyError::LockServerState {
+                source,
+                path: server_paths.launch_lock.clone(),
+            })?;
+        lock_file
+            .lock()
+            .map_err(|source| ExecuteProxyError::LockServerState {
+                source,
+                path: server_paths.launch_lock.clone(),
+            })?;
+
         let server_pid = check_pid_file(&server_paths.pid_file).map_err(|source| {
             ExecuteProxyError::CheckPidFile {
                 source,
                 path: server_paths.pid_file.clone(),
             }
         })?;
-        if is_reconnecting {
-            match server_pid {
-                None => {
-                    log::error!("attempted to reconnect, but no server running");
-                    return Err(ExecuteProxyError::ServerNotRunning(
-                        ProxyLaunchError::ServerNotRunning,
-                    ));
-                }
-                Some(server_pid) => server_pid,
-            }
-        } else {
-            if let Some(pid) = server_pid {
+        match server_launch_action(proxy_mode, server_pid)? {
+            ServerLaunchAction::Attach(pid) => pid,
+            ServerLaunchAction::Start => spawn_and_read_server_pid(&server_paths)?,
+            ServerLaunchAction::Restart(pid) => {
                 log::info!(
                     "proxy found server already running with PID {}. Killing process and cleaning up files...",
                     pid
                 );
                 kill_running_server(pid, &server_paths)?;
+                spawn_and_read_server_pid(&server_paths)?
             }
-            gpui::block_on(spawn_server(&server_paths)).map_err(ExecuteProxyError::SpawnServer)?;
-            std::fs::read_to_string(&server_paths.pid_file)
-                .and_then(|contents| {
-                    contents.parse::<u32>().map_err(|_| {
-                        std::io::Error::new(
-                            std::io::ErrorKind::InvalidData,
-                            "Invalid PID file contents",
-                        )
-                    })
-                })
-                .map_err(SpawnServerError::ProcessStatus)
-                .map_err(ExecuteProxyError::SpawnServer)?
         }
     };
 
@@ -1491,6 +1545,38 @@ fn is_file_in_use(file_name: &OsStr) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn reconnect_or_start_never_restarts_a_live_server() {
+        assert_eq!(
+            server_launch_action(ProxyMode::ReconnectOrStart, Some(42)).unwrap(),
+            ServerLaunchAction::Attach(42)
+        );
+        assert_eq!(
+            server_launch_action(ProxyMode::ReconnectOrStart, None).unwrap(),
+            ServerLaunchAction::Start
+        );
+    }
+
+    #[test]
+    fn existing_start_and_reconnect_contracts_are_preserved() {
+        assert_eq!(
+            server_launch_action(ProxyMode::Start, Some(42)).unwrap(),
+            ServerLaunchAction::Restart(42)
+        );
+        assert_eq!(
+            server_launch_action(ProxyMode::Start, None).unwrap(),
+            ServerLaunchAction::Start
+        );
+        assert_eq!(
+            server_launch_action(ProxyMode::Reconnect, Some(42)).unwrap(),
+            ServerLaunchAction::Attach(42)
+        );
+        assert!(matches!(
+            server_launch_action(ProxyMode::Reconnect, None),
+            Err(ProxyLaunchError::ServerNotRunning)
+        ));
+    }
 
     #[test]
     fn rotated_remote_log_path_uses_numbered_log_suffix() {
