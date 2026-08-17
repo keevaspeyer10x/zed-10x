@@ -40,13 +40,7 @@ not_contains() {
     return "$rc"
 }
 
-check "standard CI caller exists" test -f "$CI"
-check "standard CI caller handles reopened pull requests" \
-    contains "$CI" "types: [opened, synchronize, reopened, ready_for_review]"
-check "standard gate is pinned by immutable SHA" \
-    contains "$CI" "agent-ci-gate.yml@8f20df85591ac1c14f6c9b1986cfdc9220bf29c1"
-check "standard scan is pinned by the same immutable SHA" \
-    contains "$CI" "agent-ci-gate-scan.yml@8f20df85591ac1c14f6c9b1986cfdc9220bf29c1"
+check "unresolvable private reusable CI caller is absent" test ! -e "$CI"
 
 check "focused Rust CI exists" test -f "$RUST_CI"
 if [[ -f "$RUST_CI" ]]; then
@@ -84,15 +78,7 @@ if [[ -f "$RUST_CI" ]]; then
         not_contains "$RUST_CI" "namespace-"
 fi
 
-check "trusted-base review workflow exists" test -f "$REVIEW"
-check "trusted-base review workflow handles reopened pull requests" \
-    contains "$REVIEW" "types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]"
-check "trusted-base review delegates to the canonical router" \
-    contains "$REVIEW" "uses: keevaspeyer10x/keeva-devtools/.github/workflows/minds-review-authorize-router.yml@b7f30483dc0cb4f35de20d9310cf639443dd5ef5"
-check "trusted-base review maps only the review-host secret" \
-    contains "$REVIEW" 'INTREPID_SSH_KEY: ${{ secrets.INTREPID_SSH_KEY }}'
-check "trusted-base review workflow never checks out pull-request code" \
-    not_contains "$REVIEW" "uses: actions/checkout"
+check "unresolvable private reusable review caller is absent" test ! -e "$REVIEW"
 check "standalone review policy is absent" test ! -e "$POLICY_HELPER"
 check "legacy review workflow is absent" test ! -e "$LEGACY"
 
