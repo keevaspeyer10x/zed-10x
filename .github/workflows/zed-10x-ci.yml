@@ -20,6 +20,9 @@ jobs:
       - name: Check out the exact pull-request revision
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
 
+      - name: Verify the workflow contract
+        run: tests/test_zed_10x_ci_workflows.sh
+
       - name: Install Linux build dependencies
         run: ./script/linux
 
