@@ -8,6 +8,7 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const TRACKING_ISSUE = "https://github.com/keevaspeyer10x/zed-10x/issues/15";
+const CLI_TRACKING_ISSUE = "https://github.com/keevaspeyer10x/zed-10x/issues/20";
 const DEFAULT_STORE = path.join(
   os.homedir(),
   "Library",
@@ -31,6 +32,7 @@ const ALLOWED_EVENTS = new Set([
   "app.hang",
   "app.crash",
   "app.force_quit",
+  "cli.launch.failure",
   "project.open.requested",
   "project.open.completed",
   "remote.bootstrap.start",
@@ -505,6 +507,16 @@ function evaluateIncidentThresholds(storeDir, latestRecord, options) {
         threshold: 2,
       },
       {
+        failureClass: "repeated_cli_launch_failure",
+        count: recent.filter(
+          (record) =>
+            recordName(record) === "cli.launch.failure" &&
+            latestTime - recordTimestamp(record) <= 15 * 60 * 1000,
+        ).length,
+        threshold: 2,
+        trackingIssue: CLI_TRACKING_ISSUE,
+      },
+      {
         failureClass: "repeated_remote_bootstrap_failure",
         count: recent.filter((record) => recordName(record) === "remote.bootstrap.failure").length,
         threshold: 2,
@@ -537,6 +549,7 @@ function evaluateIncidentThresholds(storeDir, latestRecord, options) {
             threshold: threshold.threshold,
             timestampMs: latestTime,
             traceId: latestRecord.trace_id,
+            trackingIssue: threshold.trackingIssue,
           },
           options,
         );
@@ -584,7 +597,7 @@ function appendIncidentCandidate(storeDir, input, options = {}) {
     observed_count: input.count,
     threshold: input.threshold,
     trace_id: input.traceId,
-    tracking_issue: TRACKING_ISSUE,
+    tracking_issue: input.trackingIssue ?? TRACKING_ISSUE,
     dedupe_key: dedupeKey,
   });
   const { retentionDays, maxBytes } = retentionConfiguration(options);
@@ -613,6 +626,7 @@ export function buildComparison(records) {
       hangs: 0,
       crashes: 0,
       forced_quits: 0,
+      cli_launch_failures: 0,
       peak_rss_bytes: 0,
       first_timestamp_ms: Number.POSITIVE_INFINITY,
       last_timestamp_ms: 0,
@@ -627,6 +641,7 @@ export function buildComparison(records) {
     if (name === "app.hang") group.hangs += 1;
     if (name === "app.crash") group.crashes += 1;
     if (name === "app.force_quit") group.forced_quits += 1;
+    if (name === "cli.launch.failure") group.cli_launch_failures += 1;
     group.peak_rss_bytes = Math.max(group.peak_rss_bytes, Number(recordAttribute(record, "process.rss_bytes") ?? 0));
     const timestamp = recordTimestamp(record);
     group.first_timestamp_ms = Math.min(group.first_timestamp_ms, timestamp);
@@ -643,7 +658,12 @@ export function buildComparison(records) {
       observed_minutes: Number.isFinite(group.first_timestamp_ms)
         ? Math.max(0, Math.round((group.last_timestamp_ms - group.first_timestamp_ms) / 6000) / 10)
         : 0,
-      failure_events: group.acp_disconnects + group.continuity_failures + group.hangs + group.crashes + group.forced_quits,
+      failure_events:
+        group.acp_disconnects +
+        group.continuity_failures +
+        group.hangs +
+        group.crashes +
+        group.forced_quits,
     }));
   const resultGroups = comparisonGroups
     .map(({ first_timestamp_ms, last_timestamp_ms, observed_duration_ms, ...group }) => group)

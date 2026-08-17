@@ -189,3 +189,34 @@ test("the development app bundle owns the canary launcher assembly", () => {
     "LaunchServices must enter through the telemetry launcher",
   );
 });
+
+test("the packaged CLI follows the Zed 10x launcher contract and fails finitely", () => {
+  const bundleScript = read("script/bundle-mac");
+  const cliSource = read("crates/cli/src/main.rs");
+
+  assert.match(
+    bundleScript,
+    /ZedCliLaunchExecutableDirectly[\s\S]*?bool true/,
+    "the Zed 10x bundle must explicitly opt its CLI into the proven direct launcher path",
+  );
+  assert.match(
+    cliSource,
+    /CFBundleExecutable/,
+    "the packaged CLI must discover the executable declared by Info.plist",
+  );
+  assert.match(
+    cliSource,
+    /ZedCliLaunchExecutableDirectly/,
+    "the direct-launch exception must be an explicit bundle contract",
+  );
+  assert.match(
+    cliSource,
+    /wait_for_app_handshake\([\s\S]*?APP_HANDSHAKE_TIMEOUT\)/,
+    "the app-to-CLI handshake must have a finite deadline",
+  );
+  assert.doesNotMatch(
+    cliSource,
+    /app_bundle\.join\("Contents\/MacOS\/zed"\)/,
+    "the CLI must not assume that every macOS product binary is named zed",
+  );
+});

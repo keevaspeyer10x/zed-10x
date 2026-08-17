@@ -341,6 +341,41 @@ test("repeated disconnects create one durable linked incident candidate", () => 
   assert.equal("prompt" in incidents[0], false);
 });
 
+test("repeated packaged CLI failures create an issue-20 incident without content", () => {
+  const store = temporaryStore();
+  for (let index = 0; index < 2; index += 1) {
+    assert.equal(
+      appendEvent(
+        event({
+          name: "cli.launch.failure",
+          timestamp: `2026-07-24T12:0${index}:00.000Z`,
+          attributes: {
+            "failure.class": "handshake_timeout",
+            "session.kind": "cli",
+          },
+        }),
+        { storeDir: store, now: new Date("2026-07-24T12:05:00.000Z") },
+      ),
+      true,
+    );
+  }
+
+  const incidents = fs
+    .readFileSync(path.join(store, "incidents.jsonl"), "utf8")
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line));
+  assert.equal(incidents.length, 1);
+  const [incident] = incidents;
+  assert.equal(
+    incident.tracking_issue,
+    "https://github.com/keevaspeyer10x/zed-10x/issues/20",
+  );
+  assert.equal(incident.failure_class, "repeated_cli_launch_failure");
+  assert.equal("path" in incident, false);
+  assert.equal("arguments" in incident, false);
+});
+
 test("incident thresholds read only the current and previous UTC day", () => {
   const store = temporaryStore();
   const unrelated = path.join(store, "events-2026-07-01.jsonl");
@@ -433,6 +468,43 @@ test("comparison is explicit about low confidence and separates cohort, lane, an
       ["zed10x", "local", "20260724.1"],
     ],
   );
+});
+
+test("comparison reports packaged CLI failures without biasing cohort verdicts", () => {
+  const comparison = buildComparison([
+    event({ name: "app.launch" }),
+    event({
+      name: "cli.launch.failure",
+      attributes: {
+        "failure.class": "handshake_timeout",
+        "session.kind": "cli",
+      },
+    }),
+  ]);
+
+  assert.equal(comparison.groups[0].cli_launch_failures, 1);
+  assert.equal(comparison.groups[0].crashes, 0);
+  assert.equal(comparison.groups[0].failure_events, 0);
+
+  const credibleComparison = buildComparison([
+    ...comparisonGroup({
+      cohort: "zed",
+      buildVersion: "1.11.3",
+    }),
+    ...comparisonGroup({
+      cohort: "zed10x",
+      buildVersion: "20260727.1",
+    }),
+    event({
+      name: "cli.launch.failure",
+      timestamp: "2026-07-24T12:15:00.000Z",
+      attributes: {
+        "failure.class": "handshake_timeout",
+        "session.kind": "cli",
+      },
+    }),
+  ]);
+  assert.equal(credibleComparison.verdict, "no_material_difference");
 });
 
 test("comparison only judges matched lanes and ignores sparse unrelated groups", () => {
@@ -874,6 +946,48 @@ test("launcher preserves app arguments while exposing only a project hash to tel
     telemetry.some((record) => "vcs.ref.head.revision" in record.attributes),
     false,
   );
+});
+
+test("launcher preserves one explicit user-data-dir instead of prepending its default", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "zed-10x-launcher-profile-"));
+  const contents = path.join(root, "Contents");
+  const macos = path.join(contents, "MacOS");
+  const resources = path.join(contents, "Resources");
+  const fakeHome = path.join(root, "home");
+  const customProfile = path.join(root, "custom profile");
+  const resultPath = path.join(root, "runtime-arguments.json");
+  fs.mkdirSync(macos, { recursive: true });
+  fs.mkdirSync(resources, { recursive: true });
+  fs.mkdirSync(fakeHome, { recursive: true });
+  fs.copyFileSync(
+    path.resolve("script/zed-10x-canary-launcher"),
+    path.join(macos, "zed-10x-launcher"),
+  );
+  fs.chmodSync(path.join(macos, "zed-10x-launcher"), 0o755);
+  fs.writeFileSync(
+    path.join(macos, "zed-10x-runtime"),
+    `#!/bin/bash\n${JSON.stringify(process.execPath)} -e 'require("node:fs").writeFileSync(process.env.ZED_FAKE_RESULT, JSON.stringify(process.argv.slice(1)))' -- "$@"\n`,
+    { mode: 0o755 },
+  );
+
+  const result = spawnSync(
+    path.join(macos, "zed-10x-launcher"),
+    ["--user-data-dir", customProfile, "/tmp/project"],
+    {
+      env: {
+        ...process.env,
+        HOME: fakeHome,
+        ZED_FAKE_RESULT: resultPath,
+      },
+      encoding: "utf8",
+    },
+  );
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(JSON.parse(fs.readFileSync(resultPath, "utf8")), [
+    "--user-data-dir",
+    customProfile,
+    "/tmp/project",
+  ]);
 });
 
 test("record command never persists a raw remote hostname", () => {
