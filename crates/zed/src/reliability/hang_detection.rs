@@ -1,12 +1,13 @@
 use std::sync::Arc;
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use client::Client;
 use gpui::{AppContext, TasksIncluded, profiler};
 use parking_lot::Mutex;
 use ui::App;
 
+mod liveness;
 mod logging;
 mod task_traces;
 mod telemetry;
@@ -40,7 +41,11 @@ pub(crate) fn start(client: Arc<Client>, cx: &mut App) {
         log::warn!("debug build, only reporting hangs longer then {hang_time:?}");
     }
 
-    start_hang_detection(hang_time, client, cx);
+    let liveness = liveness::start(cx);
+    start_hang_detection(hang_time, client, liveness, cx);
+    let foreground_uat_hang_time = hang_time
+        .max(liveness::UAT_FOREGROUND_HANG_DURATION)
+        .saturating_add(Duration::from_micros(1));
 
     cx.on_action(move |_: &HangAction, _| {
         log::warn!(
@@ -64,20 +69,28 @@ pub(crate) fn start(client: Arc<Client>, cx: &mut App) {
     cx.on_action(move |_: &HangForeground, cx| {
         cx.spawn(async move |_| {
             log::warn!(
-                "Hanging the foreground executor for {hang_time:?} seconds to test \
+                "Hanging the foreground executor for {foreground_uat_hang_time:?} to test \
                 performance monitoring! Zed will be unresponsive for that time. \
                 This should trigger a report in the log"
             );
-            thread::sleep(hang_time + Duration::from_micros(1));
+            thread::sleep(foreground_uat_hang_time);
             log::warn!("Hang ended");
         })
         .detach();
     });
 }
 
-fn start_hang_detection(report_longer_then: Duration, client: Arc<Client>, cx: &App) {
+fn start_hang_detection(
+    report_longer_then: Duration,
+    client: Arc<Client>,
+    liveness: Option<liveness::Monitor>,
+    cx: &App,
+) {
     let foreground_thread = thread::current().id();
     let monitor_interval = Duration::from_secs(1);
+    if let Some(liveness) = liveness {
+        start_liveness_detection(liveness, monitor_interval);
+    }
     let telemetry = Arc::new(Mutex::new(telemetry::Reporter::new(foreground_thread)));
     let mut log = logging::Reporter::new(monitor_interval, report_longer_then, foreground_thread);
 
@@ -116,6 +129,26 @@ fn start_hang_detection(report_longer_then: Duration, client: Arc<Client>, cx: &
                     if let Some(path) = task_traces::save_any(foreground_thread) {
                         log::info!("Task trace has been saved to: {}", path.display());
                     }
+                }
+            }
+        })
+        .expect("App can always spawn threads");
+}
+
+fn start_liveness_detection(mut liveness: liveness::Monitor, interval: Duration) {
+    thread::Builder::new()
+        .name("Zed10xLiveness".to_string())
+        .spawn(move || {
+            let mut next_tick = Instant::now() + interval;
+            loop {
+                thread::sleep(next_tick.saturating_duration_since(Instant::now()));
+                liveness.poll();
+
+                let now = Instant::now();
+                next_tick += interval;
+                if next_tick <= now {
+                    // Do not create a catch-up storm after suspension or scheduler starvation.
+                    next_tick = now + interval;
                 }
             }
         })

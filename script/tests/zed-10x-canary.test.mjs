@@ -12,6 +12,7 @@ import {
   discoverProcessIds,
   hashProjectIdentifier,
   isDisabled,
+  loadEventRecords,
   pruneStore,
   sensitiveEnvironmentNames,
 } from "../zed-10x-canary.mjs";
@@ -145,6 +146,84 @@ test("valid events are private, content-free JSONL records", () => {
   assert.equal(JSON.stringify(record).includes("secret-project"), false);
 });
 
+test("comparison ingests native hangs without double-counting launcher sessions", () => {
+  const store = temporaryStore();
+  const nativeRoot = path.join(store, "zed10x-in-process");
+  const slot = path.join(nativeRoot, "slot-00");
+  const day = path.join(slot, "day-20260818");
+  fs.mkdirSync(day, { recursive: true, mode: 0o700 });
+  for (const directory of [nativeRoot, slot, day]) fs.chmodSync(directory, 0o700);
+
+  const nativeRecord = (body, sequence) => ({
+    time_unix_nano: String(BigInt(Date.UTC(2026, 7, 18, 12, sequence)) * 1_000_000n),
+    observed_time_unix_nano: String(
+      BigInt(Date.UTC(2026, 7, 18, 12, sequence)) * 1_000_000n,
+    ),
+    severity_text: body === "app.hang" ? "WARN" : "INFO",
+    body,
+    trace_id: "1".repeat(32),
+    span_id: "2".repeat(16),
+    attributes: {
+      "event.sequence": sequence,
+      "event.schema_version": 1,
+      "service.name": "zed-10x",
+      "service.version": "1.0.0",
+      "zed.build_version": "20260818.1",
+      "zed.cohort": "zed10x",
+      "zed.lane": "local",
+      "zed.source": "in_process",
+      "zed.writer_id": "3".repeat(32),
+    },
+  });
+  const shard = path.join(
+    day,
+    `events-20260818-${"3".repeat(32)}.jsonl`,
+  );
+  fs.writeFileSync(
+    shard,
+    `${JSON.stringify(nativeRecord("app.launch", 1))}\n${JSON.stringify(
+      nativeRecord("app.hang", 2),
+    )}\n`,
+    { mode: 0o600 },
+  );
+  fs.chmodSync(shard, 0o600);
+  const legacy = path.join(store, "events-2026-08-18.jsonl");
+  fs.writeFileSync(
+    legacy,
+    `${JSON.stringify(
+      event({
+        buildVersion: "20260818.1",
+        timestamp: "2026-08-18T12:00:00.000Z",
+      }),
+    )}\n`,
+    { mode: 0o600 },
+  );
+
+  const records = loadEventRecords(store);
+  assert.equal(records.length, 2);
+  const comparison = buildComparison(records);
+  assert.equal(comparison.groups.length, 1);
+  assert.equal(comparison.groups[0].sessions, 1);
+  assert.equal(comparison.groups[0].hangs, 1);
+});
+
+test("comparison ignores symlinked native in-process shards", () => {
+  const store = temporaryStore();
+  const nativeRoot = path.join(store, "zed10x-in-process");
+  const slot = path.join(nativeRoot, "slot-00");
+  const day = path.join(slot, "day-20260818");
+  fs.mkdirSync(day, { recursive: true, mode: 0o700 });
+  for (const directory of [nativeRoot, slot, day]) fs.chmodSync(directory, 0o700);
+  const outside = path.join(store, "outside.jsonl");
+  fs.writeFileSync(outside, `${JSON.stringify(event())}\n`, { mode: 0o600 });
+  fs.symlinkSync(
+    outside,
+    path.join(day, `events-20260818-${"4".repeat(32)}.jsonl`),
+  );
+
+  assert.deepEqual(loadEventRecords(store), []);
+});
+
 test("telemetry storage failures are fail-open", () => {
   const parent = temporaryStore();
   const blocker = path.join(parent, "not-a-directory");
@@ -245,7 +324,7 @@ test("repeated disconnects create one durable linked incident candidate", () => 
           timestamp: `2026-07-24T12:0${index}:00.000Z`,
           attributes: { "acp.provider": "apex", "failure.class": "transport" },
         }),
-        { storeDir: store },
+        { storeDir: store, now: new Date("2026-07-24T12:05:00.000Z") },
       ),
       true,
     );
@@ -322,7 +401,7 @@ test("control incidents use the control cohort prefix", () => {
           timestamp: `2026-07-24T12:0${index}:00.000Z`,
           attributes: { "acp.provider": "apex", "failure.class": "transport" },
         }),
-        { storeDir: store },
+        { storeDir: store, now: new Date("2026-07-24T12:05:00.000Z") },
       ),
       true,
     );

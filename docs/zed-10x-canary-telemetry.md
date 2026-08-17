@@ -98,6 +98,13 @@ Default store:
 ```
 
 The directory is mode `0700`; event and incident files are mode `0600`.
+The external collector keeps its daily files at the store root. Zed 10x's
+native in-process liveness writer uses private bounded shards under
+`zed10x-in-process/slot-NN/day-YYYYMMDD/`; the `compare` command reads both
+layouts and ignores native entries whose ownership, mode, type, link count, or
+name does not match that closed contract. The external launcher remains the
+single source of launch denominators; comparison imports only native
+foreground-hang facts, so the two collectors cannot double-count a session.
 Daily event files and the incident queue are retained for 14 days and bounded
 to 8 MiB each. Size pruning keeps only complete JSONL records. Incident pruning
 also removes malformed or expired records. Pruning, incident evaluation, and
