@@ -2285,7 +2285,7 @@ mod tests {
         let mut writer = TestRecorder::open(recorder_config(&root), launch_identity()).unwrap();
         let report = writer.run_retention_for_test(observed);
         assert_eq!(report.scanned, 64);
-        assert_eq!(report.slot_scanned, expected);
+        assert_eq!(report.slot_scanned.as_slice(), expected.as_slice());
         assert!(
             retained_paths
                 .iter()
@@ -2297,6 +2297,30 @@ mod tests {
                 "every clean saturated slot must make progress"
             );
         }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn s1_contract_33a_test_report_covers_every_valid_retention_slot() {
+        let root = TestRoot::new("retention-dynamic-report");
+        let retention = RetentionPolicy {
+            inclusive_days: 20,
+            scan_cap: 84,
+        };
+        let config = RecorderConfig::for_test(
+            root.store(),
+            source_identity(),
+            false,
+            8 * 1024 * 1024,
+            retention,
+        )
+        .unwrap();
+        let mut writer = TestRecorder::open(config, launch_identity()).unwrap();
+
+        let report = writer.run_retention_for_test(at(80 * 86_400));
+
+        assert_eq!(report.slot_scanned.len(), retention.slot_count().unwrap());
+        assert_eq!(report.slot_scanned.iter().sum::<usize>(), report.scanned);
     }
 
     #[cfg(unix)]
@@ -3866,13 +3890,13 @@ enum AppendOutcome {
     Dropped(DropReason),
 }
 
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 struct RetentionReport {
     scanned: usize,
     removed: usize,
     revoked: usize,
     #[cfg(test)]
-    slot_scanned: [usize; 15],
+    slot_scanned: Vec<usize>,
 }
 
 #[derive(Default)]
@@ -4280,6 +4304,8 @@ impl Recorder {
         let root = self.root.as_ref().expect("root was admitted");
         let root_identity = self.root_identity.expect("root identity was admitted");
         let mut report = RetentionReport::default();
+        #[cfg(test)]
+        report.slot_scanned.resize(slot_count, 0);
 
         for slot_index in 0..slot_count {
             let mut quota = retention_scan_quota(
@@ -4336,8 +4362,8 @@ impl Recorder {
                 quota -= 1;
                 report.scanned += 1;
                 #[cfg(test)]
-                if let Some(scanned) = report.slot_scanned.get_mut(slot_index) {
-                    *scanned += 1;
+                {
+                    report.slot_scanned[slot_index] += 1;
                 }
                 let Some(day) = parse_day_directory_name(&day_name) else {
                     report.revoked += 1;
@@ -4394,8 +4420,8 @@ impl Recorder {
                         quota -= 1;
                         report.scanned += 1;
                         #[cfg(test)]
-                        if let Some(scanned) = report.slot_scanned.get_mut(slot_index) {
-                            *scanned += 1;
+                        {
+                            report.slot_scanned[slot_index] += 1;
                         }
                         if parse_owned_shard_name(&shard_name)
                             .is_none_or(|(shard_day, _)| shard_day != day)
