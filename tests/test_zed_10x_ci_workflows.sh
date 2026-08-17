@@ -69,7 +69,7 @@ if [[ -f "$RUST_CI" ]]; then
     check "focused Zed check command is exact" \
         contains "$RUST_CI" "cargo check --locked -p zed --bin zed-10x"
     check "focused Zed test command is exact" \
-        contains "$RUST_CI" "run: cargo test --locked -p zed --bin zed-10x"
+        contains "$RUST_CI" "run: cargo test --locked -p zed --bin zed-10x -- --test-threads=1"
     check "focused Zed tests are not filtered to an absent module" \
         not_contains "$RUST_CI" "reliability::hang_detection::liveness::tests"
     check "focused Rust CI has no cache action" \

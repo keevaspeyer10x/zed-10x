@@ -33,4 +33,4 @@ jobs:
         run: cargo check --locked -p zed --bin zed-10x
 
       - name: Test the Zed 10x binary
-        run: cargo test --locked -p zed --bin zed-10x
+        run: cargo test --locked -p zed --bin zed-10x -- --test-threads=1
