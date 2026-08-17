@@ -1753,6 +1753,18 @@ mod mac_os {
         use super::*;
         use std::time::Duration;
 
+        fn wait_for_nonempty_file(path: &Path) -> String {
+            for _ in 0..1000 {
+                if let Ok(contents) = fs::read_to_string(path)
+                    && !contents.is_empty()
+                {
+                    return contents;
+                }
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            panic!("timed out waiting for {}", path.display());
+        }
+
         #[test]
         fn custom_bundle_executable_is_used_for_direct_launch_contract() {
             let bundle = Bundle::App {
@@ -1806,13 +1818,7 @@ mod mac_os {
                     log_path.clone(),
                 )
                 .unwrap();
-            for _ in 0..100 {
-                if lane_evidence.exists() {
-                    break;
-                }
-                std::thread::sleep(Duration::from_millis(10));
-            }
-            assert_eq!(fs::read_to_string(lane_evidence).unwrap(), "intrepid\n");
+            assert_eq!(wait_for_nonempty_file(&lane_evidence), "intrepid\n");
             assert_eq!(
                 fs::metadata(log_path).unwrap().permissions().mode() & 0o777,
                 0o600
@@ -1843,15 +1849,7 @@ mod mac_os {
                     temp_dir.path().join("launcher.log"),
                 )
                 .unwrap();
-            for _ in 0..100 {
-                if launch_evidence.exists() {
-                    break;
-                }
-                std::thread::sleep(Duration::from_millis(10));
-            }
-
-            let evidence = fs::read_to_string(launch_evidence)
-                .unwrap()
+            let evidence = wait_for_nonempty_file(&launch_evidence)
                 .lines()
                 .map(str::to_string)
                 .collect::<Vec<_>>();
@@ -1889,14 +1887,8 @@ mod mac_os {
                     unavailable_log,
                 )
                 .unwrap();
-            for _ in 0..100 {
-                if launch_evidence.exists() {
-                    break;
-                }
-                std::thread::sleep(Duration::from_millis(10));
-            }
             assert_eq!(
-                fs::read_to_string(launch_evidence).unwrap(),
+                wait_for_nonempty_file(&launch_evidence),
                 "launched\n",
                 "diagnostic-log failure must not block the editor launcher"
             );
@@ -1942,13 +1934,7 @@ mod mac_os {
                 )
                 .unwrap();
 
-            for _ in 0..100 {
-                if evidence_path.exists() {
-                    break;
-                }
-                std::thread::sleep(Duration::from_millis(10));
-            }
-            let evidence = fs::read_to_string(evidence_path).unwrap();
+            let evidence = wait_for_nonempty_file(&evidence_path);
             assert!(evidence.contains("cli.launch.failure"));
             assert!(evidence.contains("handshake_timeout"));
             assert!(evidence.contains("20260727.1"));
