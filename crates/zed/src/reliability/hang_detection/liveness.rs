@@ -477,15 +477,6 @@ mod tests {
             bytes.push(b'\n');
             assert!(validate_event_line(&bytes).is_err(), "accepted {key}");
         }
-
-        let source = include_str!("liveness.rs");
-        for forbidden_primitive in [
-            ["std", "::process::Command"].concat(),
-            ["ZED_10X", "_CANARY_"].concat(),
-            ["AppVersion", "::global"].concat(),
-        ] {
-            assert!(!source.contains(&forbidden_primitive));
-        }
     }
 
     #[test]

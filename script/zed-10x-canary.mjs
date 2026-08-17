@@ -327,33 +327,120 @@ export function pruneStore(storeDir, options = {}) {
   }
 }
 
-function loadEventRecords(storeDir, selectedFiles) {
+function readJsonlRecords(filePath, { privateNativeShard = false } = {}) {
+  let descriptor;
   try {
-    const eventFiles = (
+    if (privateNativeShard) {
+      if (typeof process.geteuid !== "function") return [];
+      descriptor = fs.openSync(
+        filePath,
+        fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW,
+      );
+      const statistics = fs.fstatSync(descriptor);
+      if (
+        !statistics.isFile() ||
+        statistics.uid !== process.geteuid() ||
+        (statistics.mode & 0o777) !== 0o600 ||
+        statistics.nlink !== 1
+      ) {
+        return [];
+      }
+    }
+
+    return fs
+      .readFileSync(privateNativeShard ? descriptor : filePath, "utf8")
+      .split("\n")
+      .filter(Boolean)
+      .flatMap((line) => {
+        try {
+          return [JSON.parse(line)];
+        } catch {
+          return [];
+        }
+      });
+  } catch {
+    return [];
+  } finally {
+    if (descriptor !== undefined) fs.closeSync(descriptor);
+  }
+}
+
+function isPrivateOwnedDirectory(directoryPath) {
+  if (typeof process.geteuid !== "function") return false;
+  try {
+    const statistics = fs.lstatSync(directoryPath);
+    return (
+      statistics.isDirectory() &&
+      !statistics.isSymbolicLink() &&
+      statistics.uid === process.geteuid() &&
+      (statistics.mode & 0o777) === 0o700
+    );
+  } catch {
+    return false;
+  }
+}
+
+function nativeEventShardPaths(storeDir) {
+  const nativeRoot = path.join(storeDir, "zed10x-in-process");
+  if (!isPrivateOwnedDirectory(nativeRoot)) return [];
+
+  try {
+    return fs
+      .readdirSync(nativeRoot, { withFileTypes: true })
+      .filter(
+        (entry) =>
+          entry.isDirectory() && /^slot-(?:0\d|1[0-3])$/.test(entry.name),
+      )
+      .flatMap((slotEntry) => {
+        const slotPath = path.join(nativeRoot, slotEntry.name);
+        if (!isPrivateOwnedDirectory(slotPath)) return [];
+        return fs
+          .readdirSync(slotPath, { withFileTypes: true })
+          .filter((entry) => entry.isDirectory() && /^day-\d{8}$/.test(entry.name))
+          .flatMap((dayEntry) => {
+            const dayPath = path.join(slotPath, dayEntry.name);
+            if (!isPrivateOwnedDirectory(dayPath)) return [];
+            const day = dayEntry.name.slice("day-".length);
+            return fs
+              .readdirSync(dayPath, { withFileTypes: true })
+              .filter(
+                (entry) =>
+                  entry.isFile() &&
+                  new RegExp(`^events-${day}-[0-9a-f]{32}\\.jsonl$`).test(
+                    entry.name,
+                  ),
+              )
+              .map((entry) => path.join(dayPath, entry.name));
+          });
+      })
+      .sort();
+  } catch {
+    return [];
+  }
+}
+
+export function loadEventRecords(storeDir, selectedFiles) {
+  try {
+    const legacyPaths = (
       selectedFiles ??
       fs
         .readdirSync(storeDir)
         .filter((file) => /^events-\d{4}-\d{2}-\d{2}\.jsonl$/.test(file))
     )
       .sort()
-      .filter((file) => fs.existsSync(path.join(storeDir, file)));
-    return eventFiles.flatMap((file) => {
-      try {
-        return fs
-          .readFileSync(path.join(storeDir, file), "utf8")
-          .split("\n")
-          .filter(Boolean)
-          .flatMap((line) => {
-            try {
-              return [JSON.parse(line)];
-            } catch {
-              return [];
-            }
-          });
-      } catch {
-        return [];
-      }
-    });
+      .map((file) => path.join(storeDir, file));
+    const nativePaths = selectedFiles === undefined ? nativeEventShardPaths(storeDir) : [];
+    return [
+      ...legacyPaths.flatMap((filePath) => readJsonlRecords(filePath)),
+      // The external launcher already owns launch/process lifecycle and the
+      // reliability denominator. Import only the native foreground-hang fact
+      // so one Zed 10x launch is never counted twice.
+      ...nativePaths
+        .flatMap((filePath) =>
+          readJsonlRecords(filePath, { privateNativeShard: true }),
+        )
+        .filter((record) => recordName(record) === "app.hang"),
+    ];
   } catch {
     return [];
   }
