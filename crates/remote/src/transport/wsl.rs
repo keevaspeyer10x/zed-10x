@@ -356,7 +356,7 @@ impl RemoteConnection for WslRemoteConnection {
     fn start_proxy(
         &self,
         unique_identifier: String,
-        reconnect: bool,
+        mode: crate::proxy::ProxyMode,
         incoming_tx: UnboundedSender<Envelope>,
         outgoing_rx: UnboundedReceiver<Envelope>,
         connection_activity_tx: Sender<()>,
@@ -384,9 +384,7 @@ impl RemoteConnection for WslRemoteConnection {
         proxy_args.push("--identifier".to_owned());
         proxy_args.push(unique_identifier);
 
-        if reconnect {
-            proxy_args.push("--reconnect".to_owned());
-        }
+        mode.append_cli_args(&mut proxy_args);
 
         let proxy_process =
             match wsl_command_impl(&self.connection_options, "env", &proxy_args, true)

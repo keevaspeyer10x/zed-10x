@@ -1489,8 +1489,16 @@ impl MultiWorkspace {
         let old_active_was_retained = self.active_workspace_is_retained();
         let workspace_was_retained = self.is_workspace_retained(&workspace);
         let should_retain_workspaces = self.multi_workspace_enabled(cx);
+        let replaces_old_active = source_workspace
+            .as_ref()
+            .and_then(WeakEntity::upgrade)
+            .is_some_and(|source| {
+                source == old_active_workspace
+                    && source.read(cx).database_id().is_some()
+                    && source.read(cx).database_id() == workspace.read(cx).database_id()
+            });
 
-        if should_retain_workspaces && !old_active_was_retained {
+        if should_retain_workspaces && !old_active_was_retained && !replaces_old_active {
             let key = old_active_workspace.read(cx).project_group_key(cx);
             self.retain_workspace(old_active_workspace.clone(), key, cx);
         }
@@ -1515,7 +1523,9 @@ impl MultiWorkspace {
             group.last_active_workspace = Some(self.active_workspace.downgrade());
         }
 
-        if !should_retain_workspaces && !old_active_was_retained {
+        if replaces_old_active {
+            self.detach_replaced_workspace(&old_active_workspace, cx);
+        } else if !should_retain_workspaces && !old_active_was_retained {
             self.detach_workspace(&old_active_workspace, cx);
         }
 
@@ -1531,6 +1541,75 @@ impl MultiWorkspace {
         self.serialize(cx);
         self.focus_active_workspace(window, cx);
         cx.notify();
+    }
+
+    /// Replaces one workspace instance with another instance of the same
+    /// persisted workspace. If the source is active, the replacement becomes
+    /// active. If the source is retained in the background, the replacement
+    /// takes its place without changing the user's active workspace.
+    pub(crate) fn replace_workspace(
+        &mut self,
+        source: &Entity<Workspace>,
+        replacement: Entity<Workspace>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> bool {
+        let source_database_id = source.read(cx).database_id();
+        if source_database_id.is_none() || source_database_id != replacement.read(cx).database_id()
+        {
+            return false;
+        }
+
+        if self.active_workspace == *source {
+            self.activate(replacement, Some(source.downgrade()), window, cx);
+            return true;
+        }
+
+        let Some(source_index) = self
+            .retained_workspaces
+            .iter()
+            .position(|workspace| workspace == source)
+        else {
+            return false;
+        };
+        if self.is_workspace_retained(&replacement) {
+            return false;
+        }
+
+        let groups_with_source = self
+            .project_groups
+            .iter()
+            .filter(|group| {
+                group
+                    .last_active_workspace
+                    .as_ref()
+                    .and_then(WeakEntity::upgrade)
+                    .as_ref()
+                    == Some(source)
+            })
+            .map(|group| group.key.clone())
+            .collect::<Vec<_>>();
+
+        self.register_workspace(&replacement, window, cx);
+        self.retained_workspaces[source_index] = replacement.clone();
+        self.detach_replaced_workspace(source, cx);
+
+        let replacement_key = replacement.read(cx).project_group_key(cx);
+        self.ensure_project_group_state(replacement_key);
+        for key in groups_with_source {
+            if let Some(group) = self
+                .project_groups
+                .iter_mut()
+                .find(|group| group.key == key)
+            {
+                group.last_active_workspace = Some(replacement.downgrade());
+            }
+        }
+
+        cx.emit(MultiWorkspaceEvent::WorkspaceAdded(replacement));
+        self.serialize(cx);
+        cx.notify();
+        true
     }
 
     /// Adds `workspace` as a retained background tab without switching the
@@ -1594,6 +1673,21 @@ impl MultiWorkspace {
     /// group key, and emits `WorkspaceRemoved`. The DB row is preserved
     /// so the workspace still appears in the recent-projects list.
     fn detach_workspace(&mut self, workspace: &Entity<Workspace>, cx: &mut Context<Self>) {
+        self.detach_workspace_inner(workspace, true, cx);
+    }
+
+    /// Detaches the superseded instance of a workspace without clearing the
+    /// database binding now owned by its replacement.
+    fn detach_replaced_workspace(&mut self, workspace: &Entity<Workspace>, cx: &mut Context<Self>) {
+        self.detach_workspace_inner(workspace, false, cx);
+    }
+
+    fn detach_workspace_inner(
+        &mut self,
+        workspace: &Entity<Workspace>,
+        clear_session_binding: bool,
+        cx: &mut Context<Self>,
+    ) {
         self.retained_workspaces
             .retain(|retained| retained != workspace);
         for group in &mut self.project_groups {
@@ -1614,7 +1708,7 @@ impl MultiWorkspace {
             workspace._serialize_workspace_task.take();
         });
 
-        if let Some(workspace_id) = workspace.read(cx).database_id() {
+        if clear_session_binding && let Some(workspace_id) = workspace.read(cx).database_id() {
             let db = crate::persistence::WorkspaceDb::global(cx);
             self.pending_removal_tasks.retain(|task| !task.is_ready());
             self.pending_removal_tasks

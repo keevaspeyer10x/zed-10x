@@ -485,7 +485,7 @@ impl RemoteConnection for SshRemoteConnection {
     fn start_proxy(
         &self,
         unique_identifier: String,
-        reconnect: bool,
+        mode: crate::proxy::ProxyMode,
         incoming_tx: UnboundedSender<Envelope>,
         outgoing_rx: UnboundedReceiver<Envelope>,
         connection_activity_tx: Sender<()>,
@@ -507,9 +507,7 @@ impl RemoteConnection for SshRemoteConnection {
             proxy_args.push("--identifier".to_owned());
             proxy_args.push(unique_identifier);
 
-            if reconnect {
-                proxy_args.push("--reconnect".to_owned());
-            }
+            mode.append_cli_args(&mut proxy_args);
             self.socket.ssh_command(
                 self.ssh_shell_kind,
                 &remote_binary_path.display(self.path_style()),
@@ -528,9 +526,7 @@ impl RemoteConnection for SshRemoteConnection {
             proxy_args.push("--identifier".to_owned());
             proxy_args.push(unique_identifier);
 
-            if reconnect {
-                proxy_args.push("--reconnect".to_owned());
-            }
+            mode.append_cli_args(&mut proxy_args);
             self.socket
                 .ssh_command(self.ssh_shell_kind, "env", &proxy_args, false)
         };

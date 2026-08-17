@@ -1,3 +1,4 @@
+use futures::{FutureExt as _, channel::oneshot};
 use gpui::{ClickEvent, DismissEvent, EventEmitter, FocusHandle, Focusable, Render, WeakEntity};
 use project::project_settings::ProjectSettings;
 use remote::RemoteConnectionOptions;
@@ -7,8 +8,15 @@ use workspace::{
     ModalView, MultiWorkspace, OpenOptions, Workspace, notifications::DetachAndPromptErr,
 };
 
-use crate::open_remote_project;
+use crate::{open_remote_project, remote_connections::restore_remote_project};
 
+const AUTOMATIC_RECONNECT_DELAYS: [std::time::Duration; 3] = [
+    std::time::Duration::ZERO,
+    std::time::Duration::from_secs(2),
+    std::time::Duration::from_secs(8),
+];
+
+#[derive(Clone)]
 enum Host {
     CollabGuestProject,
     RemoteServerProject(RemoteConnectionOptions, bool),
@@ -19,6 +27,8 @@ pub struct DisconnectedOverlay {
     host: Host,
     focus_handle: FocusHandle,
     finished: bool,
+    automatic_reconnect_cancel: Option<oneshot::Sender<()>>,
+    automatic_reconnect_failed: bool,
 }
 
 impl EventEmitter<DismissEvent> for DisconnectedOverlay {}
@@ -77,23 +87,149 @@ impl DisconnectedOverlay {
                     Host::CollabGuestProject
                 };
 
+                let should_restore_automatically =
+                    matches!(&host, Host::RemoteServerProject(_, true));
+                let automatic_restore = should_restore_automatically.then(|| {
+                    let app_state = workspace.app_state().clone();
+                    let paths = workspace
+                        .root_paths(cx)
+                        .iter()
+                        .map(|path| path.to_path_buf())
+                        .collect::<Vec<_>>();
+                    (app_state, paths)
+                });
                 workspace.toggle_modal(window, cx, |_, cx| DisconnectedOverlay {
                     finished: false,
                     workspace: handle,
                     host,
                     focus_handle: cx.focus_handle(),
+                    automatic_reconnect_cancel: None,
+                    automatic_reconnect_failed: false,
                 });
+                if let Some((app_state, paths)) = automatic_restore
+                    && let Some(overlay) = workspace.active_modal::<DisconnectedOverlay>(cx)
+                {
+                    overlay.update(cx, |overlay, cx| {
+                        overlay.start_automatic_reconnect(app_state, paths, window, cx)
+                    });
+                }
             },
         )
         .detach();
     }
 
     fn handle_reconnect(&mut self, _: &ClickEvent, window: &mut Window, cx: &mut Context<Self>) {
+        self.cancel_automatic_reconnect();
         self.finished = true;
         cx.emit(DismissEvent);
 
         if let Host::RemoteServerProject(remote_connection_options, _) = &self.host {
             self.reconnect_to_remote_project(remote_connection_options.clone(), window, cx);
+        }
+    }
+
+    fn start_automatic_reconnect(
+        &mut self,
+        app_state: std::sync::Arc<workspace::AppState>,
+        paths: Vec<std::path::PathBuf>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.automatic_reconnect_cancel.is_some() {
+            return;
+        }
+        let Host::RemoteServerProject(connection_options, true) = self.host.clone() else {
+            return;
+        };
+        let Some(window_handle) = window.window_handle().downcast::<MultiWorkspace>() else {
+            return;
+        };
+        let source_workspace = self.workspace.clone();
+        let connection_type = connection_options.connection_type();
+        let (cancel_tx, cancel_rx) = oneshot::channel();
+        self.automatic_reconnect_cancel = Some(cancel_tx);
+
+        cx.spawn_in(window, async move |this, cx| {
+            let cancellation = async move {
+                if cancel_rx.await.is_err() {
+                    futures::future::pending::<()>().await;
+                }
+            }
+            .fuse();
+            futures::pin_mut!(cancellation);
+            for (attempt_index, delay) in AUTOMATIC_RECONNECT_DELAYS.into_iter().enumerate() {
+                if !delay.is_zero() {
+                    let timer = cx.background_executor().timer(delay).fuse();
+                    futures::pin_mut!(timer);
+                    futures::select_biased! {
+                        _ = cancellation => return,
+                        _ = timer => {},
+                    }
+                }
+                let attempt = attempt_index + 1;
+                telemetry::event!(
+                    "Remote Project Automatic Reconnect",
+                    connection_type,
+                    attempt,
+                    outcome = "started",
+                );
+                let result = {
+                    let restore = restore_remote_project(
+                        connection_options.clone(),
+                        paths.clone(),
+                        app_state.clone(),
+                        window_handle,
+                        source_workspace.clone(),
+                        cx,
+                    )
+                    .fuse();
+                    futures::pin_mut!(restore);
+                    futures::select_biased! {
+                        _ = cancellation => return,
+                        result = restore => result,
+                    }
+                };
+                match result {
+                    Ok(()) => {
+                        telemetry::event!(
+                            "Remote Project Automatic Reconnect",
+                            connection_type,
+                            attempt,
+                            outcome = "succeeded",
+                        );
+                        this.update(cx, |overlay, cx| {
+                            overlay.finished = true;
+                            overlay.automatic_reconnect_cancel.take();
+                            cx.emit(DismissEvent);
+                        })
+                        .ok();
+                        return;
+                    }
+                    Err(error) => {
+                        log::warn!("Automatic remote reconnect failed: {error:#}");
+                        telemetry::event!(
+                            "Remote Project Automatic Reconnect",
+                            connection_type,
+                            attempt,
+                            outcome = "failed",
+                        );
+                    }
+                }
+            }
+
+            this.update(cx, |overlay, cx| {
+                overlay.automatic_reconnect_cancel.take();
+                overlay.automatic_reconnect_failed = true;
+                cx.notify();
+            })
+            .ok();
+        })
+        .detach();
+    }
+
+    fn cancel_automatic_reconnect(&mut self) {
+        if let Some(cancel) = self.automatic_reconnect_cancel.take() {
+            let _ = cancel.send(());
         }
     }
 
@@ -137,6 +273,7 @@ impl DisconnectedOverlay {
     }
 
     fn cancel(&mut self, _: &menu::Cancel, _: &mut Window, cx: &mut Context<Self>) {
+        self.cancel_automatic_reconnect();
         self.finished = true;
         cx.emit(DismissEvent)
     }
@@ -160,7 +297,11 @@ impl Render for DisconnectedOverlay {
                     ""
                 };
                 let reason = if *server_not_running {
-                    "process exiting unexpectedly"
+                    if self.automatic_reconnect_failed {
+                        "process exiting unexpectedly; automatic recovery was unsuccessful"
+                    } else {
+                        "process exiting unexpectedly; Zed is reconnecting"
+                    }
                 } else {
                     "not responding"
                 };
@@ -194,7 +335,8 @@ impl Render for DisconnectedOverlay {
                                     Button::new("close-window", "Close Window")
                                         .style(ButtonStyle::Filled)
                                         .layer(ElevationIndex::ModalSurface)
-                                        .on_click(cx.listener(move |_, _, window, _| {
+                                        .on_click(cx.listener(move |this, _, window, _| {
+                                            this.cancel_automatic_reconnect();
                                             window.remove_window();
                                         })),
                                 )

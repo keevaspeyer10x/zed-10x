@@ -10742,6 +10742,30 @@ pub fn open_remote_project_with_new_connection(
     paths: Vec<PathBuf>,
     cx: &mut App,
 ) -> Task<Result<Vec<Option<Box<dyn ItemHandle>>>>> {
+    open_remote_project_with_new_connection_mode(
+        window,
+        remote_connection,
+        cancel_rx,
+        delegate,
+        app_state,
+        paths,
+        remote::ProxyMode::Start,
+        None,
+        cx,
+    )
+}
+
+pub fn open_remote_project_with_new_connection_mode(
+    window: WindowHandle<MultiWorkspace>,
+    remote_connection: Arc<dyn RemoteConnection>,
+    cancel_rx: oneshot::Receiver<()>,
+    delegate: Arc<dyn RemoteClientDelegate>,
+    app_state: Arc<AppState>,
+    paths: Vec<PathBuf>,
+    proxy_mode: remote::ProxyMode,
+    source_workspace: Option<WeakEntity<Workspace>>,
+    cx: &mut App,
+) -> Task<Result<Vec<Option<Box<dyn ItemHandle>>>>> {
     cx.spawn(async move |cx| {
         let (workspace_id, serialized_workspace) =
             deserialize_remote_project(remote_connection.connection_options(), paths.clone(), cx)
@@ -10749,11 +10773,12 @@ pub fn open_remote_project_with_new_connection(
 
         let session = match cx
             .update(|cx| {
-                remote::RemoteClient::new(
+                remote::RemoteClient::new_with_proxy_mode(
                     ConnectionIdentifier::Workspace(workspace_id.0),
                     remote_connection,
                     cancel_rx,
                     delegate,
+                    proxy_mode,
                     cx,
                 )
             })
@@ -10784,7 +10809,8 @@ pub fn open_remote_project_with_new_connection(
             app_state,
             window,
             None,
-            None,
+            source_workspace,
+            proxy_mode == remote::ProxyMode::ReconnectOrStart,
             cx,
         )
         .await
@@ -10814,6 +10840,7 @@ pub fn open_remote_project_with_existing_connection(
             window,
             provisional_project_group_key,
             source_workspace,
+            false,
             cx,
         )
         .await
@@ -10829,6 +10856,7 @@ async fn open_remote_project_inner(
     window: WindowHandle<MultiWorkspace>,
     provisional_project_group_key: Option<ProjectGroupKey>,
     source_workspace: Option<WeakEntity<Workspace>>,
+    replace_source_workspace: bool,
     cx: &mut AsyncApp,
 ) -> Result<Vec<Option<Box<dyn ItemHandle>>>> {
     let mut project_paths_to_open = vec![];
@@ -10854,7 +10882,7 @@ async fn open_remote_project_inner(
         return Err(project_path_errors.pop().context("no paths given")?);
     }
 
-    let workspace = window.update(cx, |multi_workspace, window, cx| {
+    let (workspace, replacement_source) = window.update(cx, |multi_workspace, window, cx| {
         let new_workspace = cx.new(|cx| {
             let mut workspace = Workspace::new(
                 Some(workspace_id),
@@ -10871,6 +10899,25 @@ async fn open_remote_project_inner(
 
             workspace
         });
+        let replacement_source = if replace_source_workspace {
+            let source = source_workspace
+                .as_ref()
+                .and_then(WeakEntity::upgrade)
+                .context("remote workspace to replace no longer exists")?;
+            anyhow::ensure!(
+                source.read(cx).database_id() == Some(workspace_id),
+                "remote workspace replacement identity changed"
+            );
+            anyhow::ensure!(
+                multi_workspace
+                    .workspaces()
+                    .any(|workspace| workspace == &source),
+                "remote workspace to replace is no longer in this window"
+            );
+            Some(source)
+        } else {
+            None
+        };
 
         if let Some(project_group_key) = provisional_project_group_key.clone() {
             multi_workspace.activate_provisional_workspace(
@@ -10879,11 +10926,11 @@ async fn open_remote_project_inner(
                 window,
                 cx,
             );
-        } else {
-            multi_workspace.activate(new_workspace.clone(), source_workspace, window, cx);
+        } else if replacement_source.is_none() {
+            multi_workspace.activate(new_workspace.clone(), source_workspace.clone(), window, cx);
         }
-        new_workspace
-    })?;
+        anyhow::Ok((new_workspace, replacement_source))
+    })??;
 
     let db = cx.update(|cx| WorkspaceDb::global(cx));
     let toolchains = db.toolchains(workspace_id).await?;
@@ -10909,8 +10956,13 @@ async fn open_remote_project_inner(
     }
 
     let items = window
-        .update(cx, |_, window, cx| {
-            window.activate_window();
+        .update(cx, |multi_workspace, window, cx| {
+            if replacement_source
+                .as_ref()
+                .is_none_or(|source| multi_workspace.workspace() == source)
+            {
+                window.activate_window();
+            }
             workspace.update(cx, |_workspace, cx| {
                 open_items(serialized_workspace, project_paths_to_open, window, cx)
             })
@@ -10929,7 +10981,19 @@ async fn open_remote_project_inner(
         }
     });
 
-    Ok(items.into_iter().map(|item| item?.ok()).collect())
+    let items = items.into_iter().map(|item| item?.ok()).collect();
+
+    if let Some(source) = replacement_source {
+        let replaced = window.update(cx, |multi_workspace, window, cx| {
+            multi_workspace.replace_workspace(&source, workspace.clone(), window, cx)
+        })?;
+        anyhow::ensure!(
+            replaced,
+            "remote workspace replacement source changed during restore"
+        );
+    }
+
+    Ok(items)
 }
 
 fn deserialize_remote_project(

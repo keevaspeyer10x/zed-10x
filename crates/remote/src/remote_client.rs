@@ -522,6 +522,24 @@ impl RemoteClient {
         delegate: Arc<dyn RemoteClientDelegate>,
         cx: &mut App,
     ) -> Task<Result<Option<Entity<Self>>>> {
+        Self::new_with_proxy_mode(
+            unique_identifier,
+            remote_connection,
+            cancellation,
+            delegate,
+            crate::proxy::ProxyMode::Start,
+            cx,
+        )
+    }
+
+    pub fn new_with_proxy_mode(
+        unique_identifier: ConnectionIdentifier,
+        remote_connection: Arc<dyn RemoteConnection>,
+        cancellation: oneshot::Receiver<()>,
+        delegate: Arc<dyn RemoteClientDelegate>,
+        proxy_mode: crate::proxy::ProxyMode,
+        cx: &mut App,
+    ) -> Task<Result<Option<Entity<Self>>>> {
         let unique_identifier = unique_identifier.to_string(cx);
         cx.spawn(async move |cx| {
             let success = Box::pin(async move {
@@ -556,7 +574,7 @@ impl RemoteClient {
 
                 let io_task = remote_connection.start_proxy(
                     unique_identifier,
-                    false,
+                    proxy_mode,
                     incoming_tx,
                     outgoing_rx,
                     connection_activity_tx,
@@ -799,7 +817,7 @@ impl RemoteClient {
 
                 let io_task = remote_connection.start_proxy(
                     unique_identifier,
-                    true,
+                    crate::proxy::ProxyMode::Reconnect,
                     incoming_tx,
                     outgoing_rx,
                     connection_activity_tx,
@@ -1802,7 +1820,7 @@ pub trait RemoteConnection: Send + Sync {
     fn start_proxy(
         &self,
         unique_identifier: String,
-        reconnect: bool,
+        mode: crate::proxy::ProxyMode,
         incoming_tx: UnboundedSender<Envelope>,
         outgoing_rx: UnboundedReceiver<Envelope>,
         connection_activity_tx: Sender<()>,

@@ -25,7 +25,7 @@ use workspace::{
 
 pub use remote_connection::{
     RemoteClientDelegate, RemoteConnectionModal, RemoteConnectionPrompt, SshConnectionHeader,
-    connect,
+    background_remote_client_delegate, connect,
 };
 
 #[derive(RegisterSetting)]
@@ -134,6 +134,8 @@ pub async fn open_remote_project(
     cx: &mut AsyncApp,
 ) -> Result<WindowHandle<MultiWorkspace>> {
     let created_new_window = open_options.requesting_window.is_none();
+    let mut source_workspace = None;
+    let mut source_workspace_id = None;
 
     let (existing, open_visible) = find_existing_workspace(
         &paths,
@@ -200,6 +202,11 @@ pub async fn open_remote_project(
         log::info!(
             "existing remote workspace found but connection is dead, starting fresh connection"
         );
+        source_workspace_id = Some(
+            cx.update(|cx| existing_workspace.read(cx).database_id())
+                .context("disconnected remote workspace has no persisted identity")?,
+        );
+        source_workspace = Some(existing_workspace.downgrade());
     }
 
     let (window, initial_workspace) = if let Some(window) = open_options.requesting_window {
@@ -350,13 +357,19 @@ pub async fn open_remote_project(
 
         let opened_items = cx
             .update(|cx| {
-                workspace::open_remote_project_with_new_connection(
+                workspace::open_remote_project_with_new_connection_mode(
                     window,
                     remote_connection,
                     cancel_rx,
                     delegate.clone(),
                     app_state.clone(),
                     paths.clone(),
+                    if source_workspace.is_some() {
+                        remote::ProxyMode::ReconnectOrStart
+                    } else {
+                        remote::ProxyMode::Start
+                    },
+                    source_workspace.clone(),
                     cx,
                 )
             })
@@ -420,23 +433,99 @@ pub async fn open_remote_project(
         break;
     }
 
-    // Register the remote client with extensions. We use `multi_workspace.workspace()` here
-    // (not `initial_workspace`) because `open_remote_project_inner` activated the new remote
-    // workspace, so the active workspace is now the one with the remote project.
-    window
-        .update(cx, |multi_workspace: &mut MultiWorkspace, _, cx| {
-            let workspace = multi_workspace.workspace().clone();
-            workspace.update(cx, |workspace, cx| {
-                if let Some(client) = workspace.project().read(cx).remote_client() {
-                    if let Some(extension_store) = ExtensionStore::try_global(cx) {
-                        extension_store
-                            .update(cx, |store, cx| store.register_remote_client(client, cx));
-                    }
-                }
-            });
-        })
-        .ok();
+    // Register the remote client with extensions. A recovered workspace may
+    // have replaced a background tab, so locate it by persisted identity
+    // instead of assuming it became active.
+    let _ = window.update(cx, |multi_workspace: &mut MultiWorkspace, _, cx| {
+        let workspace = if let Some(source_workspace_id) = source_workspace_id {
+            let mut matches = multi_workspace
+                .workspaces()
+                .filter(|workspace| workspace.read(cx).database_id() == Some(source_workspace_id))
+                .cloned();
+            let workspace = matches
+                .next()
+                .context("recovered remote workspace is not present")?;
+            anyhow::ensure!(
+                matches.next().is_none(),
+                "multiple remote workspaces share the recovered persisted identity"
+            );
+            workspace
+        } else {
+            multi_workspace.workspace().clone()
+        };
+        workspace.update(cx, |workspace, cx| {
+            if let Some(client) = workspace.project().read(cx).remote_client()
+                && let Some(extension_store) = ExtensionStore::try_global(cx)
+            {
+                extension_store.update(cx, |store, cx| store.register_remote_client(client, cx));
+            }
+        });
+        anyhow::Ok(())
+    });
     Ok(window)
+}
+
+pub(crate) async fn restore_remote_project(
+    connection_options: RemoteConnectionOptions,
+    paths: Vec<PathBuf>,
+    app_state: Arc<AppState>,
+    window: WindowHandle<MultiWorkspace>,
+    source_workspace: gpui::WeakEntity<Workspace>,
+    cx: &mut gpui::AsyncWindowContext,
+) -> Result<()> {
+    let source_workspace = source_workspace
+        .upgrade()
+        .context("remote workspace to restore no longer exists")?;
+    let source_workspace_id = cx
+        .update(|_, cx| source_workspace.read(cx).database_id())?
+        .context("remote workspace to restore has no persisted identity")?;
+    let delegate = background_remote_client_delegate();
+    let remote_connection = remote::connect(connection_options, delegate.clone(), cx).await?;
+    let (cancel_tx, cancel_rx) = oneshot::channel();
+    let (resolved_paths, paths_with_positions) =
+        determine_paths_with_positions(&remote_connection, paths).await;
+
+    let opened_items = cx
+        .update(|_, cx| {
+            workspace::open_remote_project_with_new_connection_mode(
+                window,
+                remote_connection,
+                cancel_rx,
+                delegate,
+                app_state,
+                resolved_paths,
+                remote::ProxyMode::ReconnectOrStart,
+                Some(source_workspace.downgrade()),
+                cx,
+            )
+        })?
+        .await?;
+    drop(cancel_tx);
+
+    navigate_to_positions(&window, opened_items, &paths_with_positions, cx);
+    window.update(cx, |multi_workspace, _, cx| {
+        let mut replacements = multi_workspace.workspaces().filter(|workspace| {
+            *workspace != &source_workspace
+                && workspace.read(cx).database_id() == Some(source_workspace_id)
+        });
+        let workspace = replacements
+            .next()
+            .cloned()
+            .context("restored remote workspace is not present")?;
+        anyhow::ensure!(
+            replacements.next().is_none(),
+            "multiple restored remote workspaces share the persisted identity"
+        );
+        workspace.update(cx, |workspace, cx| {
+            if let Some(client) = workspace.project().read(cx).remote_client()
+                && let Some(extension_store) = ExtensionStore::try_global(cx)
+            {
+                extension_store.update(cx, |store, cx| store.register_remote_client(client, cx));
+            }
+        });
+        anyhow::Ok(())
+    })??;
+    Ok(())
 }
 
 pub fn navigate_to_positions(
@@ -521,7 +610,7 @@ mod tests {
     use gpui::{AppContext, TestAppContext};
     use http_client::BlockedHttpClient;
     use node_runtime::NodeRuntime;
-    use remote::RemoteClient;
+    use remote::{ConnectionState, RemoteClient};
     use remote_server::{HeadlessAppState, HeadlessProject};
     use serde_json::json;
     use util::path;
@@ -899,9 +988,25 @@ mod tests {
 
         assert_eq!(cx.update(|cx| cx.windows().len()), 1);
         let window = cx.update(|cx| cx.windows()[0].downcast::<MultiWorkspace>().unwrap());
+        let (original_workspace, original_workspace_id, original_client_id) = window
+            .update(cx, |multi_workspace, _, cx| {
+                let workspace = multi_workspace.workspace().clone();
+                let workspace_id = workspace
+                    .read(cx)
+                    .database_id()
+                    .expect("remote workspace should have a persisted identity");
+                let client = workspace
+                    .read(cx)
+                    .project()
+                    .read(cx)
+                    .remote_client()
+                    .expect("should have remote client");
+                (workspace, workspace_id, client.entity_id())
+            })
+            .unwrap();
 
         // Force the remote client into ServerNotRunning state (simulates the
-        // scenario where the remote server died and reconnection failed).
+        // scenario where daemon cleanup won the normal reconnect race).
         window
             .update(cx, |multi_workspace, _, cx| {
                 let workspace = multi_workspace.workspace().clone();
@@ -920,8 +1025,26 @@ mod tests {
 
         executor.run_until_parked();
 
-        // Register a new mock server under the same options so the reconnect
-        // path can establish a fresh connection.
+        // Keep the disconnected workspace as a background tab, then switch
+        // elsewhere while its replacement is being prepared. Recovery must
+        // replace that tab without stealing focus or exposing partial state.
+        let switch_workspace_task = window
+            .update(cx, |multi_workspace, window, cx| {
+                multi_workspace.add(original_workspace.clone(), window, cx);
+                multi_workspace.create_test_workspace(window, cx)
+            })
+            .unwrap();
+        switch_workspace_task.await;
+        executor.run_until_parked();
+        let workspace_active_during_restore = window
+            .update(cx, |multi_workspace, _, _| {
+                multi_workspace.workspace().clone()
+            })
+            .unwrap();
+        assert_ne!(workspace_active_during_restore, original_workspace);
+
+        // The immediate attempt has failed because no replacement server is
+        // available yet. Bring it up before the bounded second attempt.
         let (server_session_2, connect_guard_2) =
             RemoteClient::fake_server_with_opts(&opts, cx, server_cx);
 
@@ -942,39 +1065,52 @@ mod tests {
         });
 
         drop(connect_guard_2);
-
-        // Simulate clicking "Reconnect": calls open_remote_project with
-        // replace_window pointing to the existing window.
-        let result = open_remote_project(
-            opts,
-            paths,
-            app_state,
-            workspace::OpenOptions {
-                requesting_window: Some(window),
-                ..Default::default()
-            },
-            &mut async_cx,
-        )
-        .await;
-
+        executor.advance_clock(std::time::Duration::from_secs(2));
         executor.run_until_parked();
 
-        assert!(
-            result.is_ok(),
-            "reconnect should succeed but got: {:?}",
-            result.err()
-        );
-
-        // Should still be a single window with a working remote project.
+        // Recovery is automatic: no reconnect button or explicit reopen call
+        // is needed. The original window now hosts a working remote project,
+        // while the workspace selected during recovery remains active.
         assert_eq!(cx.update(|cx| cx.windows().len()), 1);
 
         window
             .update(cx, |multi_workspace, _, cx| {
-                let workspace = multi_workspace.workspace().clone();
+                assert_eq!(
+                    multi_workspace.workspace(),
+                    &workspace_active_during_restore,
+                    "background recovery must not steal focus"
+                );
+                assert!(
+                    !multi_workspace.is_workspace_retained(&original_workspace),
+                    "the disconnected workspace must not remain available after replacement"
+                );
+                let mut replacements = multi_workspace.workspaces().filter(|workspace| {
+                    *workspace != &original_workspace
+                        && workspace.read(cx).database_id() == Some(original_workspace_id)
+                });
+                let workspace = replacements
+                    .next()
+                    .cloned()
+                    .expect("automatic recovery should retain a replacement workspace");
+                assert!(
+                    replacements.next().is_none(),
+                    "automatic recovery should create exactly one replacement workspace"
+                );
                 workspace.update(cx, |workspace, cx| {
-                    assert!(
-                        workspace.project().read(cx).is_remote(),
-                        "project should be remote after reconnect"
+                    let client = workspace
+                        .project()
+                        .read(cx)
+                        .remote_client()
+                        .expect("replacement should have a remote client");
+                    assert_ne!(
+                        client.entity_id(),
+                        original_client_id,
+                        "automatic recovery should use a new remote client"
+                    );
+                    assert_eq!(
+                        client.read(cx).connection_state(),
+                        ConnectionState::Connected,
+                        "replacement remote client should be connected"
                     );
                 });
             })

@@ -253,7 +253,7 @@ impl RemoteConnection for MockRemoteConnection {
     fn start_proxy(
         &self,
         _unique_identifier: String,
-        _reconnect: bool,
+        _mode: crate::proxy::ProxyMode,
         mut client_incoming_tx: mpsc::UnboundedSender<Envelope>,
         mut client_outgoing_rx: mpsc::UnboundedReceiver<Envelope>,
         mut connection_activity_tx: Sender<()>,
