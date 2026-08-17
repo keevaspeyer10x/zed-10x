@@ -1540,8 +1540,9 @@ mod tests {
 
         let shard = native_shards(&root).into_iter().next().unwrap();
         let event = parsed(&fs::read(shard).unwrap());
-        assert_eq!(event["time_unix_nano"], "10000000000");
-        assert_eq!(event["observed_time_unix_nano"], "10000000000");
+        let expected = ((BASE_UNIX_SECONDS as u128 + 10) * 1_000_000_000).to_string();
+        assert_eq!(event["time_unix_nano"], expected);
+        assert_eq!(event["observed_time_unix_nano"], expected);
     }
 
     #[cfg(unix)]
