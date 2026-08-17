@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use client::Client;
 use gpui::{AppContext, TasksIncluded, profiler};
@@ -83,11 +83,14 @@ pub(crate) fn start(client: Arc<Client>, cx: &mut App) {
 fn start_hang_detection(
     report_longer_then: Duration,
     client: Arc<Client>,
-    mut liveness: Option<liveness::Monitor>,
+    liveness: Option<liveness::Monitor>,
     cx: &App,
 ) {
     let foreground_thread = thread::current().id();
     let monitor_interval = Duration::from_secs(1);
+    if let Some(liveness) = liveness {
+        start_liveness_detection(liveness, monitor_interval);
+    }
     let telemetry = Arc::new(Mutex::new(telemetry::Reporter::new(foreground_thread)));
     let mut log = logging::Reporter::new(monitor_interval, report_longer_then, foreground_thread);
 
@@ -110,9 +113,6 @@ fn start_hang_detection(
             thread::sleep(Duration::from_millis(200));
             loop {
                 thread::sleep(monitor_interval);
-                if let Some(liveness) = &mut liveness {
-                    liveness.poll();
-                }
                 // TODO(yara) the telemetry should not include still running tasks while the
                 // reports being logged should.
                 let task_stats = profiler::take_all_stats(TasksIncluded::CompletedAndRunning);
@@ -129,6 +129,26 @@ fn start_hang_detection(
                     if let Some(path) = task_traces::save_any(foreground_thread) {
                         log::info!("Task trace has been saved to: {}", path.display());
                     }
+                }
+            }
+        })
+        .expect("App can always spawn threads");
+}
+
+fn start_liveness_detection(mut liveness: liveness::Monitor, interval: Duration) {
+    thread::Builder::new()
+        .name("Zed10xLiveness".to_string())
+        .spawn(move || {
+            let mut next_tick = Instant::now() + interval;
+            loop {
+                thread::sleep(next_tick.saturating_duration_since(Instant::now()));
+                liveness.poll();
+
+                let now = Instant::now();
+                next_tick += interval;
+                if next_tick <= now {
+                    // Do not create a catch-up storm after suspension or scheduler starvation.
+                    next_tick = now + interval;
                 }
             }
         })

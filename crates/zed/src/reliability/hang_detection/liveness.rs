@@ -606,7 +606,7 @@ mod tests {
     #[test]
     fn s1_contract_08_blocked_writer_cannot_stop_ack_detection_or_recovery() {
         let mut monitor = LivenessMonitor::new(INTERVAL, THRESHOLD);
-        let mut producer = LifecycleProducer::new(launch_identity());
+        let mut producer = LifecycleProducer::new();
         let mut sink = CapturingSink::with_drops([
             DropReason::StorageUnavailable,
             DropReason::QueueFull,
@@ -932,7 +932,7 @@ mod tests {
 
     #[test]
     fn s1_contract_11_lifecycle_rejects_prelaunch_and_postterminal_facts() {
-        let mut producer = LifecycleProducer::new(launch_identity());
+        let mut producer = LifecycleProducer::new();
         let mut sink = CapturingSink::default();
         let ready = LivenessTransition::Ready {
             baseline_latency: Duration::from_millis(12),
@@ -978,7 +978,7 @@ mod tests {
             ]
         );
 
-        let mut ordered = LifecycleProducer::new(other_launch_identity());
+        let mut ordered = LifecycleProducer::new();
         let mut scripted =
             CapturingSink::with_script([None, None, Some(DropReason::QueueFull), None]);
         assert_eq!(
@@ -1026,7 +1026,7 @@ mod tests {
 
     #[test]
     fn s1_contract_12_quit_offer_is_bounded_and_attempted_at_most_once() {
-        let mut producer = LifecycleProducer::new(launch_identity());
+        let mut producer = LifecycleProducer::new();
         let mut accepting_sink = CapturingSink::default();
         assert_eq!(
             producer.offer_launch(&mut accepting_sink, at(0)),
@@ -1048,7 +1048,7 @@ mod tests {
 
     #[test]
     fn s1_contract_13_duplicate_quit_and_restart_callbacks_cannot_duplicate_terminal() {
-        let mut producer = LifecycleProducer::new(launch_identity());
+        let mut producer = LifecycleProducer::new();
         let mut sink = CapturingSink::default();
         assert_eq!(
             producer.offer_launch(&mut sink, at(0)),
@@ -1078,9 +1078,44 @@ mod tests {
     }
 
     #[test]
+    fn s1_contract_13a_shutdown_waits_for_queue_space_and_delivers_one_terminal() {
+        let mut producer = LifecycleProducer::new();
+        let mut launch_sink = CapturingSink::default();
+        assert_eq!(
+            producer.offer_launch(&mut launch_sink, at(0)),
+            LifecycleOffer::Accepted
+        );
+        let (mut ingress, receiver) = RecorderIngress::bounded(1);
+        assert_eq!(
+            ingress.try_offer(PendingEvent::new(99, EventFact::AppLaunch, at(0))),
+            SinkOffer::Accepted
+        );
+
+        std::thread::scope(|scope| {
+            let shutdown = scope.spawn(move || {
+                let outcome = producer.offer_clean_exit_wait(&ingress, at(1));
+                (outcome, producer, ingress)
+            });
+
+            assert!(matches!(
+                receiver.recv().unwrap().fact(),
+                EventFact::AppLaunch
+            ));
+            let (outcome, producer, ingress) = shutdown.join().unwrap();
+            assert_eq!(outcome, LifecycleOffer::Accepted);
+            assert_eq!(producer.terminal_offer_count(), 1);
+            assert!(matches!(
+                receiver.recv().unwrap().fact(),
+                EventFact::AppProcessExit
+            ));
+            drop(ingress);
+        });
+    }
+
+    #[test]
     fn s1_contract_14_lost_lifecycle_offers_are_partial_and_never_fabricated() {
         for loss in [DropReason::QueueFull, DropReason::StorageUnavailable] {
-            let mut producer = LifecycleProducer::new(launch_identity());
+            let mut producer = LifecycleProducer::new();
             let mut launch_drop = CapturingSink::with_drops([loss]);
             assert!(matches!(
                 producer.offer_launch(&mut launch_drop, at(0)),
@@ -1119,9 +1154,8 @@ mod tests {
         let root = TestRoot::new("torn-predecessor");
         let config = recorder_config(&root);
         let first_launch = launch_identity();
-        let (mut first_ingress, first_writer) =
-            spawn_writer(config.clone(), first_launch.clone()).unwrap();
-        let mut first_producer = LifecycleProducer::new(first_launch);
+        let (mut first_ingress, first_writer) = spawn_writer(config.clone(), first_launch).unwrap();
+        let mut first_producer = LifecycleProducer::new();
         assert_eq!(
             first_producer.offer_launch(&mut first_ingress, at(0)),
             LifecycleOffer::Accepted
@@ -1145,9 +1179,8 @@ mod tests {
         let predecessor = fs::read(&first_path).unwrap();
 
         let second_launch = other_launch_identity();
-        let (mut second_ingress, second_writer) =
-            spawn_writer(config, second_launch.clone()).unwrap();
-        let mut second_producer = LifecycleProducer::new(second_launch);
+        let (mut second_ingress, second_writer) = spawn_writer(config, second_launch).unwrap();
+        let mut second_producer = LifecycleProducer::new();
         assert_eq!(
             second_producer.offer_launch(&mut second_ingress, at(10)),
             LifecycleOffer::Accepted
@@ -1458,6 +1491,23 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
+    fn s1_contract_20a_observation_time_never_precedes_occurrence_after_clock_rollback() {
+        let root = TestRoot::new("observation-clock-rollback");
+        let mut writer = TestRecorder::open(recorder_config(&root), launch_identity()).unwrap();
+
+        assert_eq!(
+            writer.append(EventFact::AppLaunch, at(10), at(5)),
+            AppendOutcome::Appended
+        );
+
+        let shard = native_shards(&root).into_iter().next().unwrap();
+        let event = parsed(&fs::read(shard).unwrap());
+        assert_eq!(event["time_unix_nano"], "10000000000");
+        assert_eq!(event["observed_time_unix_nano"], "10000000000");
+    }
+
+    #[cfg(unix)]
+    #[test]
     fn s1_contract_21_rollover_closes_sleeping_descriptor_before_append() {
         let root = TestRoot::new("sleep-rollover");
         let mut writer = TestRecorder::open(recorder_config(&root), launch_identity()).unwrap();
@@ -1680,7 +1730,7 @@ mod tests {
     ) {
         let root = TestRoot::new("production-assembly");
         let manual_clock = Arc::new(ManualClock::new(clock(0, 0)));
-        let (mut monitor, writer) = cx.update(|cx| {
+        let mut monitor = cx.update(|cx| {
             start_configured(
                 cx,
                 recorder_config(&root),
@@ -1708,8 +1758,9 @@ mod tests {
 
         manual_clock.set(clock(7_000, 7_000));
         cx.update(|cx| cx.shutdown());
-        drop(monitor);
-        writer.join().unwrap();
+        // The quit future owns the writer and cannot resolve until the terminal event has been
+        // drained and the writer joined. Monitor deliberately remains alive while we inspect the
+        // completed shard, proving cleanup does not rely on dropping its producer handle.
 
         let shards = native_shards(&root);
         assert_eq!(shards.len(), 1);
@@ -1767,8 +1818,8 @@ mod tests {
         let manual_clock = Arc::new(ManualClock::new(clock(10_000, 10_000)));
         let launch = launch_identity();
         let (mut ingress, writer) =
-            spawn_writer_with_clock(recorder_config(&root), launch.clone(), manual_clock).unwrap();
-        let mut producer = LifecycleProducer::new(launch);
+            spawn_writer_with_clock(recorder_config(&root), launch, manual_clock).unwrap();
+        let mut producer = LifecycleProducer::new();
         let mut launch_sink = CapturingSink::default();
         assert_eq!(
             producer.offer_launch(&mut launch_sink, clock(1_000, 1_000).suspend_aware),
@@ -2515,7 +2566,7 @@ use std::os::unix::fs::{MetadataExt as _, OpenOptionsExt as _};
 use std::ptr::NonNull;
 
 use chrono::{DateTime, Datelike as _, Days, NaiveDate, Utc};
-use gpui::App;
+use gpui::{App, AppContext as _};
 use parking_lot::Mutex;
 use release_channel::ReleaseChannel;
 use serde_json::{Map, Value, json};
@@ -3081,6 +3132,13 @@ impl RecorderIngress {
         let (sender, receiver) = mpsc::sync_channel(capacity);
         (Self { sender }, receiver)
     }
+
+    fn send_wait(&self, event: PendingEvent) -> SinkOffer {
+        match self.sender.send(event) {
+            Ok(()) => SinkOffer::Accepted,
+            Err(_) => SinkOffer::Dropped(DropReason::StorageUnavailable),
+        }
+    }
 }
 
 impl TryEventSink for RecorderIngress {
@@ -3116,7 +3174,6 @@ enum LifecycleState {
 }
 
 struct LifecycleProducer {
-    _launch: LaunchIdentity,
     state: LifecycleState,
     coverage: LifecycleCoverage,
     dropped_offers: u64,
@@ -3125,9 +3182,8 @@ struct LifecycleProducer {
 }
 
 impl LifecycleProducer {
-    fn new(launch: LaunchIdentity) -> Self {
+    fn new() -> Self {
         Self {
-            _launch: launch,
             state: LifecycleState::BeforeLaunch,
             coverage: LifecycleCoverage::Complete,
             dropped_offers: 0,
@@ -3201,6 +3257,7 @@ impl LifecycleProducer {
         outcomes
     }
 
+    #[cfg(test)]
     fn offer_clean_exit(&mut self, sink: &mut impl TryEventSink, at: SystemTime) -> LifecycleOffer {
         if self.state != LifecycleState::Active {
             return LifecycleOffer::RejectedTransition;
@@ -3208,6 +3265,28 @@ impl LifecycleProducer {
         self.state = LifecycleState::Terminal;
         self.terminal_offers += 1;
         self.offer(sink, EventFact::AppProcessExit, at)
+    }
+
+    fn offer_clean_exit_wait(&mut self, sink: &RecorderIngress, at: SystemTime) -> LifecycleOffer {
+        if self.state != LifecycleState::Active {
+            return LifecycleOffer::RejectedTransition;
+        }
+        self.state = LifecycleState::Terminal;
+        self.terminal_offers += 1;
+        let Some(sequence) = self.next_sequence else {
+            self.coverage = LifecycleCoverage::Partial;
+            self.dropped_offers += 1;
+            return LifecycleOffer::Dropped(DropReason::SequenceExhausted);
+        };
+        self.next_sequence = sequence.checked_add(1);
+        match sink.send_wait(PendingEvent::new(sequence, EventFact::AppProcessExit, at)) {
+            SinkOffer::Accepted => LifecycleOffer::Accepted,
+            SinkOffer::Dropped(reason) => {
+                self.coverage = LifecycleCoverage::Partial;
+                self.dropped_offers += 1;
+                LifecycleOffer::Dropped(reason)
+            }
+        }
     }
 
     fn offer(
@@ -3975,6 +4054,9 @@ impl Recorder {
         event_time: SystemTime,
         observed_time: SystemTime,
     ) -> AppendOutcome {
+        // Wall time can move backwards between occurrence and persistence. The event contract
+        // still requires observation to be no earlier than the fact it records.
+        let observed_time = observed_time.max(event_time);
         let observed_day = DateTime::<Utc>::from(observed_time).date_naive();
         if self
             .last_observation_day
@@ -4233,6 +4315,13 @@ impl Recorder {
                     continue;
                 }
             };
+
+            // The retention horizon and slot count are identical, so a slot can contain at most
+            // one retained day. Every other valid day is expired, and each clean expired entry
+            // scanned is deleted or moved closer to deletion. Because every slot receives a quota
+            // of at least four, restarting the descriptor cursor still makes monotonic progress;
+            // the retained day cannot consume a whole run. Unsafe entries deliberately block that
+            // slot rather than being skipped as if trusted.
 
             while quota > 0 {
                 let day_name = match slot_cursor.next_name() {
@@ -5137,7 +5226,7 @@ fn replace_private_test_directory(path: &Path) -> io::Result<()> {
 
 struct SharedProducer {
     producer: LifecycleProducer,
-    ingress: RecorderIngress,
+    ingress: Option<RecorderIngress>,
 }
 
 pub(super) struct Monitor {
@@ -5160,8 +5249,7 @@ pub(super) fn start(cx: &mut App) -> Option<Monitor> {
     let launch = LaunchIdentity::fresh().ok()?;
     let config = RecorderConfig::for_app(source, disabled_at_restart);
     let clock: Arc<dyn ClockSource> = Arc::new(SystemClock::new());
-    let (monitor, _writer_thread) = start_configured(cx, config, launch, clock).ok()?;
-    Some(monitor)
+    start_configured(cx, config, launch, clock).ok()
 }
 
 fn start_configured(
@@ -5169,13 +5257,15 @@ fn start_configured(
     config: RecorderConfig,
     launch: LaunchIdentity,
     clock: Arc<dyn ClockSource>,
-) -> Result<(Monitor, thread::JoinHandle<()>), StoreOpenError> {
-    let (mut ingress, writer_thread) =
-        spawn_writer_with_clock(config, launch.clone(), clock.clone())?;
+) -> Result<Monitor, StoreOpenError> {
+    let (mut ingress, writer_thread) = spawn_writer_with_clock(config, launch, clock.clone())?;
 
-    let mut producer = LifecycleProducer::new(launch);
+    let mut producer = LifecycleProducer::new();
     let _ = producer.offer_launch(&mut ingress, clock.sample().suspend_aware);
-    let producer = Arc::new(Mutex::new(SharedProducer { producer, ingress }));
+    let producer = Arc::new(Mutex::new(SharedProducer {
+        producer,
+        ingress: Some(ingress),
+    }));
     let terminal = Arc::new(AtomicBool::new(false));
 
     let (probe_sender, probe_receiver) = async_channel::bounded(1);
@@ -5186,30 +5276,44 @@ fn start_configured(
         let producer = producer.clone();
         let terminal = terminal.clone();
         let clock = clock.clone();
-        move |_| {
-            if !terminal.swap(true, Ordering::AcqRel)
-                && let Some(mut shared) = producer.try_lock()
-            {
-                let SharedProducer { producer, ingress } = &mut *shared;
-                let _ = producer.offer_clean_exit(ingress, clock.sample().suspend_aware);
+        let mut writer_thread = Some(writer_thread);
+        move |cx| {
+            terminal.store(true, Ordering::Release);
+            let producer = producer.clone();
+            let clock = clock.clone();
+            let writer_thread = writer_thread.take();
+            let shutdown = cx.background_spawn(async move {
+                let ingress = {
+                    let mut shared = producer.lock();
+                    let Some(ingress) = shared.ingress.take() else {
+                        return;
+                    };
+                    let _ = shared
+                        .producer
+                        .offer_clean_exit_wait(&ingress, clock.sample().suspend_aware);
+                    ingress
+                };
+                drop(ingress);
+                if let Some(writer_thread) = writer_thread {
+                    let _ = writer_thread.join();
+                }
+            });
+            async move {
+                shutdown.await;
             }
-            async {}
         }
     })
     .detach();
 
-    Ok((
-        Monitor {
-            liveness: LivenessMonitor::new(LIVENESS_INTERVAL, LIVENESS_THRESHOLD),
-            probe_sender,
-            acknowledgement,
-            last_stable_acknowledgement: AcknowledgementSample::initial(),
-            producer,
-            terminal,
-            clock,
-        },
-        writer_thread,
-    ))
+    Ok(Monitor {
+        liveness: LivenessMonitor::new(LIVENESS_INTERVAL, LIVENESS_THRESHOLD),
+        probe_sender,
+        acknowledgement,
+        last_stable_acknowledgement: AcknowledgementSample::initial(),
+        producer,
+        terminal,
+        clock,
+    })
 }
 
 // Recorder construction is side-effect free. Filesystem work starts only after a bounded event
@@ -5272,6 +5376,9 @@ impl Monitor {
         }
         let mut shared = self.producer.lock();
         let SharedProducer { producer, ingress } = &mut *shared;
+        let Some(ingress) = ingress else {
+            return;
+        };
         let _ = producer.offer_liveness_batch(ingress, transitions);
     }
 }
