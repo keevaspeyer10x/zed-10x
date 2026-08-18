@@ -322,6 +322,8 @@ function sign_app_binaries() {
         codesign_runtime -v "${app_path}/Contents/MacOS/git"
         codesign_runtime --entitlements "$entitlements_path" -v "${zed_executable_path}"
         codesign_runtime --entitlements "$entitlements_path" -v "${app_path}"
+    elif [[ "$zed_10x_release" == true ]]; then
+        echo "Leaving prepared Zed 10x release inputs unsigned for the isolated signer"
     else
         echo "One or more of the following variables are missing: MACOS_CERTIFICATE, MACOS_CERTIFICATE_PASSWORD, APPLE_NOTARIZATION_KEY, APPLE_NOTARIZATION_KEY_ID, APPLE_NOTARIZATION_ISSUER_ID"
 

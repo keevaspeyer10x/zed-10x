@@ -156,6 +156,11 @@ codesign_runtime() {
         "$@"
 }
 
+# Generated bundles can inherit Finder/File Provider metadata from their build
+# volume. Apple rejects those non-code attributes, so normalize the unsigned
+# staging bundle immediately before applying the first Developer ID signature.
+/usr/bin/xattr -cr "$app_path"
+
 codesign_runtime --entitlements "$entitlements_path" -v "$remote_server_path"
 gzip -f --stdout --best "$remote_server_path" > "$remote_server_archive"
 codesign_runtime -v "${app_path}/Contents/MacOS/cli"

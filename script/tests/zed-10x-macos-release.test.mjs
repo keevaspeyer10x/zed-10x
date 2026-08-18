@@ -402,8 +402,13 @@ test("bundle-mac keeps fork release signing isolated from the login keychain", (
 
   assert.match(bundleScript, /--zed-10x-prepare-release/);
   assert.doesNotMatch(bundleScript, /ZED_10X_MACOS_CERTIFICATE/);
+  assert.match(
+    bundleScript,
+    /elif \[\[ "\$zed_10x_release" == true \]\]; then[\s\S]*Leaving prepared Zed 10x release inputs unsigned[\s\S]*else[\s\S]*codesign --force --deep/,
+  );
   assert.match(signingScript, /ZED_10X_SIGNING_IDENTITY/);
   assert.match(signingScript, /ZED_10X_NOTARIZATION_TEAM_ID/);
+  assert.match(signingScript, /\/usr\/bin\/xattr -cr "\$app_path"[\s\S]*codesign_runtime/);
   assert.doesNotMatch(bundleScript, /security default-keychain -s/);
   assert.doesNotMatch(signingScript, /security default-keychain -s/);
   assert.match(signingScript, /verify-zed-10x-macos-release\.mjs/);
