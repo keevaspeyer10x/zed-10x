@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+if [[ $# -gt 1 ]]; then
+    echo "Usage: ${0##*/} [path-to-Zed-10x.app]" >&2
+    exit 2
+fi
+
+app_path=${1:-/Applications/Zed\ 10x.app}
+parent=$(dirname "$app_path")
+file_name=$(basename "$app_path")
+backup_path="${parent}/.${file_name}.previous"
+
+require_real_directory() {
+    local directory_path=$1
+    local label=$2
+    if [[ ! -d "$directory_path" || -L "$directory_path" ]]; then
+        echo "${label} must be a real directory: ${directory_path}" >&2
+        exit 1
+    fi
+}
+
+bundle_value() {
+    /usr/libexec/PlistBuddy -c "Print :$2" "$1/Contents/Info.plist"
+}
+
+team_identifier() {
+    /usr/bin/codesign --display --verbose=4 "$1" 2>&1 \
+        | /usr/bin/sed -n 's/^TeamIdentifier=//p'
+}
+
+require_real_directory "$app_path" "current Zed 10x bundle"
+require_real_directory "$backup_path" "Zed 10x rollback bundle"
+
+for bundle_path in "$app_path" "$backup_path"; do
+    if [[ $(bundle_value "$bundle_path" CFBundleIdentifier) != "ai.10xlabs.Zed10x" ]]; then
+        echo "rollback bundle identifier mismatch: ${bundle_path}" >&2
+        exit 1
+    fi
+    /usr/bin/codesign --verify --strict --verbose=4 --all-architectures "$bundle_path"
+    /usr/sbin/spctl --assess --type execute --verbose=4 "$bundle_path"
+done
+
+current_team=$(team_identifier "$app_path")
+rollback_team=$(team_identifier "$backup_path")
+if [[ -z "$current_team" || "$rollback_team" != "$current_team" ]]; then
+    echo "rollback Developer ID team does not match the installed app" >&2
+    exit 1
+fi
+
+transaction_directory=$(mktemp -d "${parent}/.zed-10x-rollback.XXXXXX")
+failed_update_path="${transaction_directory}/${file_name}"
+restore_current=false
+cleanup() {
+    if [[ "$restore_current" == true && ! -e "$app_path" && -d "$failed_update_path" ]]; then
+        mv "$failed_update_path" "$app_path" || true
+    fi
+    rmdir "$transaction_directory" 2>/dev/null || true
+}
+trap cleanup EXIT
+
+mv "$app_path" "$failed_update_path"
+restore_current=true
+mv "$backup_path" "$app_path"
+restore_current=false
+mv "$failed_update_path" "$backup_path"
+rmdir "$transaction_directory"
+trap - EXIT
+
+printf 'Restored the previous Zed 10x bundle at %s\n' "$app_path"

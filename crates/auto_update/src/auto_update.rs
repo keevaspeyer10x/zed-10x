@@ -12,6 +12,7 @@ use release_channel::{AppCommitSha, ReleaseChannel};
 use semver::Version;
 use serde::{Deserialize, Serialize};
 use settings::{RegisterSetting, Settings, SettingsStore};
+use sha2::{Digest as _, Sha256};
 use smol::fs::File;
 use smol::{
     fs,
@@ -47,6 +48,10 @@ impl std::error::Error for MissingDependencyError {}
 const POLL_INTERVAL: Duration = Duration::from_secs(60 * 60);
 const NIGHTLY_POLL_INTERVAL: Duration = Duration::from_secs(15 * 60);
 const REMOTE_SERVER_CACHE_LIMIT: usize = 5;
+const ZED_10X_RELEASE_API: &str = "https://api.github.com/repos/keevaspeyer10x/zed-10x/releases";
+const ZED_10X_RELEASE_DOWNLOAD_PREFIX: &str =
+    "https://github.com/keevaspeyer10x/zed-10x/releases/download/";
+const ZED_10X_RELEASE_TAG_PREFIX: &str = "zed-10x-v";
 
 #[cfg(target_os = "linux")]
 fn linux_rsync_install_hint() -> &'static str {
@@ -187,6 +192,141 @@ pub struct AutoUpdater {
 pub struct ReleaseAsset {
     pub version: String,
     pub url: String,
+    #[serde(default)]
+    pub sha256: Option<String>,
+    #[serde(default)]
+    pub size: Option<u64>,
+}
+
+#[derive(Deserialize)]
+struct GitHubRelease {
+    tag_name: String,
+    draft: bool,
+    prerelease: bool,
+    immutable: bool,
+    assets: Vec<GitHubReleaseAsset>,
+}
+
+#[derive(Deserialize)]
+struct GitHubReleaseAsset {
+    name: String,
+    state: String,
+    size: u64,
+    digest: Option<String>,
+    browser_download_url: String,
+}
+
+fn zed_10x_asset_name(asset: &str, os: &str, arch: &str) -> Result<String> {
+    let arch = match arch {
+        "aarch64" => "aarch64",
+        "x86_64" => "x86_64",
+        _ => anyhow::bail!("unsupported Zed 10x release architecture: {arch}"),
+    };
+    match asset {
+        "zed" => {
+            anyhow::ensure!(os == "macos", "Zed 10x app releases support macOS only");
+            Ok(format!("Zed-10x-{arch}.dmg"))
+        }
+        "zed-remote-server" => {
+            anyhow::ensure!(
+                matches!(os, "linux" | "macos"),
+                "unsupported Zed 10x remote server operating system: {os}"
+            );
+            Ok(format!("zed-remote-server-{os}-{arch}.gz"))
+        }
+        _ => anyhow::bail!("unsupported Zed 10x release asset: {asset}"),
+    }
+}
+
+fn zed_10x_release_asset_from_json(
+    body: &[u8],
+    asset: &str,
+    os: &str,
+    arch: &str,
+) -> Result<ReleaseAsset> {
+    let release: GitHubRelease =
+        serde_json::from_slice(body).context("failed to parse Zed 10x GitHub release metadata")?;
+    anyhow::ensure!(!release.draft, "Zed 10x release is still a draft");
+    anyhow::ensure!(
+        !release.prerelease,
+        "Zed 10x prereleases are not an update authority"
+    );
+    anyhow::ensure!(release.immutable, "Zed 10x release must be immutable");
+
+    let version = release
+        .tag_name
+        .strip_prefix(ZED_10X_RELEASE_TAG_PREFIX)
+        .context("Zed 10x release tag has the wrong prefix")?;
+    let parsed_version = version
+        .parse::<Version>()
+        .context("Zed 10x release tag is not a semantic version")?;
+    let commit = parsed_version
+        .build
+        .as_str()
+        .rsplit('.')
+        .next()
+        .context("Zed 10x release version is missing its source commit")?;
+    anyhow::ensure!(
+        commit.len() == 40 && commit.bytes().all(|byte| byte.is_ascii_hexdigit()),
+        "Zed 10x release version has an invalid source commit"
+    );
+
+    let expected_name = zed_10x_asset_name(asset, os, arch)?;
+    let mut matching_assets = release
+        .assets
+        .into_iter()
+        .filter(|candidate| candidate.name == expected_name);
+    let selected = matching_assets
+        .next()
+        .with_context(|| format!("Zed 10x release is missing {expected_name}"))?;
+    anyhow::ensure!(
+        matching_assets.next().is_none(),
+        "Zed 10x release contains duplicate {expected_name} assets"
+    );
+    anyhow::ensure!(
+        selected.state == "uploaded",
+        "Zed 10x release asset is not uploaded"
+    );
+    anyhow::ensure!(selected.size > 0, "Zed 10x release asset is empty");
+    let raw_release_prefix = format!("{ZED_10X_RELEASE_DOWNLOAD_PREFIX}{}/", release.tag_name);
+    let encoded_release_prefix = format!(
+        "{ZED_10X_RELEASE_DOWNLOAD_PREFIX}{}/",
+        release.tag_name.replace('+', "%2B")
+    );
+    anyhow::ensure!(
+        selected
+            .browser_download_url
+            .starts_with(&raw_release_prefix)
+            || selected
+                .browser_download_url
+                .starts_with(&encoded_release_prefix),
+        "Zed 10x release asset URL does not match its release tag"
+    );
+    anyhow::ensure!(
+        selected
+            .browser_download_url
+            .ends_with(&format!("/{expected_name}")),
+        "Zed 10x release asset URL does not match its name"
+    );
+    let sha256 = selected
+        .digest
+        .as_deref()
+        .and_then(|digest| digest.strip_prefix("sha256:"))
+        .context("Zed 10x release asset is missing its SHA-256 digest")?;
+    anyhow::ensure!(
+        sha256.len() == 64
+            && sha256
+                .bytes()
+                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)),
+        "Zed 10x release asset has a malformed SHA-256 digest"
+    );
+
+    Ok(ReleaseAsset {
+        version: parsed_version.to_string(),
+        url: selected.browser_download_url,
+        sha256: Some(sha256.to_string()),
+        size: Some(selected.size),
+    })
 }
 
 struct MacOsUnmounter<'a> {
@@ -352,7 +492,9 @@ pub fn release_notes_url(cx: &mut App) -> Option<String> {
         ReleaseChannel::Nightly => {
             "https://github.com/zed-industries/zed/commits/nightly/".to_string()
         }
-        ReleaseChannel::Dev => "https://github.com/zed-industries/zed/commits/main/".to_string(),
+        ReleaseChannel::Dev => {
+            "https://github.com/keevaspeyer10x/zed-10x/releases/latest".to_string()
+        }
     };
     Some(url)
 }
@@ -661,13 +803,35 @@ impl AutoUpdater {
         };
 
         let version = if let Some(mut version) = version {
-            version.pre = semver::Prerelease::EMPTY;
-            version.build = semver::BuildMetadata::EMPTY;
+            if release_channel != ReleaseChannel::Dev {
+                version.pre = semver::Prerelease::EMPTY;
+                version.build = semver::BuildMetadata::EMPTY;
+            }
             version.to_string()
         } else {
             "latest".to_string()
         };
         let http_client = client.http_client();
+
+        if release_channel == ReleaseChannel::Dev {
+            let release_url = if version == "latest" {
+                format!("{ZED_10X_RELEASE_API}/latest")
+            } else {
+                let encoded_version = version.replace('+', "%2B");
+                format!("{ZED_10X_RELEASE_API}/tags/{ZED_10X_RELEASE_TAG_PREFIX}{encoded_version}")
+            };
+            let mut response = http_client
+                .get(&release_url, Default::default(), true)
+                .await?;
+            let mut body = Vec::new();
+            response.body_mut().read_to_end(&mut body).await?;
+            anyhow::ensure!(
+                response.status().is_success(),
+                "failed to fetch Zed 10x release metadata: {:?}",
+                response.status()
+            );
+            return zed_10x_release_asset_from_json(&body, asset, os, arch);
+        }
 
         let path = format!("/releases/{}/{}/asset", release_channel.dev_name(), version,);
         let url = http_client.build_zed_cloud_url_with_query(
@@ -836,7 +1000,7 @@ impl AutoUpdater {
         let fetched_version = fetched_version.parse::<Version>()?;
 
         match release_channel {
-            ReleaseChannel::Nightly => {
+            ReleaseChannel::Dev | ReleaseChannel::Nightly => {
                 let should_download = if let AutoUpdateStatus::Updated { version } = status {
                     fetched_version != version
                 } else {
@@ -906,6 +1070,7 @@ impl AutoUpdater {
                     &installer_dir,
                     &target_path,
                     running_app_path,
+                    channel,
                     &background_executor,
                 )
                 .await
@@ -964,6 +1129,8 @@ async fn download_remote_server_binary(
 ) -> Result<()> {
     let temp = tempfile::Builder::new().tempfile_in(remote_servers_dir())?;
     let mut temp_file = File::create(&temp).await?;
+    let expected_sha256 = release.sha256.clone();
+    let expected_size = release.size;
 
     let mut response = client.get(&release.url, Default::default(), true).await?;
     anyhow::ensure!(
@@ -971,7 +1138,26 @@ async fn download_remote_server_binary(
         "failed to download remote server release: {:?}",
         response.status()
     );
-    smol::io::copy(response.body_mut(), &mut temp_file).await?;
+    let mut downloaded_bytes = 0_u64;
+    let mut sha256 = Sha256::new();
+    let mut buffer = [0_u8; 8192];
+    loop {
+        let bytes_read = response.body_mut().read(&mut buffer).await?;
+        if bytes_read == 0 {
+            break;
+        }
+        temp_file.write_all(&buffer[..bytes_read]).await?;
+        sha256.update(&buffer[..bytes_read]);
+        downloaded_bytes += bytes_read as u64;
+    }
+    temp_file.flush().await?;
+    temp_file.sync_all().await?;
+    verify_downloaded_asset(
+        downloaded_bytes,
+        sha256,
+        expected_size,
+        expected_sha256.as_deref(),
+    )?;
     smol::fs::rename(&temp, &target_path).await?;
 
     Ok(())
@@ -1041,6 +1227,8 @@ async fn download_release(
     mut on_progress: impl FnMut(Option<f32>),
 ) -> Result<()> {
     let mut target_file = File::create(&target_path).await?;
+    let expected_sha256 = release.sha256.clone();
+    let expected_size = release.size;
 
     let mut response = client.get(&release.url, Default::default(), true).await?;
     anyhow::ensure!(
@@ -1057,6 +1245,7 @@ async fn download_release(
         .filter(|total_bytes| *total_bytes > 0);
 
     let mut downloaded_bytes: u64 = 0;
+    let mut sha256 = Sha256::new();
     let mut last_reported_percent: Option<u8> = None;
     let mut buffer = [0u8; 8192];
     let body = response.body_mut();
@@ -1066,6 +1255,7 @@ async fn download_release(
             break;
         }
         target_file.write_all(&buffer[..bytes_read]).await?;
+        sha256.update(&buffer[..bytes_read]);
         downloaded_bytes += bytes_read as u64;
 
         if let Some(total_bytes) = total_bytes {
@@ -1079,11 +1269,40 @@ async fn download_release(
         }
     }
     target_file.flush().await?;
+    target_file.sync_all().await?;
+    verify_downloaded_asset(
+        downloaded_bytes,
+        sha256,
+        expected_size,
+        expected_sha256.as_deref(),
+    )?;
     if total_bytes.is_some() && last_reported_percent != Some(100) {
         on_progress(Some(1.0));
     }
     log::info!("downloaded update. path:{:?}", target_path);
 
+    Ok(())
+}
+
+fn verify_downloaded_asset(
+    downloaded_bytes: u64,
+    sha256: Sha256,
+    expected_size: Option<u64>,
+    expected_sha256: Option<&str>,
+) -> Result<()> {
+    if let Some(expected_size) = expected_size {
+        anyhow::ensure!(
+            downloaded_bytes == expected_size,
+            "downloaded update size mismatch: expected {expected_size}, got {downloaded_bytes}"
+        );
+    }
+    if let Some(expected_sha256) = expected_sha256 {
+        let actual_sha256 = format!("{:x}", sha256.finalize());
+        anyhow::ensure!(
+            actual_sha256 == expected_sha256,
+            "downloaded update SHA-256 mismatch"
+        );
+    }
     Ok(())
 }
 
@@ -1159,14 +1378,20 @@ async fn install_release_macos(
     temp_dir: &InstallerDir,
     downloaded_dmg: &Path,
     running_app_path: PathBuf,
+    channel: &str,
     background_executor: &BackgroundExecutor,
 ) -> Result<Option<PathBuf>> {
     let running_app_filename = running_app_path
         .file_name()
         .with_context(|| format!("invalid running app path {running_app_path:?}"))?;
 
-    let mount_path = temp_dir.path().join("Zed");
-    let mut mounted_app_path: OsString = mount_path.join(running_app_filename).into();
+    let (volume_name, mounted_app_filename) = if channel == "dev" {
+        ("Zed 10x", OsStr::new("Zed 10x.app"))
+    } else {
+        ("Zed", running_app_filename)
+    };
+    let mount_path = temp_dir.path().join(volume_name);
+    let mut mounted_app_path: OsString = mount_path.join(mounted_app_filename).into();
 
     mounted_app_path.push("/");
     let mut cmd = new_command("hdiutil");
@@ -1190,25 +1415,236 @@ async fn install_release_macos(
         background_executor,
     };
 
-    let mut cmd = new_command("rsync");
-    cmd.args(["-av", "--delete", "--exclude", "Icon?"])
-        .arg(&mounted_app_path)
-        .arg(&running_app_path);
-    let rsync_output = cmd.output().await;
+    let install_result = if channel == "dev" {
+        install_zed_10x_macos_update(
+            downloaded_dmg,
+            Path::new(&mounted_app_path),
+            &running_app_path,
+        )
+        .await
+    } else {
+        let mut cmd = new_command("rsync");
+        cmd.args(["-av", "--delete", "--exclude", "Icon?"])
+            .arg(&mounted_app_path)
+            .arg(&running_app_path);
+        let output = cmd.output().await.with_context(|| "failed to run rsync")?;
+        anyhow::ensure!(
+            output.status.success(),
+            "failed to copy app: {:?}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        Ok(())
+    };
 
     // Await the unmount (even if rsync failed) so that the installer temp dir
     // can be deleted once this function returns.
     unmounter.unmount().await;
 
-    let output = rsync_output.with_context(|| "failed to rsync: {cmd}")?;
+    install_result?;
 
+    Ok(None)
+}
+
+fn macos_code_signature_details(output: &std::process::Output) -> String {
+    format!(
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    )
+}
+
+async fn macos_team_identifier(code_path: &Path) -> Result<String> {
+    let mut cmd = new_command("/usr/bin/codesign");
+    cmd.args(["--display", "--verbose=4"]).arg(code_path);
+    let output = cmd
+        .output()
+        .await
+        .context("failed to inspect code signature")?;
+    anyhow::ensure!(output.status.success(), "failed to inspect code signature");
+    let details = macos_code_signature_details(&output);
+    details
+        .lines()
+        .find_map(|line| line.strip_prefix("TeamIdentifier="))
+        .map(str::to_string)
+        .context("code signature is missing a team identifier")
+}
+
+async fn verify_zed_10x_code_object(code_path: &Path, expected_team_id: &str) -> Result<()> {
+    let mut cmd = new_command("/usr/bin/codesign");
+    cmd.args(["--verify", "--strict", "--verbose=4", "--all-architectures"])
+        .arg(code_path);
+    let output = cmd
+        .output()
+        .await
+        .context("failed to verify code signature")?;
     anyhow::ensure!(
         output.status.success(),
-        "failed to copy app: {:?}",
+        "code signature verification failed"
+    );
+    let actual_team_id = macos_team_identifier(code_path).await?;
+    anyhow::ensure!(
+        actual_team_id == expected_team_id,
+        "Zed 10x update Developer ID team mismatch"
+    );
+    Ok(())
+}
+
+async fn verify_zed_10x_update(
+    downloaded_dmg: &Path,
+    mounted_app_path: &Path,
+    running_app_path: &Path,
+) -> Result<()> {
+    let expected_team_id = macos_team_identifier(running_app_path).await?;
+    verify_zed_10x_code_object(downloaded_dmg, &expected_team_id).await?;
+
+    let mut cmd = new_command("/usr/sbin/spctl");
+    cmd.args([
+        "--assess",
+        "--type",
+        "open",
+        "--context",
+        "context:primary-signature",
+        "--verbose=4",
+    ])
+    .arg(downloaded_dmg);
+    let output = cmd.output().await.context("failed to assess disk image")?;
+    anyhow::ensure!(
+        output.status.success(),
+        "Gatekeeper rejected the Zed 10x disk image"
+    );
+
+    verify_zed_10x_code_object(mounted_app_path, &expected_team_id).await?;
+    let plist_path = mounted_app_path.join("Contents/Info.plist");
+    let mut cmd = new_command("/usr/libexec/PlistBuddy");
+    cmd.args(["-c", "Print :CFBundleIdentifier"])
+        .arg(&plist_path);
+    let output = cmd
+        .output()
+        .await
+        .context("failed to read update bundle identity")?;
+    anyhow::ensure!(
+        output.status.success()
+            && String::from_utf8_lossy(&output.stdout).trim() == "ai.10xlabs.Zed10x",
+        "Zed 10x update bundle identifier mismatch"
+    );
+
+    let mut cmd = new_command("/usr/sbin/spctl");
+    cmd.args(["--assess", "--type", "execute", "--verbose=4"])
+        .arg(mounted_app_path);
+    let output = cmd
+        .output()
+        .await
+        .context("failed to assess update bundle")?;
+    anyhow::ensure!(
+        output.status.success(),
+        "Gatekeeper rejected the Zed 10x update bundle"
+    );
+    Ok(())
+}
+
+async fn install_zed_10x_macos_update(
+    downloaded_dmg: &Path,
+    mounted_app_path: &Path,
+    running_app_path: &Path,
+) -> Result<()> {
+    verify_zed_10x_update(downloaded_dmg, mounted_app_path, running_app_path).await?;
+    let parent = running_app_path
+        .parent()
+        .context("running application has no parent")?;
+    let file_name = running_app_path
+        .file_name()
+        .and_then(OsStr::to_str)
+        .context("running application has an invalid filename")?;
+    let staged_app_path = parent.join(format!(".{file_name}.previous"));
+    if let Ok(metadata) = std::fs::symlink_metadata(&staged_app_path) {
+        anyhow::ensure!(
+            metadata.is_dir() && !metadata.file_type().is_symlink(),
+            "existing Zed 10x rollback path is not a real directory"
+        );
+        fs::remove_dir_all(&staged_app_path)
+            .await
+            .context("failed to retire previous Zed 10x rollback copy")?;
+    }
+    fs::create_dir(&staged_app_path)
+        .await
+        .context("failed to create same-volume Zed 10x update staging directory")?;
+
+    let mut mounted_source: OsString = mounted_app_path.into();
+    mounted_source.push("/");
+    let mut staged_target: OsString = staged_app_path.clone().into();
+    staged_target.push("/");
+    let mut cmd = new_command("rsync");
+    cmd.args(["-a", "--delete", "--exclude", "Icon?"])
+        .arg(&mounted_source)
+        .arg(&staged_target);
+    let output = cmd
+        .output()
+        .await
+        .context("failed to stage Zed 10x update")?;
+    anyhow::ensure!(
+        output.status.success(),
+        "failed to stage Zed 10x update: {:?}",
         String::from_utf8_lossy(&output.stderr)
     );
 
-    Ok(None)
+    let expected_team_id = macos_team_identifier(running_app_path).await?;
+    verify_zed_10x_code_object(&staged_app_path, &expected_team_id).await?;
+    commit_staged_macos_update(&staged_app_path, running_app_path).await
+}
+
+async fn commit_staged_macos_update(staged_app_path: &Path, running_app_path: &Path) -> Result<()> {
+    let parent = running_app_path
+        .parent()
+        .context("running application has no parent")?;
+    atomic_exchange_paths(staged_app_path, running_app_path)
+        .context("failed to atomically exchange the Zed 10x update and rollback bundle")?;
+
+    std::fs::File::open(parent)
+        .and_then(|directory| directory.sync_all())
+        .context("failed to durably commit Zed 10x update")?;
+    Ok(())
+}
+
+#[cfg(unix)]
+fn atomic_exchange_paths(first: &Path, second: &Path) -> std::io::Result<()> {
+    use std::{ffi::CString, os::unix::ffi::OsStrExt as _};
+
+    let first = CString::new(first.as_os_str().as_bytes())
+        .map_err(|_| std::io::Error::other("invalid first exchange path"))?;
+    let second = CString::new(second.as_os_str().as_bytes())
+        .map_err(|_| std::io::Error::other("invalid second exchange path"))?;
+
+    #[cfg(target_os = "macos")]
+    let result = unsafe { libc::renamex_np(first.as_ptr(), second.as_ptr(), libc::RENAME_SWAP) };
+
+    #[cfg(any(target_os = "linux", target_os = "android"))]
+    let result = unsafe {
+        libc::syscall(
+            libc::SYS_renameat2,
+            libc::AT_FDCWD,
+            first.as_ptr(),
+            libc::AT_FDCWD,
+            second.as_ptr(),
+            libc::RENAME_EXCHANGE,
+        )
+    };
+
+    #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "android")))]
+    let result = -1;
+
+    if result == 0 {
+        Ok(())
+    } else {
+        Err(std::io::Error::last_os_error())
+    }
+}
+
+#[cfg(not(unix))]
+fn atomic_exchange_paths(_first: &Path, _second: &Path) -> std::io::Result<()> {
+    Err(std::io::Error::new(
+        std::io::ErrorKind::Unsupported,
+        "atomic path exchange is unsupported on this platform",
+    ))
 }
 
 /// Removes stale installer dirs from the system temp dir. Older Zed versions
@@ -1495,6 +1931,8 @@ mod tests {
         let release = ReleaseAsset {
             version: "1.0.0".to_string(),
             url: "https://test.example/download".to_string(),
+            sha256: None,
+            size: None,
         };
 
         let reported = Rc::new(std::cell::RefCell::new(Vec::<f32>::new()));
@@ -1555,6 +1993,8 @@ mod tests {
         let release = ReleaseAsset {
             version: "1.0.0".to_string(),
             url: "https://test.example/download".to_string(),
+            sha256: None,
+            size: None,
         };
 
         let reported = Rc::new(std::cell::RefCell::new(Vec::<Option<f32>>::new()));
@@ -1841,6 +2281,193 @@ mod tests {
         assert_eq!(
             newer_version.unwrap(),
             Some(fetched_version.parse().unwrap())
+        );
+    }
+
+    #[test]
+    fn test_zed_10x_release_selects_one_immutable_digested_asset() {
+        let commit = "0123456789abcdef0123456789abcdef01234567";
+        let body = format!(
+            r#"{{
+                "tag_name": "zed-10x-v1.14.0+dev.42.{commit}",
+                "draft": false,
+                "prerelease": false,
+                "immutable": true,
+                "assets": [{{
+                    "name": "Zed-10x-aarch64.dmg",
+                    "state": "uploaded",
+                    "size": 1234,
+                    "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "browser_download_url": "https://github.com/keevaspeyer10x/zed-10x/releases/download/zed-10x-v1.14.0%2Bdev.42.{commit}/Zed-10x-aarch64.dmg"
+                }}]
+            }}"#
+        );
+
+        let release = zed_10x_release_asset_from_json(body.as_bytes(), "zed", "macos", "aarch64")
+            .expect("the exact Zed 10x release should be accepted");
+
+        assert_eq!(release.version, format!("1.14.0+dev.42.{commit}"));
+        assert_eq!(release.size, Some(1234));
+        assert_eq!(
+            release.sha256.as_deref(),
+            Some("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+        );
+    }
+
+    #[test]
+    fn test_zed_10x_release_selects_commit_matched_linux_remote_server() {
+        let commit = "0123456789abcdef0123456789abcdef01234567";
+        let body = format!(
+            r#"{{
+                "tag_name": "zed-10x-v1.14.0+dev.42.{commit}",
+                "draft": false,
+                "prerelease": false,
+                "immutable": true,
+                "assets": [{{
+                    "name": "zed-remote-server-linux-x86_64.gz",
+                    "state": "uploaded",
+                    "size": 4321,
+                    "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                    "browser_download_url": "https://github.com/keevaspeyer10x/zed-10x/releases/download/zed-10x-v1.14.0%2Bdev.42.{commit}/zed-remote-server-linux-x86_64.gz"
+                }}]
+            }}"#
+        );
+
+        let release = zed_10x_release_asset_from_json(
+            body.as_bytes(),
+            "zed-remote-server",
+            "linux",
+            "x86_64",
+        )
+        .expect("the exact Zed 10x Linux remote server should be accepted");
+
+        assert_eq!(release.version, format!("1.14.0+dev.42.{commit}"));
+        assert_eq!(release.size, Some(4321));
+    }
+
+    #[test]
+    fn test_zed_10x_release_rejects_mutable_or_ambiguous_assets() {
+        let body = br#"{
+            "tag_name": "zed-10x-v1.14.0+dev.42.0123456789abcdef0123456789abcdef01234567",
+            "draft": false,
+            "prerelease": false,
+            "immutable": false,
+            "assets": [
+                {
+                    "name": "Zed-10x-aarch64.dmg",
+                    "state": "uploaded",
+                    "size": 1234,
+                    "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "browser_download_url": "https://github.com/keevaspeyer10x/zed-10x/releases/download/v1/Zed-10x-aarch64.dmg"
+                },
+                {
+                    "name": "Zed-10x-aarch64.dmg",
+                    "state": "uploaded",
+                    "size": 1234,
+                    "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "browser_download_url": "https://github.com/keevaspeyer10x/zed-10x/releases/download/v2/Zed-10x-aarch64.dmg"
+                }
+            ]
+        }"#;
+
+        let error = zed_10x_release_asset_from_json(body, "zed", "macos", "aarch64")
+            .expect_err("mutable release metadata must fail closed");
+        assert!(error.to_string().contains("immutable"));
+
+        let immutable_body = String::from_utf8(body.to_vec())
+            .unwrap()
+            .replace(r#""immutable": false"#, r#""immutable": true"#);
+        let error =
+            zed_10x_release_asset_from_json(immutable_body.as_bytes(), "zed", "macos", "aarch64")
+                .expect_err("duplicate release assets must fail closed");
+        assert!(error.to_string().contains("duplicate"));
+    }
+
+    #[test]
+    fn test_zed_10x_updates_by_commit_and_does_not_redownload_cached_release() {
+        let installed_commit = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        let fetched_commit = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+        let fetched_version = format!("1.14.0+dev.42.{fetched_commit}");
+
+        let newer_version = AutoUpdater::check_if_fetched_version_is_newer(
+            ReleaseChannel::Dev,
+            Ok(Some(installed_commit.to_string())),
+            "1.14.0+dev.41.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                .parse()
+                .unwrap(),
+            fetched_version.clone(),
+            AutoUpdateStatus::Idle,
+        )
+        .unwrap()
+        .expect("a different exact commit should update Zed 10x");
+
+        let next_check = AutoUpdater::check_if_fetched_version_is_newer(
+            ReleaseChannel::Dev,
+            Ok(Some(installed_commit.to_string())),
+            "1.14.0+dev.41.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                .parse()
+                .unwrap(),
+            fetched_version,
+            AutoUpdateStatus::Updated {
+                version: newer_version,
+            },
+        )
+        .unwrap();
+
+        assert_eq!(next_check, None);
+    }
+
+    #[test]
+    fn test_zed_10x_download_digest_is_mandatory_when_supplied() {
+        let mut sha256 = Sha256::new();
+        sha256.update(b"downloaded bytes");
+        let error = verify_downloaded_asset(
+            16,
+            sha256,
+            Some(16),
+            Some("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
+        )
+        .expect_err("a mismatched release digest must fail closed");
+        assert!(error.to_string().contains("SHA-256 mismatch"));
+    }
+
+    #[test]
+    fn test_zed_10x_update_swap_preserves_one_rollback_bundle() {
+        let root = tempdir().unwrap();
+        let running = root.path().join("Zed 10x.app");
+        let staged = root.path().join("staged.app");
+        std::fs::create_dir(&running).unwrap();
+        std::fs::write(running.join("version"), "old").unwrap();
+        std::fs::create_dir(&staged).unwrap();
+        std::fs::write(staged.join("version"), "new").unwrap();
+
+        smol::block_on(commit_staged_macos_update(&staged, &running)).unwrap();
+
+        assert_eq!(
+            std::fs::read_to_string(running.join("version")).unwrap(),
+            "new"
+        );
+        assert_eq!(
+            std::fs::read_to_string(staged.join("version")).unwrap(),
+            "old"
+        );
+    }
+
+    #[test]
+    fn test_zed_10x_update_swap_restores_running_bundle_on_install_failure() {
+        let root = tempdir().unwrap();
+        let running = root.path().join("Zed 10x.app");
+        let missing_staged = root.path().join("missing.app");
+        std::fs::create_dir(&running).unwrap();
+        std::fs::write(running.join("version"), "old").unwrap();
+
+        let error = smol::block_on(commit_staged_macos_update(&missing_staged, &running))
+            .expect_err("an absent staged bundle must not consume the running app");
+
+        assert!(error.to_string().contains("atomically exchange"));
+        assert_eq!(
+            std::fs::read_to_string(running.join("version")).unwrap(),
+            "old"
         );
     }
 }

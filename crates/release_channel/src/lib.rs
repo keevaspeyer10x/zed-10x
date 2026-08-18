@@ -185,7 +185,10 @@ impl ReleaseChannel {
 
     /// Returns whether we want to poll for updates for this [`ReleaseChannel`]
     pub fn poll_for_updates(&self) -> bool {
-        !matches!(self, ReleaseChannel::Dev)
+        match self {
+            ReleaseChannel::Dev => cfg!(target_os = "macos") && !cfg!(debug_assertions),
+            _ => true,
+        }
     }
 
     /// Returns the display name for this [`ReleaseChannel`].
