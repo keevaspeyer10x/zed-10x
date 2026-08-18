@@ -948,6 +948,49 @@ test("launcher preserves app arguments while exposing only a project hash to tel
   );
 });
 
+test("launcher starts with no arguments", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "zed-10x-launcher-empty-"));
+  const contents = path.join(root, "Contents");
+  const macos = path.join(contents, "MacOS");
+  const resources = path.join(contents, "Resources");
+  const fakeHome = path.join(root, "home");
+  const userDataDir = path.join(
+    fakeHome,
+    "Library",
+    "Application Support",
+    "Zed 10x",
+  );
+  const resultPath = path.join(root, "runtime-arguments.json");
+  fs.mkdirSync(macos, { recursive: true });
+  fs.mkdirSync(resources, { recursive: true });
+  fs.mkdirSync(fakeHome, { recursive: true });
+  fs.copyFileSync(
+    path.resolve("script/zed-10x-canary-launcher"),
+    path.join(macos, "zed-10x-launcher"),
+  );
+  fs.chmodSync(path.join(macos, "zed-10x-launcher"), 0o755);
+  fs.writeFileSync(
+    path.join(macos, "zed-10x-runtime"),
+    `#!/bin/bash\n${JSON.stringify(process.execPath)} -e 'require("node:fs").writeFileSync(process.env.ZED_FAKE_RESULT, JSON.stringify(process.argv.slice(1)))' -- "$@"\n`,
+    { mode: 0o755 },
+  );
+
+  const result = spawnSync(path.join(macos, "zed-10x-launcher"), [], {
+    env: {
+      ...process.env,
+      HOME: fakeHome,
+      ZED_FAKE_RESULT: resultPath,
+    },
+    encoding: "utf8",
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(JSON.parse(fs.readFileSync(resultPath, "utf8")), [
+    "--user-data-dir",
+    userDataDir,
+  ]);
+});
+
 test("launcher preserves one explicit user-data-dir instead of prepending its default", () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "zed-10x-launcher-profile-"));
   const contents = path.join(root, "Contents");

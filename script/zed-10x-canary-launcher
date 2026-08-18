@@ -138,6 +138,8 @@ runtime_arguments=()
 if [ "$has_user_data_dir" = false ]; then
     runtime_arguments+=(--user-data-dir "$user_data_dir")
 fi
-runtime_arguments+=("${original_arguments[@]}")
+if [ "${#original_arguments[@]}" -gt 0 ]; then
+    runtime_arguments+=("${original_arguments[@]}")
+fi
 
 exec "$macos_dir/zed-10x-runtime" "${runtime_arguments[@]}"
