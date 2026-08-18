@@ -1,0 +1,98 @@
+name: Zed 10x macOS Release Artifact
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: zed-10x-macos-release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  unsigned-macos-aarch64:
+    if: github.repository == 'keevaspeyer10x/zed-10x' && github.ref == 'refs/heads/main'
+    runs-on: macos-15
+    timeout-minutes: 240
+    env:
+      CARGO_INCREMENTAL: 0
+    steps:
+      - name: Check out the requested immutable revision
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+
+      - name: Set up Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: "24"
+          check-latest: true
+
+      - name: Run release regression tests
+        run: node --test script/tests/zed-10x-macos-release.test.mjs script/tests/zed-10x-product-identity.test.mjs
+
+      - name: Build the unsigned release inputs
+        run: ./script/bundle-mac --zed-10x-prepare-release aarch64-apple-darwin
+
+      - name: Pack the unsigned release inputs
+        run: |
+          /usr/bin/tar -czf target/zed-10x-macos-aarch64-unsigned.tar.gz \
+            target/aarch64-apple-darwin/release/dmg \
+            target/aarch64-apple-darwin/release/remote_server
+
+      - name: Transfer the unsigned release inputs
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: zed-10x-macos-aarch64-unsigned-${{ github.sha }}
+          path: target/zed-10x-macos-aarch64-unsigned.tar.gz
+          if-no-files-found: error
+          retention-days: 1
+
+  signed-macos-aarch64:
+    needs: unsigned-macos-aarch64
+    if: github.repository == 'keevaspeyer10x/zed-10x' && github.ref == 'refs/heads/main'
+    runs-on: macos-15
+    timeout-minutes: 120
+    environment: zed-10x-release
+    steps:
+      - name: Check out the same protected revision
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: "24"
+          check-latest: true
+
+      - name: Download the unsigned release inputs
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: zed-10x-macos-aarch64-unsigned-${{ github.sha }}
+          path: .release-input
+
+      - name: Unpack the unsigned release inputs
+        run: /usr/bin/tar -xzf .release-input/zed-10x-macos-aarch64-unsigned.tar.gz
+
+      - name: Sign, notarize, and verify
+        run: ./script/sign-zed-10x-macos-release aarch64-apple-darwin
+        env:
+          ZED_10X_MACOS_CERTIFICATE: ${{ secrets.ZED_10X_MACOS_CERTIFICATE }}
+          ZED_10X_MACOS_CERTIFICATE_PASSWORD: ${{ secrets.ZED_10X_MACOS_CERTIFICATE_PASSWORD }}
+          ZED_10X_SIGNING_IDENTITY: ${{ secrets.ZED_10X_SIGNING_IDENTITY }}
+          ZED_10X_NOTARIZATION_TEAM_ID: ${{ secrets.ZED_10X_NOTARIZATION_TEAM_ID }}
+          ZED_10X_NOTARIZATION_KEY: ${{ secrets.ZED_10X_NOTARIZATION_KEY }}
+          ZED_10X_NOTARIZATION_KEY_ID: ${{ secrets.ZED_10X_NOTARIZATION_KEY_ID }}
+          ZED_10X_NOTARIZATION_ISSUER_ID: ${{ secrets.ZED_10X_NOTARIZATION_ISSUER_ID }}
+          ZED_10X_NOTARIZATION_TIMEOUT: 60m
+
+      - name: Retain the verified disk image and receipt
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: zed-10x-macos-aarch64-${{ github.sha }}
+          path: |
+            target/aarch64-apple-darwin/release/Zed-10x-aarch64.dmg
+            target/aarch64-apple-darwin/release/zed-10x-release-receipt.json
+            target/zed-remote-server-macos-aarch64.gz
+          if-no-files-found: error
+          retention-days: 14

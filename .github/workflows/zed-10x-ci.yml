@@ -23,6 +23,15 @@ jobs:
       - name: Verify the workflow contract
         run: tests/test_zed_10x_ci_workflows.sh
 
+      - name: Set up Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: "24"
+          check-latest: true
+
+      - name: Run Zed 10x script regression tests
+        run: node --test script/tests/*.test.mjs
+
       - name: Install Linux build dependencies
         run: ./script/linux
 
