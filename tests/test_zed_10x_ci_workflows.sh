@@ -6,6 +6,7 @@ ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 CI="$ROOT/.github/workflows/ci-gate.yml"
 RUST_CI="$ROOT/.github/workflows/zed-10x-ci.yml"
 RELEASE="$ROOT/.github/workflows/zed-10x-release.yml"
+UPSTREAM_EXIT="$ROOT/.github/workflows/zed-10x-upstream-exit.yml"
 REVIEW="$ROOT/.github/workflows/minds-review-authorize.yml"
 POLICY_HELPER="$ROOT/.github/scripts/minds-review-authorize.sh"
 LEGACY="$ROOT/.github/workflows/minds-review.yml"
@@ -71,6 +72,10 @@ if [[ -f "$RUST_CI" ]]; then
         contains "$RUST_CI" "./script/linux"
     check "format command is exact" \
         contains "$RUST_CI" "cargo fmt --all -- --check"
+    check "focused CI tests the fork updater" \
+        contains "$RUST_CI" "cargo test --locked -p auto_update zed_10x"
+    check "focused CI tests release-channel behavior" \
+        contains "$RUST_CI" "cargo test --locked -p release_channel"
     check "focused Zed check command is exact" \
         contains "$RUST_CI" "cargo check --locked -p zed --bin zed-10x"
     check "focused Zed test command is exact" \
@@ -109,8 +114,46 @@ if [[ -f "$RELEASE" ]]; then
         contains "$RELEASE" "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c"
     check "release workflow retains the verification receipt" \
         contains "$RELEASE" "target/aarch64-apple-darwin/release/zed-10x-release-receipt.json"
-    check "release workflow never publishes a GitHub release" \
-        not_contains "$RELEASE" "gh release"
+    check "release publication waits for the protected signer" \
+        contains "$RELEASE" "needs: [remote-server-linux, signed-macos-aarch64]"
+    check "release builds matching Linux remote servers" \
+        contains "$RELEASE" "zed-remote-server-linux-x86_64.gz"
+    check "release builds the matching Linux ARM remote server" \
+        contains "$RELEASE" "zed-remote-server-linux-aarch64.gz"
+    check "release publication is restricted to protected fork main" \
+        contains "$RELEASE" "github.repository == 'keevaspeyer10x/zed-10x' && github.ref == 'refs/heads/main'"
+    check "release publication has a narrow write-capable job" \
+        contains "$RELEASE" "contents: write"
+    check "release publication rebinds the signed receipt" \
+        contains "$RELEASE" "verify-zed-10x-release-publication.mjs"
+    check "release publication starts as a draft" \
+        contains "$RELEASE" "gh release create"
+    check "release publication resumes only an exact draft" \
+        contains "$RELEASE" "--expected-state draft"
+    check "release publication safely replaces draft assets" \
+        contains "$RELEASE" "--clobber"
+    check "release publication verifies the complete draft before publishing" \
+        contains "$RELEASE" "--expected-state draft-uploaded"
+    check "release publication requires immutable metadata" \
+        contains "$RELEASE" "--expected-state immutable"
+    check "release publication requires GitHub asset digests" \
+        contains "$RELEASE" "--github-release-json"
+fi
+
+check "read-only upstream exit workflow exists" test -f "$UPSTREAM_EXIT"
+if [[ -f "$UPSTREAM_EXIT" ]]; then
+    check "upstream exit monitor grants read-only repository contents" \
+        contains "$UPSTREAM_EXIT" "contents: read"
+    check "upstream exit monitor is weekly and manually observable" \
+        contains "$UPSTREAM_EXIT" "workflow_dispatch:"
+    check "upstream exit monitor runs only for protected fork main" \
+        contains "$UPSTREAM_EXIT" "github.repository == 'keevaspeyer10x/zed-10x' && github.ref == 'refs/heads/main'"
+    check "upstream exit monitor runs its regression tests" \
+        contains "$UPSTREAM_EXIT" "zed-10x-upstream-exit-monitor.test.mjs"
+    check "upstream exit monitor has no repository write authority" \
+        not_contains "$UPSTREAM_EXIT" "contents: write"
+    check "upstream exit monitor has no issue mutation command" \
+        not_contains "$UPSTREAM_EXIT" "gh issue"
 fi
 
 check "unresolvable private reusable review caller is absent" test ! -e "$REVIEW"

@@ -1,0 +1,47 @@
+name: Zed 10x upstream fork-exit monitor
+
+on:
+  schedule:
+    - cron: "17 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  observe-upstream:
+    if: github.repository == 'keevaspeyer10x/zed-10x' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out protected main
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+
+      - name: Set up Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: "24"
+          check-latest: true
+
+      - name: Run monitor regression tests
+        run: node --test script/tests/zed-10x-upstream-exit-monitor.test.mjs
+
+      - name: Observe upstream issue, pull request, and release state
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p .upstream-exit
+          node script/zed-10x-upstream-exit-monitor.mjs \
+            --output .upstream-exit/receipt.json
+
+      - name: Summarize the non-authorizing signal
+        run: |
+          node -e 'const fs=require("node:fs"); const r=JSON.parse(fs.readFileSync(".upstream-exit/receipt.json","utf8")); const lines=["## Zed 10x upstream exit signal",`Tracking: ${r.trackingIssue}`,...r.patches.map(p=>`- ${p.patchId}: ${p.state}`),"","Patch removal and fork retirement remain unauthorized until the named canary evidence passes."]; fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${lines.join("\n")}\n`);'
+
+      - name: Retain the content-free receipt
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: zed-10x-upstream-exit-${{ github.run_id }}
+          path: .upstream-exit/receipt.json
+          if-no-files-found: error
+          retention-days: 90

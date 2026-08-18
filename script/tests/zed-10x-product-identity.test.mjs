@@ -59,6 +59,25 @@ test("the development channel has a non-Zed application identity", () => {
     ),
     "ai.10xlabs.Zed10x",
   );
+  assert.match(
+    releaseChannelSource,
+    /ReleaseChannel::Dev\s*=>\s*cfg!\(target_os = "macos"\)\s*&&\s*!cfg!\(debug_assertions\)/,
+    "only signed release-mode macOS builds may poll the fork update channel",
+  );
+});
+
+test("Zed 10x updates use consumer-safe verification and commit-specific remote servers", () => {
+  const updaterSource = read("crates/auto_update/src/auto_update.rs");
+  const sshSource = read("crates/remote/src/transport/ssh.rs");
+  const dockerSource = read("crates/remote/src/transport/docker.rs");
+
+  assert.match(updaterSource, /\("Zed 10x", OsStr::new\("Zed 10x\.app"\)\)/);
+  assert.doesNotMatch(updaterSource, /new_command\("\/usr\/bin\/xcrun"\)/);
+  assert.match(updaterSource, /libc::RENAME_SWAP/);
+  assert.doesNotMatch(sshSource, /ReleaseChannel::Dev\s*=>\s*"build"/);
+  assert.doesNotMatch(dockerSource, /ReleaseChannel::Dev\s*=>\s*"build"/);
+  assert.match(sshSource, /ReleaseChannel::Dev\s*=>\s*Some\(version\.clone\(\)\)/);
+  assert.match(dockerSource, /ReleaseChannel::Dev\s*=>\s*Some\(version\.clone\(\)\)/);
 });
 
 test("the macOS bundle and executable are independently addressable", () => {

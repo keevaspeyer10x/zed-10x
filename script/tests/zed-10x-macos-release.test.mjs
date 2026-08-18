@@ -8,6 +8,10 @@ import { spawnSync } from "node:child_process";
 import { gzipSync } from "node:zlib";
 
 import { verifyAppBundle, verifyRelease } from "../verify-zed-10x-macos-release.mjs";
+import {
+  verifyGitHubRelease,
+  verifyPublication,
+} from "../verify-zed-10x-release-publication.mjs";
 
 const TEAM_ID = "A1B2C3D4E5";
 const COMMIT = "0123456789abcdef0123456789abcdef01234567";
@@ -480,4 +484,191 @@ test("release signer unsets reusable credentials before any build-capable subpro
   assert.ok(unsetOffset > 0);
   assert.ok(firstExternalToolOffset > unsetOffset);
   assert.doesNotMatch(signingScript, /cargo (?:build|install)|npm install|curl /);
+});
+
+test("the protected release workflow publishes one immutable-feed candidate", () => {
+  const repositoryRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../..");
+  const workflow = fs.readFileSync(path.join(repositoryRoot, ".github", "workflows", "zed-10x-release.yml"), "utf8");
+
+  assert.match(workflow, /publish-macos-aarch64:[\s\S]*permissions:[\s\S]*contents: write/);
+  assert.match(workflow, /gh release create "\$release_tag"[\s\S]*--draft/);
+  assert.match(workflow, /gh release edit "\$release_tag" --draft=false --latest/);
+  assert.match(workflow, /Zed-10x-aarch64\.dmg/);
+  assert.match(workflow, /zed-remote-server-linux-aarch64\.gz/);
+  assert.match(workflow, /zed-remote-server-linux-x86_64\.gz/);
+  assert.match(workflow, /zed-remote-server-macos-aarch64\.gz/);
+  assert.match(workflow, /zed-10x-release-receipt\.json/);
+  assert.match(workflow, /zed-10x-v\$\{release_version\}/);
+  assert.match(workflow, /github\.repository == 'keevaspeyer10x\/zed-10x' && github\.ref == 'refs\/heads\/main'/);
+  assert.doesNotMatch(workflow, /release create[^\n]*--prerelease/);
+  assert.ok(
+    workflow.indexOf("--expected-state draft-uploaded") < workflow.indexOf('gh release edit "$release_tag" --draft=false'),
+    "the complete uploaded draft must be verified before publication",
+  );
+});
+
+test("publication is bound to the signed receipt, exact commit, and exact file set", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "zed-10x-publication-test-"));
+  const dmg = Buffer.from("signed-dmg");
+  const remoteServer = Buffer.from("signed-remote-server");
+  fs.writeFileSync(path.join(root, "Zed-10x-aarch64.dmg"), dmg);
+  fs.writeFileSync(path.join(root, "zed-remote-server-linux-aarch64.gz"), "arm-linux-remote-server");
+  fs.writeFileSync(path.join(root, "zed-remote-server-linux-x86_64.gz"), "linux-remote-server");
+  fs.writeFileSync(path.join(root, "zed-remote-server-macos-aarch64.gz"), remoteServer);
+  fs.writeFileSync(
+    path.join(root, "zed-10x-release-receipt.json"),
+    `${JSON.stringify({
+      schema: "zed-10x-macos-release-verification-v1",
+      status: "verified",
+      sourceCommit: COMMIT,
+      dmgSha256: crypto.createHash("sha256").update(dmg).digest("hex"),
+      remoteServerSha256: crypto.createHash("sha256").update(remoteServer).digest("hex"),
+    })}\n`,
+  );
+
+  const result = verifyPublication({
+    directory: root,
+    expectedCommit: COMMIT,
+    expectedVersion: `1.14.0+dev.42.${COMMIT}`,
+  });
+  assert.equal(result.expectedCommit, COMMIT);
+
+  fs.writeFileSync(path.join(root, "unexpected.txt"), "no");
+  assert.throws(
+    () => verifyPublication({
+      directory: root,
+      expectedCommit: COMMIT,
+      expectedVersion: `1.14.0+dev.42.${COMMIT}`,
+    }),
+    /unexpected file set/,
+  );
+});
+
+test("publication safely resumes an exact draft and verifies an immutable rerun", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "zed-10x-publication-rerun-test-"));
+  const files = new Map([
+    ["Zed-10x-aarch64.dmg", Buffer.from("signed-dmg")],
+    ["zed-remote-server-linux-aarch64.gz", Buffer.from("arm-linux-remote-server")],
+    ["zed-remote-server-linux-x86_64.gz", Buffer.from("linux-remote-server")],
+    ["zed-remote-server-macos-aarch64.gz", Buffer.from("signed-remote-server")],
+  ]);
+  for (const [name, bytes] of files) fs.writeFileSync(path.join(root, name), bytes);
+  const receipt = Buffer.from(`${JSON.stringify({
+    schema: "zed-10x-macos-release-verification-v1",
+    status: "verified",
+    sourceCommit: COMMIT,
+    dmgSha256: crypto.createHash("sha256").update(files.get("Zed-10x-aarch64.dmg")).digest("hex"),
+    remoteServerSha256: crypto
+      .createHash("sha256")
+      .update(files.get("zed-remote-server-macos-aarch64.gz"))
+      .digest("hex"),
+  })}\n`);
+  files.set("zed-10x-release-receipt.json", receipt);
+  fs.writeFileSync(path.join(root, "zed-10x-release-receipt.json"), receipt);
+  const expectedVersion = `1.14.0+dev.42.${COMMIT}`;
+  const common = {
+    directory: root,
+    expectedCommit: COMMIT,
+    expectedVersion,
+  };
+
+  assert.equal(
+    verifyGitHubRelease({
+      ...common,
+      expectedState: "draft",
+      release: {
+        assets: [],
+        draft: true,
+        immutable: false,
+        prerelease: false,
+        tag_name: `zed-10x-v${expectedVersion}`,
+        target_commitish: COMMIT,
+      },
+    }).state,
+    "draft",
+  );
+
+  const assets = [...files].map(([name, bytes]) => ({
+    digest: `sha256:${crypto.createHash("sha256").update(bytes).digest("hex")}`,
+    name,
+    size: bytes.length,
+    state: "uploaded",
+  }));
+  assert.equal(
+    verifyGitHubRelease({
+      ...common,
+      expectedState: "draft-uploaded",
+      release: {
+        assets,
+        draft: true,
+        immutable: false,
+        prerelease: false,
+        tag_name: `zed-10x-v${expectedVersion}`,
+        target_commitish: COMMIT,
+      },
+    }).state,
+    "draft-uploaded",
+  );
+  assert.throws(
+    () => verifyGitHubRelease({
+      ...common,
+      expectedState: "draft-uploaded",
+      release: {
+        assets: [...assets, { digest: "sha256:deadbeef", name: "unexpected.txt", size: 1, state: "uploaded" }],
+        draft: true,
+        immutable: false,
+        prerelease: false,
+        tag_name: `zed-10x-v${expectedVersion}`,
+        target_commitish: COMMIT,
+      },
+    }),
+    /unexpected asset count/,
+  );
+  assert.equal(
+    verifyGitHubRelease({
+      ...common,
+      expectedState: "immutable",
+      release: {
+        assets,
+        draft: false,
+        immutable: true,
+        prerelease: false,
+        tag_name: `zed-10x-v${expectedVersion}`,
+        target_commitish: COMMIT,
+      },
+    }).state,
+    "immutable",
+  );
+
+  assets[0].digest = "sha256:deadbeef";
+  assert.throws(
+    () => verifyGitHubRelease({
+      ...common,
+      expectedState: "immutable",
+      release: {
+        assets,
+        draft: false,
+        immutable: true,
+        prerelease: false,
+        tag_name: `zed-10x-v${expectedVersion}`,
+        target_commitish: COMMIT,
+      },
+    }),
+    /asset mismatch/,
+  );
+});
+
+test("the rollback command swaps only verified Zed 10x bundles", () => {
+  const repositoryRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../..");
+  const rollback = fs.readFileSync(path.join(repositoryRoot, "script", "rollback-zed-10x-macos"), "utf8");
+
+  assert.match(rollback, /\.\$\{file_name\}\.previous/);
+  assert.match(rollback, /CFBundleIdentifier/);
+  assert.match(rollback, /ai\.10xlabs\.Zed10x/);
+  assert.match(rollback, /codesign --verify --strict/);
+  assert.match(rollback, /spctl --assess --type execute/);
+  assert.match(rollback, /rollback_team.*current_team/);
+  assert.match(rollback, /mktemp -d "\$\{parent\}\/\.zed-10x-rollback\.XXXXXX"/);
+  assert.match(rollback, /mv "\$app_path" "\$failed_update_path"[\s\S]*mv "\$backup_path" "\$app_path"/);
+  assert.doesNotMatch(rollback, /rm -rf|sudo|curl|wget/);
 });

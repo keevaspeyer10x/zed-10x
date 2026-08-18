@@ -11,6 +11,46 @@ permissions:
   contents: read
 
 jobs:
+  remote-server-linux:
+    if: github.repository == 'keevaspeyer10x/zed-10x' && github.ref == 'refs/heads/main'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-24.04
+            triple: x86_64-unknown-linux-musl
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+            triple: aarch64-unknown-linux-musl
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 120
+    env:
+      CARGO_INCREMENTAL: 0
+      CC: musl-gcc
+      RUSTFLAGS: -C target-feature=+crt-static
+    steps:
+      - name: Check out the requested immutable revision
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+
+      - name: Install Linux build dependencies
+        run: ./script/linux
+
+      - name: Build the matching Linux remote server
+        run: |
+          rustup target add "${{ matrix.triple }}"
+          cargo build --locked --release --target "${{ matrix.triple }}" --package remote_server
+          llvm-strip "target/${{ matrix.triple }}/release/remote_server"
+          gzip -c --best "target/${{ matrix.triple }}/release/remote_server" > "target/zed-remote-server-linux-${{ matrix.arch }}.gz"
+
+      - name: Transfer the Linux remote server
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: zed-10x-remote-server-linux-${{ matrix.arch }}-${{ github.sha }}
+          path: target/zed-remote-server-linux-${{ matrix.arch }}.gz
+          if-no-files-found: error
+          retention-days: 1
+
   unsigned-macos-aarch64:
     if: github.repository == 'keevaspeyer10x/zed-10x' && github.ref == 'refs/heads/main'
     runs-on: macos-15
@@ -53,6 +93,9 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 120
     environment: zed-10x-release
+    outputs:
+      release-tag: ${{ steps.release-metadata.outputs.release-tag }}
+      release-version: ${{ steps.release-metadata.outputs.release-version }}
     steps:
       - name: Check out the same protected revision
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
@@ -86,13 +129,120 @@ jobs:
           ZED_10X_NOTARIZATION_ISSUER_ID: ${{ secrets.ZED_10X_NOTARIZATION_ISSUER_ID }}
           ZED_10X_NOTARIZATION_TIMEOUT: 60m
 
+      - name: Prepare immutable release metadata
+        id: release-metadata
+        run: |
+          base_version=$(node -e 'const fs=require("node:fs"); const source=fs.readFileSync("crates/zed/Cargo.toml","utf8"); const value=source.match(/^version = "([0-9]+\.[0-9]+\.[0-9]+)"$/m)?.[1]; if (!value) process.exit(2); process.stdout.write(value)')
+          release_version="${base_version}+dev.${GITHUB_RUN_NUMBER}.${GITHUB_SHA}"
+          release_tag="zed-10x-v${release_version}"
+          printf 'release-version=%s\n' "$release_version" >> "$GITHUB_OUTPUT"
+          printf 'release-tag=%s\n' "$release_tag" >> "$GITHUB_OUTPUT"
+          mkdir -p target/zed-10x-publish
+          cp target/aarch64-apple-darwin/release/Zed-10x-aarch64.dmg target/zed-10x-publish/
+          cp target/aarch64-apple-darwin/release/zed-10x-release-receipt.json target/zed-10x-publish/
+          cp target/zed-remote-server-macos-aarch64.gz target/zed-10x-publish/
+
       - name: Retain the verified disk image and receipt
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: zed-10x-macos-aarch64-${{ github.sha }}
-          path: |
-            target/aarch64-apple-darwin/release/Zed-10x-aarch64.dmg
-            target/aarch64-apple-darwin/release/zed-10x-release-receipt.json
-            target/zed-remote-server-macos-aarch64.gz
+          path: target/zed-10x-publish/
           if-no-files-found: error
           retention-days: 14
+
+  publish-macos-aarch64:
+    needs: [remote-server-linux, signed-macos-aarch64]
+    if: github.repository == 'keevaspeyer10x/zed-10x' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: zed-10x-release
+    permissions:
+      contents: write
+    steps:
+      - name: Check out the same protected revision
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: "24"
+          check-latest: true
+
+      - name: Download the verified release payload
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: zed-10x-macos-aarch64-${{ github.sha }}
+          path: .release
+
+      - name: Download the matching Linux remote server
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          pattern: zed-10x-remote-server-linux-*-${{ github.sha }}
+          merge-multiple: true
+          path: .release
+
+      - name: Rebind publication to the signed receipt
+        run: |
+          node script/verify-zed-10x-release-publication.mjs \
+            --directory .release \
+            --expected-commit "$GITHUB_SHA" \
+            --expected-version "${{ needs.signed-macos-aarch64.outputs.release-version }}"
+
+      - name: Publish the immutable update candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          release_tag="${{ needs.signed-macos-aarch64.outputs.release-tag }}"
+          release_version="${{ needs.signed-macos-aarch64.outputs.release-version }}"
+          release_json="$RUNNER_TEMP/zed-10x-release.json"
+          api_error="$RUNNER_TEMP/zed-10x-release-api-error.txt"
+          if gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${release_tag}" > "$release_json" 2> "$api_error"; then
+            if node -e 'const r=require(process.argv[1]); process.exit(r.immutable === true && r.draft === false ? 0 : 1)' "$release_json"; then
+              node script/verify-zed-10x-release-publication.mjs \
+                --directory .release \
+                --expected-commit "$GITHUB_SHA" \
+                --expected-version "$release_version" \
+                --github-release-json "$release_json" \
+                --expected-state immutable
+              exit 0
+            fi
+            node script/verify-zed-10x-release-publication.mjs \
+              --directory .release \
+              --expected-commit "$GITHUB_SHA" \
+              --expected-version "$release_version" \
+              --github-release-json "$release_json" \
+              --expected-state draft
+          else
+            grep -Fq '(HTTP 404)' "$api_error" || { cat "$api_error" >&2; exit 1; }
+            gh release create "$release_tag" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --title "Zed 10x ${release_version}" \
+              --notes "Signed, notarized Zed 10x update for ${GITHUB_SHA}." \
+              --draft
+          fi
+          gh release upload "$release_tag" \
+            .release/Zed-10x-aarch64.dmg \
+            .release/zed-remote-server-linux-aarch64.gz \
+            .release/zed-remote-server-linux-x86_64.gz \
+            .release/zed-remote-server-macos-aarch64.gz \
+            .release/zed-10x-release-receipt.json \
+            --clobber \
+            --repo "$GITHUB_REPOSITORY"
+          gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${release_tag}" > "$release_json"
+          node script/verify-zed-10x-release-publication.mjs \
+            --directory .release \
+            --expected-commit "$GITHUB_SHA" \
+            --expected-version "$release_version" \
+            --github-release-json "$release_json" \
+            --expected-state draft-uploaded
+          gh release edit "$release_tag" --draft=false --latest --repo "$GITHUB_REPOSITORY"
+          gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${release_tag}" > "$release_json"
+          node script/verify-zed-10x-release-publication.mjs \
+            --directory .release \
+            --expected-commit "$GITHUB_SHA" \
+            --expected-version "$release_version" \
+            --github-release-json "$release_json" \
+            --expected-state immutable

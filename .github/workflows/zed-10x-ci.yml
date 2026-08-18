@@ -38,6 +38,11 @@ jobs:
       - name: Verify formatting
         run: cargo fmt --all -- --check
 
+      - name: Test the Zed 10x updater and release channel
+        run: |
+          cargo test --locked -p auto_update zed_10x
+          cargo test --locked -p release_channel
+
       - name: Check the Zed 10x binary
         run: cargo check --locked -p zed --bin zed-10x
 
