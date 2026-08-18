@@ -1,0 +1,208 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+if [[ $# -ne 1 ]]; then
+    echo "Usage: ${0##*/} <aarch64-apple-darwin|x86_64-apple-darwin>" >&2
+    exit 2
+fi
+
+target_triple=$1
+case "$target_triple" in
+    aarch64-apple-darwin) arch_suffix="aarch64" ;;
+    x86_64-apple-darwin) arch_suffix="x86_64" ;;
+    *)
+        echo "Unsupported architecture: $target_triple" >&2
+        exit 2
+        ;;
+esac
+
+channel=$(<crates/zed/RELEASE_CHANNEL)
+if [[ "$channel" != "dev" ]]; then
+    echo "Zed 10x release signing requires the dev channel" >&2
+    exit 2
+fi
+
+required_variables=(
+    ZED_10X_MACOS_CERTIFICATE
+    ZED_10X_MACOS_CERTIFICATE_PASSWORD
+    ZED_10X_SIGNING_IDENTITY
+    ZED_10X_NOTARIZATION_TEAM_ID
+    ZED_10X_NOTARIZATION_KEY
+    ZED_10X_NOTARIZATION_KEY_ID
+    ZED_10X_NOTARIZATION_ISSUER_ID
+)
+for variable_name in "${required_variables[@]}"; do
+    if [[ -z "${!variable_name:-}" ]]; then
+        echo "Missing required Zed 10x release variable: ${variable_name}" >&2
+        exit 2
+    fi
+done
+
+certificate_base64=$ZED_10X_MACOS_CERTIFICATE
+certificate_password=$ZED_10X_MACOS_CERTIFICATE_PASSWORD
+signing_identity=$ZED_10X_SIGNING_IDENTITY
+team_id=$ZED_10X_NOTARIZATION_TEAM_ID
+notarization_key=$ZED_10X_NOTARIZATION_KEY
+notarization_key_id=$ZED_10X_NOTARIZATION_KEY_ID
+notarization_issuer_id=$ZED_10X_NOTARIZATION_ISSUER_ID
+notarization_timeout=${ZED_10X_NOTARIZATION_TIMEOUT:-60m}
+
+# From this point onward, build tools and the verifier cannot inherit reusable
+# credentials. The private shell variables above are supplied only to Apple's
+# signing and notarization commands.
+unset \
+    ZED_10X_MACOS_CERTIFICATE \
+    ZED_10X_MACOS_CERTIFICATE_PASSWORD \
+    ZED_10X_SIGNING_IDENTITY \
+    ZED_10X_NOTARIZATION_TEAM_ID \
+    ZED_10X_NOTARIZATION_KEY \
+    ZED_10X_NOTARIZATION_KEY_ID \
+    ZED_10X_NOTARIZATION_ISSUER_ID \
+    ZED_10X_NOTARIZATION_TIMEOUT
+
+if [[ ! "$team_id" =~ ^[A-Z0-9]{10}$ ]]; then
+    echo "ZED_10X_NOTARIZATION_TEAM_ID must be a ten-character Apple team ID" >&2
+    exit 2
+fi
+if [[ ! "$notarization_timeout" =~ ^[1-9][0-9]*[smh]$ ]]; then
+    echo "ZED_10X_NOTARIZATION_TIMEOUT must be a positive notarytool duration such as 60m" >&2
+    exit 2
+fi
+identity_pattern="^Developer ID Application: .+ \\(${team_id}\\)$"
+if [[ ! "$signing_identity" =~ $identity_pattern ]]; then
+    echo "ZED_10X_SIGNING_IDENTITY must be the full Developer ID Application identity for ZED_10X_NOTARIZATION_TEAM_ID" >&2
+    exit 2
+fi
+
+target_directory="target/${target_triple}/release"
+dmg_source_directory="${target_directory}/dmg"
+app_path="${dmg_source_directory}/Zed 10x.app"
+remote_server_path="${target_directory}/remote_server"
+remote_server_archive="target/zed-remote-server-macos-${arch_suffix}.gz"
+dmg_path="${target_directory}/Zed-10x-${arch_suffix}.dmg"
+receipt_path="${target_directory}/zed-10x-release-receipt.json"
+entitlements_path="crates/zed/resources/zed.entitlements"
+
+require_regular_file() {
+    local file_path=$1
+    local label=$2
+    if [[ ! -f "$file_path" || -L "$file_path" ]]; then
+        echo "${label} must be a real regular file: ${file_path}" >&2
+        exit 1
+    fi
+}
+
+if [[ ! -d "$app_path" || -L "$app_path" ]]; then
+    echo "Prepared Zed 10x app bundle is missing: ${app_path}" >&2
+    exit 1
+fi
+require_regular_file "$remote_server_path" "prepared remote server"
+require_regular_file "$entitlements_path" "signing entitlements"
+for executable_name in zed-10x-launcher zed-10x-runtime cli git; do
+    require_regular_file "${app_path}/Contents/MacOS/${executable_name}" "prepared application executable"
+done
+if [[ -e "${app_path}/Contents/embedded.provisionprofile" || -L "${app_path}/Contents/embedded.provisionprofile" ]]; then
+    echo "Prepared Zed 10x app must not contain the upstream provisioning profile" >&2
+    exit 1
+fi
+if [[ -e "$receipt_path" || -L "$receipt_path" ]]; then
+    echo "Refusing to replace an existing release verification receipt" >&2
+    exit 1
+fi
+
+signing_directory=""
+signing_keychain=""
+certificate_file=""
+notarization_key_file=""
+applications_link_created=false
+
+cleanup() {
+    if [[ "$applications_link_created" == true ]]; then
+        rm -f "${dmg_source_directory}/Applications"
+    fi
+    [[ -z "$certificate_file" ]] || rm -f "$certificate_file"
+    [[ -z "$notarization_key_file" ]] || rm -f "$notarization_key_file"
+    [[ -z "$signing_keychain" ]] || security delete-keychain "$signing_keychain" >/dev/null 2>&1 || true
+    [[ -z "$signing_keychain" ]] || rm -f "$signing_keychain"
+    [[ -z "$signing_directory" ]] || rmdir "$signing_directory" >/dev/null 2>&1 || true
+}
+trap cleanup EXIT
+
+signing_directory=$(mktemp -d)
+signing_keychain="${signing_directory}/zed-signing.keychain-db"
+certificate_file="${signing_directory}/certificate.p12"
+notarization_key_file="${signing_directory}/notarization-key.p8"
+keychain_password=$(/usr/bin/uuidgen)
+
+/usr/bin/install -m 0600 /dev/null "$certificate_file"
+printf '%s' "$certificate_base64" | base64 --decode > "$certificate_file"
+security create-keychain -p "$keychain_password" "$signing_keychain"
+security unlock-keychain -p "$keychain_password" "$signing_keychain"
+security set-keychain-settings -lut 21600 "$signing_keychain"
+security import "$certificate_file" -k "$signing_keychain" -P "$certificate_password" -T /usr/bin/codesign
+security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$signing_keychain"
+rm -f "$certificate_file"
+certificate_base64=""
+certificate_password=""
+
+codesign_runtime() {
+    /usr/bin/codesign \
+        --force \
+        --timestamp \
+        --options runtime \
+        --keychain "$signing_keychain" \
+        --sign "$signing_identity" \
+        "$@"
+}
+
+codesign_runtime --entitlements "$entitlements_path" -v "$remote_server_path"
+gzip -f --stdout --best "$remote_server_path" > "$remote_server_archive"
+codesign_runtime -v "${app_path}/Contents/MacOS/cli"
+codesign_runtime -v "${app_path}/Contents/MacOS/git"
+codesign_runtime --entitlements "$entitlements_path" -v "${app_path}/Contents/MacOS/zed-10x-runtime"
+codesign_runtime --entitlements "$entitlements_path" -v "$app_path"
+
+if [[ -e "${dmg_source_directory}/Applications" || -L "${dmg_source_directory}/Applications" ]]; then
+    echo "Prepared DMG source unexpectedly contains an Applications entry" >&2
+    exit 1
+fi
+ln -s /Applications "${dmg_source_directory}/Applications"
+applications_link_created=true
+if [[ -e "$dmg_path" || -L "$dmg_path" ]]; then
+    require_regular_file "$dmg_path" "prepared disk image"
+    rm -f "$dmg_path"
+fi
+hdiutil create -volname "Zed 10x" -srcfolder "$dmg_source_directory" -format UDZO "$dmg_path"
+rm -f "${dmg_source_directory}/Applications"
+applications_link_created=false
+
+/usr/bin/codesign \
+    --force \
+    --timestamp \
+    --keychain "$signing_keychain" \
+    --sign "$signing_identity" \
+    -v \
+    "$dmg_path"
+
+/usr/bin/install -m 0600 /dev/null "$notarization_key_file"
+printf '%s\n' "$notarization_key" > "$notarization_key_file"
+xcode_bin_directory="$(xcode-select -p)/usr/bin"
+"${xcode_bin_directory}/notarytool" submit \
+    --wait \
+    --timeout "$notarization_timeout" \
+    --key "$notarization_key_file" \
+    --key-id "$notarization_key_id" \
+    --issuer "$notarization_issuer_id" \
+    "$dmg_path"
+rm -f "$notarization_key_file"
+notarization_key=""
+"${xcode_bin_directory}/stapler" staple "$dmg_path"
+
+expected_commit=$(git rev-parse HEAD)
+node script/verify-zed-10x-macos-release.mjs \
+    --dmg "$dmg_path" \
+    --remote-server "$remote_server_archive" \
+    --expected-commit "$expected_commit" \
+    --expected-team-id "$team_id" \
+    --receipt "$receipt_path"

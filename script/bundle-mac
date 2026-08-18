@@ -8,6 +8,16 @@ target_dir="release"
 open_result=false
 local_install=false
 can_code_sign=false
+zed_10x_release=false
+certificate_base64=""
+certificate_password=""
+notarization_key=""
+notarization_key_id=""
+notarization_issuer_id=""
+notarization_timeout="60m"
+signing_keychain=""
+certificate_file=""
+notarization_key_file=""
 
 # This must match the team in the provisioning profile.
 IDENTITY="Zed Industries, Inc."
@@ -23,29 +33,39 @@ Options:
   -d    Compile in debug mode
   -o    Open dir with the resulting DMG or launch the app itself in local mode.
   -i    Install the resulting DMG into /Applications.
+  --zed-10x-prepare-release
+        Build fork-owned release inputs without signing credentials.
   -h    Display this help and exit.
   "
 }
 
-while getopts 'dloih' flag
-do
-    case "${flag}" in
-        o) open_result=true;;
-        d)
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -o) open_result=true;;
+        -d)
             export CARGO_INCREMENTAL=true
             export CARGO_BUNDLE_SKIP_BUILD=true
             build_flag="";
             target_dir="debug"
             ;;
-        i) local_install=true;;
-        h)
+        -i) local_install=true;;
+        --zed-10x-prepare-release) zed_10x_release=true;;
+        -h|--help)
            help_info
            exit 0
            ;;
+        --)
+            shift
+            break
+            ;;
+        -*)
+            echo "Unknown option: $1" >&2
+            exit 2
+            ;;
+        *) break;;
     esac
+    shift
 done
-
-shift $((OPTIND-1))
 
 
 # Get release channel
@@ -54,11 +74,35 @@ channel=$(<RELEASE_CHANNEL)
 export ZED_RELEASE_CHANNEL="${channel}"
 popd
 
+if [[ "$zed_10x_release" == true ]]; then
+    if [[ "$channel" != "dev" || "$target_dir" != "release" ]]; then
+        echo "--zed-10x-prepare-release requires the dev channel and a release build" >&2
+        exit 2
+    fi
+    if [[ "$local_install" == true ]]; then
+        echo "--zed-10x-prepare-release cannot install over a local application" >&2
+        exit 2
+    fi
+elif [[ -n "${MACOS_CERTIFICATE:-}" && -n "${MACOS_CERTIFICATE_PASSWORD:-}" && -n "${APPLE_NOTARIZATION_KEY:-}" && -n "${APPLE_NOTARIZATION_KEY_ID:-}" && -n "${APPLE_NOTARIZATION_ISSUER_ID:-}" ]]; then
+    can_code_sign=true
+    certificate_base64="$MACOS_CERTIFICATE"
+    certificate_password="$MACOS_CERTIFICATE_PASSWORD"
+    notarization_key="$APPLE_NOTARIZATION_KEY"
+    notarization_key_id="$APPLE_NOTARIZATION_KEY_ID"
+    notarization_issuer_id="$APPLE_NOTARIZATION_ISSUER_ID"
+fi
+
 export ZED_BUNDLE=true
 
+cargo_bundle_revision="2be2669972dff3ddd4daf89a2cb29d2d06cad7c7"
 cargo_bundle_version=$(cargo -q bundle --help 2>&1 | head -n 1 || echo "")
-if [ "$cargo_bundle_version" != "cargo-bundle v0.6.1-zed" ]; then
-    cargo install cargo-bundle --git https://github.com/zed-industries/cargo-bundle.git --branch zed-deploy
+if [[ "$cargo_bundle_version" != "cargo-bundle v0.6.1-zed" || "$zed_10x_release" == true ]]; then
+    cargo install \
+        --force \
+        --locked \
+        --git https://github.com/zed-industries/cargo-bundle.git \
+        --rev "$cargo_bundle_revision" \
+        cargo-bundle
 fi
 
 # Deal with versions of macOS that don't include libstdc++ headers
@@ -129,45 +173,59 @@ else
     echo "cargo::warning=Missing ${document_icon_source}; macOS document icons may not appear in Finder."
 fi
 
-if [[ -n "${MACOS_CERTIFICATE:-}" && -n "${MACOS_CERTIFICATE_PASSWORD:-}" && -n "${APPLE_NOTARIZATION_KEY:-}" && -n "${APPLE_NOTARIZATION_KEY_ID:-}" && -n "${APPLE_NOTARIZATION_ISSUER_ID:-}" ]]; then
-    can_code_sign=true
-
+if [[ $can_code_sign == true ]]; then
     echo "Setting up keychain for code signing..."
-    security create-keychain -p "$MACOS_CERTIFICATE_PASSWORD" zed.keychain || echo ""
-    security default-keychain -s zed.keychain
-    security unlock-keychain -p "$MACOS_CERTIFICATE_PASSWORD" zed.keychain
-    # Calling set-keychain-settings without `-t` disables the auto-lock timeout
-    security set-keychain-settings zed.keychain
-    echo "$MACOS_CERTIFICATE" | base64 --decode > /tmp/zed-certificate.p12
-    security import /tmp/zed-certificate.p12 -k zed.keychain -P "$MACOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
-    rm /tmp/zed-certificate.p12
-    security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$MACOS_CERTIFICATE_PASSWORD" zed.keychain
-
+    signing_directory=$(mktemp -d)
+    signing_keychain="${signing_directory}/zed-signing.keychain-db"
+    certificate_file="${signing_directory}/certificate.p12"
+    notarization_key_file="${signing_directory}/notarization-key.p8"
     function cleanup() {
         echo "Cleaning up keychain"
-        security default-keychain -s login.keychain
-        security delete-keychain zed.keychain
+        [[ -z "$certificate_file" ]] || rm -f "$certificate_file"
+        [[ -z "$notarization_key_file" ]] || rm -f "$notarization_key_file"
+        [[ -z "$signing_keychain" ]] || security delete-keychain "$signing_keychain" >/dev/null 2>&1 || true
+        [[ -z "${signing_directory:-}" ]] || rmdir "$signing_directory" >/dev/null 2>&1 || true
     }
-
     trap cleanup EXIT
+
+    keychain_password=$(/usr/bin/uuidgen)
+    /usr/bin/install -m 0600 /dev/null "$certificate_file"
+    printf '%s' "$certificate_base64" | base64 --decode > "$certificate_file"
+    security create-keychain -p "$keychain_password" "$signing_keychain"
+    security unlock-keychain -p "$keychain_password" "$signing_keychain"
+    security set-keychain-settings -lut 21600 "$signing_keychain"
+    security import "$certificate_file" -k "$signing_keychain" -P "$certificate_password" -T /usr/bin/codesign
+    security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$signing_keychain"
+
 fi
 
 GIT_VERSION="v2.43.3"
 GIT_VERSION_SHA="fa29823"
+GIT_ARM64_SHA256="f014b290f36d121bbc47b29b556044c4f6a2f6494cf78ed2eacfa501b77363b6"
+GIT_X86_64_SHA256="02fb29a47a07e9a7f841888661f32ebc80a56930864dd19b674d80ffc429c96d"
 
 function download_and_unpack() {
     local url=$1
     local path_to_unpack=$2
     local target_path=$3
+    local expected_sha256=$4
+    local temp_dir archive_path actual_sha256
 
     temp_dir=$(mktemp -d)
+    archive_path="${temp_dir}/archive.tar.gz"
 
     if ! command -v curl &> /dev/null; then
         echo "curl is not installed. Please install curl to continue."
         exit 1
     fi
 
-    curl --silent --fail --location "$url" | tar -xvz -C "$temp_dir" -f - $path_to_unpack
+    curl --silent --show-error --fail --location --output "$archive_path" "$url"
+    actual_sha256=$(/usr/bin/shasum -a 256 "$archive_path" | cut -d' ' -f1)
+    if [[ "$actual_sha256" != "$expected_sha256" ]]; then
+        echo "Downloaded Git archive checksum mismatch" >&2
+        exit 1
+    fi
+    tar -xvz -C "$temp_dir" -f "$archive_path" "$path_to_unpack"
 
     mv "$temp_dir/$path_to_unpack" "$target_path"
 
@@ -183,10 +241,10 @@ function download_git() {
 
     case "$architecture" in
         aarch64-apple-darwin)
-            download_and_unpack "https://github.com/desktop/dugite-native/releases/download/${GIT_VERSION}/dugite-native-${GIT_VERSION}-${GIT_VERSION_SHA}-macOS-arm64.tar.gz" bin/git ./git
+            download_and_unpack "https://github.com/desktop/dugite-native/releases/download/${GIT_VERSION}/dugite-native-${GIT_VERSION}-${GIT_VERSION_SHA}-macOS-arm64.tar.gz" bin/git ./git "$GIT_ARM64_SHA256"
             ;;
         x86_64-apple-darwin)
-            download_and_unpack "https://github.com/desktop/dugite-native/releases/download/${GIT_VERSION}/dugite-native-${GIT_VERSION}-${GIT_VERSION_SHA}-macOS-x64.tar.gz" bin/git ./git
+            download_and_unpack "https://github.com/desktop/dugite-native/releases/download/${GIT_VERSION}/dugite-native-${GIT_VERSION}-${GIT_VERSION_SHA}-macOS-x64.tar.gz" bin/git ./git "$GIT_X86_64_SHA256"
             ;;
         *)
             echo "Unsupported architecture: $architecture"
@@ -219,10 +277,33 @@ function assemble_zed_10x_canary() {
     fi
 }
 
+function codesign_runtime() {
+    /usr/bin/codesign \
+        --force \
+        --timestamp \
+        --options runtime \
+        --keychain "$signing_keychain" \
+        --sign "$IDENTITY" \
+        "$@"
+}
+
+function codesign_distribution_file() {
+    /usr/bin/codesign \
+        --force \
+        --timestamp \
+        --keychain "$signing_keychain" \
+        --sign "$IDENTITY" \
+        "$@"
+}
+
 function sign_app_binaries() {
     local zed_executable_path="${app_path}/Contents/MacOS/zed-10x"
+    local entitlements_path="crates/zed/resources/zed.entitlements"
     if [[ "$channel" == "dev" ]]; then
         zed_executable_path="${app_path}/Contents/MacOS/zed-10x-runtime"
+    fi
+    if [[ "$zed_10x_release" == true ]]; then
+        rm -f "${app_path}/Contents/embedded.provisionprofile"
     fi
 
     rm -rf "${app_path}/Contents/Frameworks"
@@ -231,16 +312,16 @@ function sign_app_binaries() {
     echo "Downloading git binary"
     download_git "${target_triple}" "${app_path}/Contents/MacOS/git"
 
-    # Note: The app identifier for our development builds is the same as the app identifier for nightly.
-    cp crates/zed/contents/$channel/embedded.provisionprofile "${app_path}/Contents/"
+    if [[ "$zed_10x_release" == false ]]; then
+        cp "crates/zed/contents/${channel}/embedded.provisionprofile" "${app_path}/Contents/"
+    fi
 
     if [[ $can_code_sign = true ]]; then
         echo "Code signing binaries"
-        # sequence of codesign commands modeled after this example: https://developer.apple.com/forums/thread/701514
-        /usr/bin/codesign --deep --force --timestamp --options runtime --sign "$IDENTITY" "${app_path}/Contents/MacOS/cli" -v
-        /usr/bin/codesign --deep --force --timestamp --options runtime --sign "$IDENTITY" "${app_path}/Contents/MacOS/git" -v
-        /usr/bin/codesign --deep --force --timestamp --options runtime --entitlements crates/zed/resources/zed.entitlements --sign "$IDENTITY" "${zed_executable_path}" -v
-        /usr/bin/codesign --force --timestamp --options runtime --entitlements crates/zed/resources/zed.entitlements --sign "$IDENTITY" "${app_path}" -v
+        codesign_runtime -v "${app_path}/Contents/MacOS/cli"
+        codesign_runtime -v "${app_path}/Contents/MacOS/git"
+        codesign_runtime --entitlements "$entitlements_path" -v "${zed_executable_path}"
+        codesign_runtime --entitlements "$entitlements_path" -v "${app_path}"
     else
         echo "One or more of the following variables are missing: MACOS_CERTIFICATE, MACOS_CERTIFICATE_PASSWORD, APPLE_NOTARIZATION_KEY, APPLE_NOTARIZATION_KEY_ID, APPLE_NOTARIZATION_ISSUER_ID"
 
@@ -253,9 +334,10 @@ function sign_app_binaries() {
         # - get a signing key for the MQ55VZLNZQ team from Nathan.
         # - create your own signing key, and update references to MQ55VZLNZQ to your own team ID
         # then comment out this line.
-        cat crates/zed/resources/zed.entitlements | sed '/com.apple.developer.associated-domains/,+1d' > "${app_path}/Contents/Resources/zed.entitlements"
-
-        codesign --force --deep --entitlements "${app_path}/Contents/Resources/zed.entitlements" --sign ${MACOS_SIGNING_KEY:- -} "${app_path}" -v
+        local unsigned_entitlements_path="${app_path}/Contents/Resources/zed.entitlements"
+        sed '/com.apple.developer.associated-domains/,+1d' \
+            crates/zed/resources/zed.entitlements > "$unsigned_entitlements_path"
+        codesign --force --deep --entitlements "$unsigned_entitlements_path" --sign ${MACOS_SIGNING_KEY:- -} "${app_path}" -v
     fi
 
     bundle_name=$(basename "$app_path")
@@ -281,35 +363,55 @@ function sign_app_binaries() {
     else
         dmg_target_directory="target/${target_triple}/${target_dir}"
         dmg_source_directory="${dmg_target_directory}/dmg"
-        dmg_file_path="${dmg_target_directory}/Zed-${arch_suffix}.dmg"
+        if [[ "$zed_10x_release" == true ]]; then
+            dmg_file_path="${dmg_target_directory}/Zed-10x-${arch_suffix}.dmg"
+        else
+            dmg_file_path="${dmg_target_directory}/Zed-${arch_suffix}.dmg"
+        fi
         xcode_bin_dir_path="$(xcode-select -p)/usr/bin"
 
         rm -rf ${dmg_source_directory}
         mkdir -p ${dmg_source_directory}
         mv "${app_path}" "${dmg_source_directory}"
-        notarization_key_file=$(mktemp)
-
+        if [[ "$zed_10x_release" == true ]]; then
+            echo "Prepared unsigned Zed 10x release inputs in ${dmg_source_directory}"
+            return
+        fi
         echo "Adding symlink to /Applications to ${dmg_source_directory}"
         ln -s /Applications ${dmg_source_directory}
 
+        if [[ "$zed_10x_release" == true ]]; then
+            dmg_volume_name="Zed 10x"
+        else
+            dmg_volume_name="Zed"
+        fi
         echo "Creating final DMG at ${dmg_file_path} using ${dmg_source_directory}"
-        hdiutil create -volname Zed -srcfolder "${dmg_source_directory}" -ov -format UDZO "${dmg_file_path}"
+        hdiutil create -volname "$dmg_volume_name" -srcfolder "${dmg_source_directory}" -ov -format UDZO "${dmg_file_path}"
 
         # If someone runs this bundle script locally, a symlink will be placed in `dmg_source_directory`.
         # This symlink causes CPU issues with Zed if the Zed codebase is the project being worked on, so we simply remove it for now.
         echo "Removing symlink to /Applications from ${dmg_source_directory}"
         rm ${dmg_source_directory}/Applications
 
-        echo "Adding license agreement to DMG"
-        npm install --global dmg-license minimist
-        dmg-license script/terms/terms.json "${dmg_file_path}"
+        if [[ "$zed_10x_release" == false ]]; then
+            echo "Adding license agreement to DMG"
+            npm install --global dmg-license minimist
+            dmg-license script/terms/terms.json "${dmg_file_path}"
+        fi
 
         if [[ $can_code_sign = true ]]; then
             echo "Notarizing DMG with Apple"
-            /usr/bin/codesign --deep --force --timestamp --options runtime --sign "$IDENTITY" "$(pwd)/${dmg_file_path}" -v
-            echo "$APPLE_NOTARIZATION_KEY" > "$notarization_key_file"
-            "${xcode_bin_dir_path}/notarytool" submit --wait --key "$notarization_key_file" --key-id "$APPLE_NOTARIZATION_KEY_ID" --issuer "$APPLE_NOTARIZATION_ISSUER_ID" "${dmg_file_path}"
-            rm "$notarization_key_file"
+            codesign_distribution_file -v "$(pwd)/${dmg_file_path}"
+            /usr/bin/install -m 0600 /dev/null "$notarization_key_file"
+            printf '%s\n' "$notarization_key" > "$notarization_key_file"
+            "${xcode_bin_dir_path}/notarytool" submit \
+                --wait \
+                --timeout "$notarization_timeout" \
+                --key "$notarization_key_file" \
+                --key-id "$notarization_key_id" \
+                --issuer "$notarization_issuer_id" \
+                "${dmg_file_path}"
+            rm -f "$notarization_key_file"
             "${xcode_bin_dir_path}/stapler" staple "${dmg_file_path}"
         fi
 
@@ -324,7 +426,7 @@ function sign_binary() {
 
     if [[ $can_code_sign = true ]]; then
         echo "Code signing executable $binary_path"
-        /usr/bin/codesign --deep --force --timestamp --options runtime --entitlements crates/zed/resources/zed.entitlements --sign "$IDENTITY" "${binary_path}" -v
+        codesign_runtime --entitlements crates/zed/resources/zed.entitlements -v "${binary_path}"
     fi
 }
 
@@ -371,7 +473,7 @@ upload_debug_symbols
 cp target/${target_triple}/${target_dir}/zed-10x "${app_path}/Contents/MacOS/zed-10x"
 cp target/${target_triple}/${target_dir}/cli "${app_path}/Contents/MacOS/cli"
 assemble_zed_10x_canary
-sign_app_binaries
 
 sign_binary "target/${target_triple}/${target_dir}/remote_server"
 gzip -f --stdout --best "target/${target_triple}/${target_dir}/remote_server" > "target/zed-remote-server-macos-${arch_suffix}.gz"
+sign_app_binaries

@@ -5,6 +5,7 @@ set -euo pipefail
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 CI="$ROOT/.github/workflows/ci-gate.yml"
 RUST_CI="$ROOT/.github/workflows/zed-10x-ci.yml"
+RELEASE="$ROOT/.github/workflows/zed-10x-release.yml"
 REVIEW="$ROOT/.github/workflows/minds-review-authorize.yml"
 POLICY_HELPER="$ROOT/.github/scripts/minds-review-authorize.sh"
 LEGACY="$ROOT/.github/workflows/minds-review.yml"
@@ -62,6 +63,10 @@ if [[ -f "$RUST_CI" ]]; then
         contains "$RUST_CI" "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd"
     check "focused CI runs its workflow contract" \
         contains "$RUST_CI" "run: tests/test_zed_10x_ci_workflows.sh"
+    check "focused CI pins the repository Node.js version" \
+        contains "$RUST_CI" "node-version: \"24\""
+    check "focused CI runs Zed 10x Node regression tests" \
+        contains "$RUST_CI" "node --test script/tests/*.test.mjs"
     check "Linux dependencies use the repository setup script" \
         contains "$RUST_CI" "./script/linux"
     check "format command is exact" \
@@ -78,6 +83,34 @@ if [[ -f "$RUST_CI" ]]; then
         not_contains "$RUST_CI" 'secrets.'
     check "focused Rust CI has no custom runner" \
         not_contains "$RUST_CI" "namespace-"
+fi
+
+check "fork-owned macOS release workflow exists" test -f "$RELEASE"
+if [[ -f "$RELEASE" ]]; then
+    check "release workflow is manual only" \
+        contains "$RELEASE" "workflow_dispatch:"
+    check "release workflow has no repository write permission" \
+        contains "$RELEASE" "contents: read"
+    check "release workflow uses a GitHub-hosted macOS runner" \
+        contains "$RELEASE" "runs-on: macos-15"
+    check "release workflow runs only for protected fork main" \
+        contains "$RELEASE" "github.repository == 'keevaspeyer10x/zed-10x' && github.ref == 'refs/heads/main'"
+    check "release credentials come from the release environment" \
+        contains "$RELEASE" "environment: zed-10x-release"
+    check "release checkout is pinned by immutable SHA" \
+        contains "$RELEASE" "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd"
+    check "release build is credential-free" \
+        contains "$RELEASE" "./script/bundle-mac --zed-10x-prepare-release aarch64-apple-darwin"
+    check "release signing is a separate narrow step" \
+        contains "$RELEASE" "./script/sign-zed-10x-macos-release aarch64-apple-darwin"
+    check "release signing uses a fresh runner after unsigned build" \
+        contains "$RELEASE" "needs: unsigned-macos-aarch64"
+    check "unsigned inputs cross jobs through a pinned artifact action" \
+        contains "$RELEASE" "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c"
+    check "release workflow retains the verification receipt" \
+        contains "$RELEASE" "target/aarch64-apple-darwin/release/zed-10x-release-receipt.json"
+    check "release workflow never publishes a GitHub release" \
+        not_contains "$RELEASE" "gh release"
 fi
 
 check "unresolvable private reusable review caller is absent" test ! -e "$REVIEW"
