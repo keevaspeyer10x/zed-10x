@@ -277,6 +277,36 @@ function assemble_zed_10x_canary() {
     fi
 }
 
+# Locally-built bundles cannot use published release assets: dev versions embed the
+# commit sha, so no release tag can ever match. Bundle commit-matched remote servers
+# instead; the client prefers them before consulting the GitHub Releases API.
+# Must run after sign_binary so the bundled macOS server carries the signed bytes.
+function bundle_zed_10x_remote_servers() {
+    local remote_server_dir="${app_path}/Contents/Resources/remote-server"
+    local linux_arch linux_triple
+
+    if ! command -v zig > /dev/null || ! command -v cargo-zigbuild > /dev/null; then
+        echo "zig and cargo-zigbuild are required to bundle the Linux remote servers for local Zed 10x installs." >&2
+        echo "Install them with: brew install zig && cargo install --locked cargo-zigbuild" >&2
+        exit 1
+    fi
+
+    mkdir -p "${remote_server_dir}"
+    gzip -f --stdout --best "target/${target_triple}/${target_dir}/remote_server" \
+        > "${remote_server_dir}/zed-remote-server-macos-${arch_suffix}.gz"
+
+    for linux_arch in x86_64 aarch64; do
+        linux_triple="${linux_arch}-unknown-linux-musl"
+        rustup target add "${linux_triple}"
+        # Strip debuginfo like the release workflow does; unstripped servers are ~150MB
+        # gzipped and get re-uploaded over SSH on every rebuild.
+        RUSTFLAGS="${RUSTFLAGS:-} -C target-feature=+crt-static -C strip=debuginfo" cargo zigbuild ${build_flag} \
+            --package remote_server --target "${linux_triple}"
+        gzip -f --stdout --best "target/${linux_triple}/${target_dir}/remote_server" \
+            > "${remote_server_dir}/zed-remote-server-linux-${linux_arch}.gz"
+    done
+}
+
 function codesign_runtime() {
     /usr/bin/codesign \
         --force \
@@ -315,6 +345,11 @@ function sign_app_binaries() {
     if [[ "$zed_10x_release" == false ]]; then
         cp "crates/zed/contents/${channel}/embedded.provisionprofile" "${app_path}/Contents/"
     fi
+
+    # File-provider daemons (iCloud/Drive) can stamp com.apple.FinderInfo onto a
+    # freshly-assembled bundle, which codesign rejects as "detritus". The bundle
+    # never carries meaningful xattrs at this point, so clear them.
+    xattr -cr "${app_path}" 2> /dev/null || true
 
     if [[ $can_code_sign = true ]]; then
         echo "Code signing binaries"
@@ -478,4 +513,10 @@ assemble_zed_10x_canary
 
 sign_binary "target/${target_triple}/${target_dir}/remote_server"
 gzip -f --stdout --best "target/${target_triple}/${target_dir}/remote_server" > "target/zed-remote-server-macos-${arch_suffix}.gz"
+# Only the local install lane (-i) bundles remote servers: CI bundle jobs run this
+# script on runners without zig/cargo-zigbuild, and the release lane publishes its
+# servers as release assets instead.
+if [[ "$channel" == "dev" && "$local_install" == true ]]; then
+    bundle_zed_10x_remote_servers
+fi
 sign_app_binaries
