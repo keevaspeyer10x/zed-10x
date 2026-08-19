@@ -711,6 +711,14 @@ impl AutoUpdater {
         set_status: impl Fn(&str, &mut AsyncApp) + Send + 'static,
         cx: &mut AsyncApp,
     ) -> Result<PathBuf> {
+        // Locally-built Zed 10x bundles carry commit-matched remote servers, since a
+        // local build's sha-stamped dev version can never match a published release tag.
+        if let Some(archive) = bundled_remote_server_archive(os, arch) {
+            log::info!("using bundled remote server archive at {archive:?}");
+            set_status("Using bundled remote server", cx);
+            return Ok(archive);
+        }
+
         let this = cx.update(|cx| {
             cx.default_global::<GlobalAutoUpdate>()
                 .0
@@ -767,6 +775,12 @@ impl AutoUpdater {
         arch: &str,
         cx: &mut AsyncApp,
     ) -> Result<Option<String>> {
+        // A bundled remote server has no URL the remote host could download; returning
+        // None routes callers to download_remote_server_release and upload over SSH.
+        if bundled_remote_server_archive(os, arch).is_some() {
+            return Ok(None);
+        }
+
         let this = cx.update(|cx| {
             cx.default_global::<GlobalAutoUpdate>()
                 .0
@@ -1120,6 +1134,23 @@ impl AutoUpdater {
             Ok(kvp.read_kvp(SHOULD_SHOW_UPDATE_NOTIFICATION_KEY)?.is_some())
         })
     }
+}
+
+fn bundled_remote_server_archive(os: &str, arch: &str) -> Option<PathBuf> {
+    let executable = env::current_exe().ok()?;
+    // Inside a macOS bundle the executable lives at Contents/MacOS/<name>; outside a
+    // bundle the constructed path does not exist and resolution falls through.
+    let resources_dir = executable
+        .parent()?
+        .parent()?
+        .join("Resources")
+        .join("remote-server");
+    bundled_remote_server_archive_in(&resources_dir, os, arch)
+}
+
+fn bundled_remote_server_archive_in(directory: &Path, os: &str, arch: &str) -> Option<PathBuf> {
+    let archive = directory.join(format!("zed-remote-server-{os}-{arch}.gz"));
+    archive.is_file().then_some(archive)
 }
 
 async fn download_remote_server_binary(
@@ -1779,6 +1810,34 @@ mod tests {
 
     pub(super) struct InstallOverride(pub Rc<dyn Fn(&Path, &AsyncApp) -> Result<Option<PathBuf>>>);
     impl Global for InstallOverride {}
+
+    #[test]
+    fn test_zed_10x_bundled_remote_server_archive_resolution() {
+        let temp = tempfile::tempdir().expect("failed to create temp dir");
+        let directory = temp.path().join("remote-server");
+        std::fs::create_dir_all(&directory).expect("failed to create archive dir");
+
+        assert_eq!(
+            bundled_remote_server_archive_in(&directory, "linux", "x86_64"),
+            None
+        );
+
+        let archive = directory.join("zed-remote-server-linux-x86_64.gz");
+        std::fs::write(&archive, b"archive").expect("failed to write archive");
+
+        assert_eq!(
+            bundled_remote_server_archive_in(&directory, "linux", "x86_64"),
+            Some(archive)
+        );
+        assert_eq!(
+            bundled_remote_server_archive_in(&directory, "linux", "aarch64"),
+            None
+        );
+        assert_eq!(
+            bundled_remote_server_archive_in(temp.path(), "linux", "x86_64"),
+            None
+        );
+    }
 
     #[gpui::test]
     fn test_auto_update_defaults_to_true(cx: &mut TestAppContext) {
