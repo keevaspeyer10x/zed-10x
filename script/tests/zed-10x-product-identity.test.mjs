@@ -128,6 +128,11 @@ test("private Zed 10x installs bundle remote servers and avoid release lookup fo
   );
   assert.match(
     bundleScript,
+    /rm -rf "\$\{app_path\}\/Contents\/Resources\/remote-server"[\s\S]*?if \[\[ "\$channel" == "dev" && "\$local_install" == true \]\]; then\s*bundle_zed_10x_remote_servers\s*fi/,
+    "every bundle lane must remove stale private remote servers before optionally rebuilding them",
+  );
+  assert.match(
+    bundleScript,
     /if \[\[ "\$channel" == "dev" && "\$local_install" == true \]\]; then\s*bundle_zed_10x_remote_servers\s*fi/,
     "only private local development installs should require bundled servers",
   );
