@@ -395,7 +395,7 @@ impl RemoteConnection for SshRemoteConnection {
             self.ssh_shell_kind,
             self.socket.ssh_command_options(),
             &self.socket.connection_options.ssh_destination(),
-            remote_binary_path.display(self.path_style()).as_ref(),
+            remote_binary_path.as_ref(),
         )
     }
 
@@ -1894,8 +1894,12 @@ fn build_command_posix_with_stdin_environment(
     ssh_shell_kind: ShellKind,
     ssh_options: Vec<String>,
     ssh_destination: &str,
-    remote_binary_path: &str,
+    remote_binary_path: &RelPath,
 ) -> Result<CommandTemplate> {
+    anyhow::ensure!(
+        !remote_binary_path.is_empty(),
+        "stdin environment bootstrap path must not be empty"
+    );
     build_command_posix_inner(
         Some(input_program),
         input_args,
@@ -1927,7 +1931,7 @@ fn build_command_posix_inner(
     ssh_options: Vec<String>,
     ssh_destination: &str,
     interactive: Interactive,
-    stdin_environment_bootstrap: Option<&str>,
+    stdin_environment_bootstrap: Option<&RelPath>,
 ) -> Result<CommandTemplate> {
     use std::fmt::Write as _;
 
@@ -1981,9 +1985,9 @@ fn build_command_posix_inner(
     };
     let stdin_prelude = if let Some(bootstrap) = stdin_environment_bootstrap {
         let bootstrap = ssh_shell_kind
-            .try_quote_prefix_aware(bootstrap)
+            .try_quote(bootstrap.as_unix_str())
             .context("shell quoting")?;
-        write!(exec, "exec {bootstrap} env-exec -- ")?;
+        write!(exec, "exec \"$HOME\"/{bootstrap} env-exec -- ")?;
         encode_stdin_environment(input_env)?
     } else {
         write!(exec, "exec env ")?;
@@ -2301,7 +2305,7 @@ mod tests {
             ShellKind::Posix,
             vec![],
             "user@host",
-            "~/.zed_server/zed-remote-server",
+            RelPath::from_unix_str(".zed_server/zed-remote-server")?,
         )?;
 
         assert!(
@@ -2332,7 +2336,35 @@ mod tests {
     }
 
     #[test]
-    fn test_stdin_environment_bootstrap_quotes_remote_binary_path() -> Result<()> {
+    fn test_stdin_environment_bootstrap_is_anchored_to_remote_home() -> Result<()> {
+        let command = build_command_posix_with_stdin_environment(
+            "agent".to_string(),
+            &["--acp".to_string()],
+            &HashMap::default(),
+            Some("/home/keeva/repos/isla".to_string()),
+            HashMap::default(),
+            PathStyle::Unix,
+            ShellKind::Posix,
+            vec![],
+            "user@host",
+            RelPath::from_unix_str(".zed-10x-server/zed-remote-server-dev-build")?,
+        )?;
+
+        let remote_command = command
+            .args
+            .last()
+            .context("missing remote command argument")?;
+        assert!(
+            remote_command.contains(
+                "cd /home/keeva/repos/isla && exec \"$HOME\"/.zed-10x-server/zed-remote-server-dev-build env-exec -- agent --acp"
+            ),
+            "expected the remote binary path to remain home-anchored after changing directory: {remote_command}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_stdin_environment_bootstrap_quotes_home_relative_path() -> Result<()> {
         let command = build_command_posix_with_stdin_environment(
             "agent".to_string(),
             &[],
@@ -2343,7 +2375,7 @@ mod tests {
             ShellKind::Posix,
             vec![],
             "user@host",
-            "/tmp/zed server/zed-remote-server",
+            RelPath::from_unix_str(".zed server/zed-remote-server")?,
         )?;
 
         let remote_command = command
@@ -2351,8 +2383,68 @@ mod tests {
             .last()
             .context("missing remote command argument")?;
         assert!(
-            remote_command.contains("exec '/tmp/zed server/zed-remote-server' env-exec -- agent"),
-            "expected the remote binary path to be shell-quoted: {remote_command}"
+            remote_command
+                .contains("exec \"$HOME\"/'.zed server/zed-remote-server' env-exec -- agent"),
+            "expected the home-relative bootstrap path to be shell-quoted: {remote_command}"
+        );
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_stdin_environment_bootstrap_executes_from_remote_home_after_cd() -> Result<()> {
+        use std::os::unix::fs::PermissionsExt as _;
+
+        let temp_dir = tempfile::tempdir()?;
+        let remote_home = temp_dir.path().join("home");
+        let working_dir = temp_dir.path().join("repos").join("isla");
+        let bootstrap_dir = remote_home.join(".zed-10x-server");
+        let bootstrap_path = bootstrap_dir.join("zed-remote-server-dev-build");
+        std::fs::create_dir_all(&bootstrap_dir)?;
+        std::fs::create_dir_all(&working_dir)?;
+        std::fs::write(
+            &bootstrap_path,
+            "#!/bin/sh\ntest \"$1\" = env-exec\ntest \"$2\" = --\nshift 2\nexec \"$@\"\n",
+        )?;
+        let mut permissions = std::fs::metadata(&bootstrap_path)?.permissions();
+        permissions.set_mode(0o700);
+        std::fs::set_permissions(&bootstrap_path, permissions)?;
+
+        let command = build_command_posix_with_stdin_environment(
+            "/bin/pwd".to_string(),
+            &[],
+            &HashMap::default(),
+            Some(working_dir.to_string_lossy().into_owned()),
+            HashMap::default(),
+            PathStyle::Unix,
+            ShellKind::Posix,
+            vec![],
+            "user@host",
+            RelPath::from_unix_str(".zed-10x-server/zed-remote-server-dev-build")?,
+        )?;
+        let remote_command = command
+            .args
+            .last()
+            .context("missing remote command argument")?;
+        let output = smol::block_on(async {
+            smol::process::Command::new("/bin/bash")
+                .arg("-c")
+                .arg(remote_command)
+                .env("HOME", &remote_home)
+                .current_dir(temp_dir.path())
+                .output()
+                .await
+        })?;
+
+        anyhow::ensure!(
+            output.status.success(),
+            "generated remote command failed: status={:?}, stderr={}",
+            output.status.code(),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            String::from_utf8(output.stdout)?.trim_end(),
+            working_dir.to_string_lossy()
         );
         Ok(())
     }
