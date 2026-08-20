@@ -134,7 +134,9 @@ echo "Compiling zed binaries"
 cargo build ${build_flag} --package zed --package cli --target $target_triple
 # Build remote_server in separate invocation to prevent feature unification from other crates
 # from influencing dynamic libraries required by it.
-cargo build ${build_flag} --package remote_server --target $target_triple
+# Private debug bundles run this binary outside the source tree, so force
+# rust-embed to carry settings/keymap assets just as a release build does.
+cargo build ${build_flag} --package remote_server --features debug-embed --target $target_triple
 
 echo "Creating application bundle"
 pushd crates/zed
@@ -301,7 +303,7 @@ function bundle_zed_10x_remote_servers() {
         # Strip debuginfo like the release workflow does; unstripped servers are ~150MB
         # gzipped and get re-uploaded over SSH on every rebuild.
         RUSTFLAGS="${RUSTFLAGS:-} -C target-feature=+crt-static -C strip=debuginfo" cargo zigbuild ${build_flag} \
-            --package remote_server --target "${linux_triple}"
+            --package remote_server --features debug-embed --target "${linux_triple}"
         gzip -f --stdout --best "target/${linux_triple}/${target_dir}/remote_server" \
             > "${remote_server_dir}/zed-remote-server-linux-${linux_arch}.gz"
     done

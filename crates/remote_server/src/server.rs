@@ -1546,6 +1546,16 @@ fn is_file_in_use(file_name: &OsStr) -> bool {
 mod tests {
     use super::*;
 
+    #[cfg(feature = "debug-embed")]
+    #[test]
+    fn debug_remote_server_embeds_runtime_settings() {
+        let default_settings = settings::default_settings();
+        assert!(
+            default_settings.contains("\"$schema\": \"zed://schemas/settings\""),
+            "embedded settings must contain the canonical settings schema"
+        );
+    }
+
     #[test]
     fn reconnect_or_start_never_restarts_a_live_server() {
         assert_eq!(
