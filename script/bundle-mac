@@ -516,6 +516,7 @@ gzip -f --stdout --best "target/${target_triple}/${target_dir}/remote_server" > 
 # Only the local install lane (-i) bundles remote servers: CI bundle jobs run this
 # script on runners without zig/cargo-zigbuild, and the release lane publishes its
 # servers as release assets instead.
+rm -rf "${app_path}/Contents/Resources/remote-server"
 if [[ "$channel" == "dev" && "$local_install" == true ]]; then
     bundle_zed_10x_remote_servers
 fi

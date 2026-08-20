@@ -80,6 +80,64 @@ test("Zed 10x updates use consumer-safe verification and commit-specific remote 
   assert.match(dockerSource, /ReleaseChannel::Dev\s*=>\s*Some\(version\.clone\(\)\)/);
 });
 
+test("private Zed 10x installs bundle remote servers and avoid release lookup for SSH bootstrap", () => {
+  const updaterSource = read("crates/auto_update/src/auto_update.rs");
+  const bundleScript = read("script/bundle-mac");
+
+  const localDownload = capture(
+    updaterSource,
+    /pub async fn download_remote_server_release\([\s\S]*?\) -> Result<PathBuf> \{([\s\S]*?)\n    \}\n\n    pub async fn get_remote_server_release_url/,
+    "remote server download implementation",
+  );
+  assert.ok(
+    localDownload.indexOf("bundled_remote_server_archive(os, arch)") <
+      localDownload.indexOf("GlobalAutoUpdate"),
+    "a bundled server must be selected before update state or GitHub release metadata is consulted",
+  );
+
+  const remoteDownloadUrl = capture(
+    updaterSource,
+    /pub async fn get_remote_server_release_url\([\s\S]*?\) -> Result<Option<String>> \{([\s\S]*?)\n    \}\n\n    async fn get_release_asset/,
+    "remote server URL implementation",
+  );
+  assert.ok(
+    remoteDownloadUrl.indexOf("bundled_remote_server_archive(os, arch)") <
+      remoteDownloadUrl.indexOf("GlobalAutoUpdate"),
+    "a bundled server must force local upload before any release URL is requested",
+  );
+  assert.match(
+    remoteDownloadUrl,
+    /if bundled_remote_server_archive\(os, arch\)\.is_some\(\) \{\s*return Ok\(None\);/,
+    "the SSH transport must upload bundled servers instead of asking the remote host to download them",
+  );
+
+  const bundleRemoteServers = capture(
+    bundleScript,
+    /function bundle_zed_10x_remote_servers\(\) \{([\s\S]*?)\n\}/,
+    "local remote-server bundling function",
+  );
+  assert.match(
+    bundleRemoteServers,
+    /for linux_arch in x86_64 aarch64/,
+    "local bundles must carry both supported Linux architectures",
+  );
+  assert.match(
+    bundleRemoteServers,
+    /zed-remote-server-linux-\$\{linux_arch\}\.gz/,
+    "Linux servers must use the asset name consumed by the updater",
+  );
+  assert.match(
+    bundleScript,
+    /rm -rf "\$\{app_path\}\/Contents\/Resources\/remote-server"[\s\S]*?if \[\[ "\$channel" == "dev" && "\$local_install" == true \]\]; then\s*bundle_zed_10x_remote_servers\s*fi/,
+    "every bundle lane must remove stale private remote servers before optionally rebuilding them",
+  );
+  assert.match(
+    bundleScript,
+    /if \[\[ "\$channel" == "dev" && "\$local_install" == true \]\]; then\s*bundle_zed_10x_remote_servers\s*fi/,
+    "only private local development installs should require bundled servers",
+  );
+});
+
 test("the macOS bundle and executable are independently addressable", () => {
   const cargoManifest = read("crates/zed/Cargo.toml");
   const bundleScript = read("script/bundle-mac");
