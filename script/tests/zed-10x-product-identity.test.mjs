@@ -128,6 +128,16 @@ test("private Zed 10x installs bundle remote servers and avoid release lookup fo
   );
   assert.match(
     bundleScript,
+    /cargo build \$\{build_flag\} --package remote_server --features debug-embed --target \$target_triple/,
+    "the native remote server must embed runtime assets in private debug bundles",
+  );
+  assert.match(
+    bundleRemoteServers,
+    /cargo zigbuild \$\{build_flag\}[\s\\]+--package remote_server --features debug-embed --target "\$\{linux_triple\}"/,
+    "cross-built Linux remote servers must embed runtime assets in private debug bundles",
+  );
+  assert.match(
+    bundleScript,
     /rm -rf "\$\{app_path\}\/Contents\/Resources\/remote-server"[\s\S]*?if \[\[ "\$channel" == "dev" && "\$local_install" == true \]\]; then\s*bundle_zed_10x_remote_servers\s*fi/,
     "every bundle lane must remove stale private remote servers before optionally rebuilding them",
   );
