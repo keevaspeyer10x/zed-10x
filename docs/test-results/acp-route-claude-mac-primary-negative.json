@@ -1,0 +1,28 @@
+{
+  "commandArgvSha256": "4a17af999f3e6dadbc853b994d816d3753ebe2e5c3c5d4fc5cc6df744a6f9d8d",
+  "cwdSha256": "44aa40f37385224355a967e1ca1db65dfef12c92aa6d4272e5e3c23cd5b4abb1",
+  "elapsedMs": 8588,
+  "endpoint": "Claude Mac (primary)",
+  "failureClass": "permission_requested",
+  "permissionRequestsApproved": 0,
+  "permissionRequestsObserved": 1,
+  "processGroupGone": true,
+  "processStarted": true,
+  "promptOrResponseContentRetained": false,
+  "schema": "zed-acp-project-canary-v1",
+  "sentinelPathSha256": "b335630551682c19a781afebcf4d07bf978fb1f8ac04c6bf87428ed5106870f5",
+  "sentinelSha256": "fd6e191ca31259f9ef7b527a6007b23c0f3fe76857a7c32ff3939effa664eb66",
+  "status": "failed",
+  "stopReason": null,
+  "surface": "mac-local-installed-zed10x-claude-primary",
+  "terminalMarkerObserved": false,
+  "toolCallCompleted": false,
+  "toolCallStarted": true,
+  "toolEvidenceMatched": false,
+  "transport": {
+    "exitCode": 0,
+    "stderrBytes": 1171,
+    "stderrClassifications": [],
+    "stderrSha256": "443c6f35981b9619e3cbe2f5693b13f853384e163e8002f4bda3579695d23ce3"
+  }
+}

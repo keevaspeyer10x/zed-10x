@@ -1,0 +1,16 @@
+[
+  {
+    "adapter": "CodeLLDB",
+    "label": "ZED UAT DAP stdio",
+    "request": "launch",
+    "program": "/bin/true",
+    "cwd": "__ZED_UAT_PROJECT__"
+  },
+  {
+    "adapter": "Debugpy",
+    "label": "ZED UAT DAP TCP",
+    "request": "launch",
+    "program": "__ZED_UAT_PROJECT__/target.py",
+    "cwd": "__ZED_UAT_PROJECT__"
+  }
+]

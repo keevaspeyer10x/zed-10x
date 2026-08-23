@@ -211,7 +211,37 @@ impl RemoteConnection for MockRemoteConnection {
             args: shell_args,
             env: env.clone(),
             stdin_prelude: Vec::new(),
+            stdin_ready_marker: None,
+            stdin_complete_marker: None,
         })
+    }
+
+    fn build_command_with_stdin_environment(
+        &self,
+        program: String,
+        args: &[String],
+        env: &HashMap<String, String>,
+        working_dir: Option<String>,
+        port_forward: Option<(u16, String, u16)>,
+    ) -> Result<CommandTemplate> {
+        self.build_command(
+            Some(program),
+            args,
+            env,
+            working_dir,
+            port_forward,
+            Interactive::No,
+        )
+    }
+
+    fn build_interactive_command_with_stdin_environment(
+        &self,
+        program: Option<String>,
+        args: &[String],
+        env: &HashMap<String, String>,
+        working_dir: Option<String>,
+    ) -> Result<CommandTemplate> {
+        self.build_command(program, args, env, working_dir, None, Interactive::Yes)
     }
 
     fn build_forward_ports_command(
@@ -227,6 +257,8 @@ impl RemoteConnection for MockRemoteConnection {
                 .collect(),
             env: Default::default(),
             stdin_prelude: Vec::new(),
+            stdin_ready_marker: None,
+            stdin_complete_marker: None,
         })
     }
 

@@ -4,14 +4,16 @@ use crate::{
 };
 use anyhow::Result;
 use dap_types::{
+    Capabilities, InitializeRequestArguments,
     messages::{Message, Response},
-    requests::Request,
+    requests::{Initialize, Request},
 };
-use futures::channel::oneshot;
+use futures::{FutureExt as _, channel::oneshot};
 use gpui::AsyncApp;
 use std::{
     hash::Hash,
     sync::atomic::{AtomicU64, Ordering},
+    time::Duration,
 };
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -72,6 +74,59 @@ impl DebugAdapterClient {
         self.transport_delegate.connect(message_handler, cx).await
     }
 
+    pub async fn initialize<F>(
+        &self,
+        arguments: InitializeRequestArguments,
+        mut message_handler: F,
+        timeout: Duration,
+        cx: &mut AsyncApp,
+    ) -> Result<Capabilities>
+    where
+        F: FnMut() -> DapMessageHandler,
+    {
+        if !self.should_reconnect_for_ssh() {
+            return self.request::<Initialize>(arguments).await;
+        }
+
+        let executor = cx.background_executor().clone();
+        let deadline = executor.timer(timeout).fuse();
+        futures::pin_mut!(deadline);
+
+        loop {
+            let response = self.request::<Initialize>(arguments.clone()).fuse();
+            futures::pin_mut!(response);
+            let response = futures::select! {
+                result = response => result,
+                _ = deadline => {
+                    self.kill();
+                    anyhow::bail!("Timed out while initializing the TCP debug adapter");
+                }
+            };
+            match response {
+                Ok(capabilities) => return Ok(capabilities),
+                Err(error)
+                    if self.should_reconnect_for_ssh()
+                        && crate::transport::is_transport_disconnected(&error) =>
+                {
+                    log::info!(
+                        "Failed to initialize the debug adapter: {}, reconnecting...",
+                        error
+                    );
+                    let reconnect = self.connect(message_handler(), cx).fuse();
+                    futures::pin_mut!(reconnect);
+                    futures::select! {
+                        result = reconnect => result?,
+                        _ = deadline => {
+                            self.kill();
+                            anyhow::bail!("Timed out while reconnecting to the TCP debug adapter");
+                        }
+                    }
+                }
+                Err(error) => return Err(error),
+            }
+        }
+    }
+
     pub async fn create_child_connection(
         &self,
         session_id: SessionId,
@@ -87,6 +142,7 @@ impl DebugAdapterClient {
                 cwd: Default::default(),
                 connection: Some(connection),
                 request_args: binary.request_args,
+                stdin_prelude: Default::default(),
             }
         } else {
             self.binary.clone()
@@ -270,7 +326,7 @@ mod tests {
     use settings::SettingsStore;
     use std::sync::{
         Arc,
-        atomic::{AtomicBool, Ordering},
+        atomic::{AtomicBool, AtomicUsize, Ordering},
     };
 
     pub fn init_test(cx: &mut gpui::TestAppContext) {
@@ -280,6 +336,28 @@ mod tests {
             let settings = SettingsStore::test(cx);
             cx.set_global(settings);
         });
+    }
+
+    fn initialize_arguments() -> InitializeRequestArguments {
+        InitializeRequestArguments {
+            client_id: Some("zed".to_owned()),
+            client_name: Some("Zed".to_owned()),
+            adapter_id: "fake-adapter".to_owned(),
+            locale: Some("en-US".to_owned()),
+            path_format: Some(InitializeRequestArgumentsPathFormat::Path),
+            supports_variable_type: Some(true),
+            supports_variable_paging: Some(false),
+            supports_run_in_terminal_request: Some(true),
+            supports_memory_references: Some(true),
+            supports_progress_reporting: Some(false),
+            supports_invalidated_event: Some(false),
+            lines_start_at1: Some(true),
+            columns_start_at1: Some(true),
+            supports_memory_event: Some(false),
+            supports_args_can_be_interpreted_by_shell: Some(false),
+            supports_start_debugging_request: Some(true),
+            supports_ansistyling: Some(false),
+        }
     }
 
     #[gpui::test]
@@ -299,6 +377,7 @@ mod tests {
                     configuration: serde_json::Value::Null,
                     request: dap_types::StartDebuggingRequestArgumentsRequest::Launch,
                 },
+                stdin_prelude: Default::default(),
             },
             Box::new(|_| {}),
             &mut cx.to_async(),
@@ -316,25 +395,7 @@ mod tests {
         cx.run_until_parked();
 
         let response = client
-            .request::<Initialize>(InitializeRequestArguments {
-                client_id: Some("zed".to_owned()),
-                client_name: Some("Zed".to_owned()),
-                adapter_id: "fake-adapter".to_owned(),
-                locale: Some("en-US".to_owned()),
-                path_format: Some(InitializeRequestArgumentsPathFormat::Path),
-                supports_variable_type: Some(true),
-                supports_variable_paging: Some(false),
-                supports_run_in_terminal_request: Some(true),
-                supports_memory_references: Some(true),
-                supports_progress_reporting: Some(false),
-                supports_invalidated_event: Some(false),
-                lines_start_at1: Some(true),
-                columns_start_at1: Some(true),
-                supports_memory_event: Some(false),
-                supports_args_can_be_interpreted_by_shell: Some(false),
-                supports_start_debugging_request: Some(true),
-                supports_ansistyling: Some(false),
-            })
+            .request::<Initialize>(initialize_arguments())
             .await
             .unwrap();
 
@@ -347,6 +408,340 @@ mod tests {
             },
             response
         );
+    }
+
+    #[gpui::test]
+    pub async fn initialize_reconnects_after_delayed_first_connection_reset(
+        cx: &mut TestAppContext,
+    ) {
+        init_test(cx);
+        cx.executor().allow_parking();
+        let attempts = Arc::new(AtomicUsize::new(0));
+        let client = DebugAdapterClient::start(
+            SessionId(1),
+            DebugAdapterBinary {
+                command: Some("ssh".into()),
+                arguments: Default::default(),
+                envs: Default::default(),
+                connection: Some(crate::adapters::TcpArguments {
+                    host: "127.0.0.1".parse().unwrap(),
+                    port: 1,
+                    timeout: Some(2_000),
+                }),
+                cwd: None,
+                request_args: StartDebuggingRequestArguments {
+                    configuration: serde_json::Value::Null,
+                    request: dap_types::StartDebuggingRequestArgumentsRequest::Launch,
+                },
+                stdin_prelude: Default::default(),
+            },
+            Box::new(|_| {}),
+            &mut cx.to_async(),
+        )
+        .await
+        .unwrap();
+        client.on_request_ext::<Initialize, _>({
+            let attempts = attempts.clone();
+            move |_, _| {
+                if attempts.fetch_add(1, Ordering::SeqCst) == 0 {
+                    std::thread::sleep(Duration::from_millis(150));
+                    crate::transport::RequestHandling::Exit
+                } else {
+                    crate::transport::RequestHandling::Respond(Ok(Capabilities {
+                        supports_configuration_done_request: Some(true),
+                        ..Default::default()
+                    }))
+                }
+            }
+        });
+
+        let capabilities = client
+            .initialize(
+                initialize_arguments(),
+                || Box::new(|_| {}),
+                Duration::from_secs(2),
+                &mut cx.to_async(),
+            )
+            .await;
+
+        assert!(
+            capabilities.is_ok(),
+            "initialization failed after {} attempts: {:?}",
+            attempts.load(Ordering::SeqCst),
+            capabilities.as_ref().err()
+        );
+        let capabilities = capabilities.unwrap();
+
+        assert_eq!(attempts.load(Ordering::SeqCst), 2);
+        assert_eq!(capabilities.supports_configuration_done_request, Some(true));
+    }
+
+    #[gpui::test]
+    pub async fn initialize_reconnects_when_initial_connection_dies_before_request(
+        cx: &mut TestAppContext,
+    ) {
+        init_test(cx);
+        cx.executor().allow_parking();
+        let attempts = Arc::new(AtomicUsize::new(0));
+        let client = DebugAdapterClient::start(
+            SessionId(1),
+            DebugAdapterBinary {
+                command: Some("ssh".into()),
+                arguments: Default::default(),
+                envs: Default::default(),
+                connection: Some(crate::adapters::TcpArguments {
+                    host: "127.0.0.1".parse().unwrap(),
+                    port: 1,
+                    timeout: Some(2_000),
+                }),
+                cwd: None,
+                request_args: StartDebuggingRequestArguments {
+                    configuration: serde_json::Value::Null,
+                    request: dap_types::StartDebuggingRequestArgumentsRequest::Launch,
+                },
+                stdin_prelude: Default::default(),
+            },
+            Box::new(|_| {}),
+            &mut cx.to_async(),
+        )
+        .await
+        .unwrap();
+
+        // SSH can accept the local forwarded connection before the remote
+        // adapter has bound its socket. Reproduce that production ordering by
+        // dropping the initial transport before initialize is enqueued.
+        client.transport_delegate.transport.lock().kill();
+        cx.run_until_parked();
+
+        client.on_request_ext::<Initialize, _>({
+            let attempts = attempts.clone();
+            move |_, _| {
+                attempts.fetch_add(1, Ordering::SeqCst);
+                crate::transport::RequestHandling::Respond(Ok(Capabilities {
+                    supports_configuration_done_request: Some(true),
+                    ..Default::default()
+                }))
+            }
+        });
+
+        let capabilities = client
+            .initialize(
+                initialize_arguments(),
+                || Box::new(|_| {}),
+                Duration::from_secs(2),
+                &mut cx.to_async(),
+            )
+            .await;
+
+        assert!(
+            capabilities.is_ok(),
+            "initialization did not recover from the pre-request disconnect: {:?}",
+            capabilities.as_ref().err()
+        );
+        assert_eq!(attempts.load(Ordering::SeqCst), 1);
+        assert_eq!(
+            capabilities.unwrap().supports_configuration_done_request,
+            Some(true)
+        );
+    }
+
+    #[gpui::test]
+    pub async fn stable_initialize_does_not_reconnect(cx: &mut TestAppContext) {
+        init_test(cx);
+        let attempts = Arc::new(AtomicUsize::new(0));
+        let client = DebugAdapterClient::start(
+            SessionId(1),
+            DebugAdapterBinary {
+                command: Some("ssh".into()),
+                arguments: Default::default(),
+                envs: Default::default(),
+                connection: Some(crate::adapters::TcpArguments {
+                    host: "127.0.0.1".parse().unwrap(),
+                    port: 1,
+                    timeout: Some(2_000),
+                }),
+                cwd: None,
+                request_args: StartDebuggingRequestArguments {
+                    configuration: serde_json::Value::Null,
+                    request: dap_types::StartDebuggingRequestArgumentsRequest::Launch,
+                },
+                stdin_prelude: Default::default(),
+            },
+            Box::new(|_| {}),
+            &mut cx.to_async(),
+        )
+        .await
+        .unwrap();
+        client.on_request_ext::<Initialize, _>({
+            let attempts = attempts.clone();
+            move |_, _| {
+                attempts.fetch_add(1, Ordering::SeqCst);
+                crate::transport::RequestHandling::Respond(Ok(Capabilities::default()))
+            }
+        });
+
+        client
+            .initialize(
+                initialize_arguments(),
+                || Box::new(|_| {}),
+                Duration::from_secs(2),
+                &mut cx.to_async(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(attempts.load(Ordering::SeqCst), 1);
+    }
+
+    #[gpui::test]
+    pub async fn rejected_initialize_does_not_reconnect(cx: &mut TestAppContext) {
+        init_test(cx);
+        let attempts = Arc::new(AtomicUsize::new(0));
+        let client = DebugAdapterClient::start(
+            SessionId(1),
+            DebugAdapterBinary {
+                command: Some("ssh".into()),
+                arguments: Default::default(),
+                envs: Default::default(),
+                connection: Some(crate::adapters::TcpArguments {
+                    host: "127.0.0.1".parse().unwrap(),
+                    port: 1,
+                    timeout: Some(2_000),
+                }),
+                cwd: None,
+                request_args: StartDebuggingRequestArguments {
+                    configuration: serde_json::Value::Null,
+                    request: dap_types::StartDebuggingRequestArgumentsRequest::Launch,
+                },
+                stdin_prelude: Default::default(),
+            },
+            Box::new(|_| {}),
+            &mut cx.to_async(),
+        )
+        .await
+        .unwrap();
+        client.on_request_ext::<Initialize, _>({
+            let attempts = attempts.clone();
+            move |_, _| {
+                attempts.fetch_add(1, Ordering::SeqCst);
+                crate::transport::RequestHandling::Respond(Err(dap_types::ErrorResponse {
+                    error: Some(dap_types::Message {
+                        id: 1,
+                        format: "unsupported initialization".into(),
+                        variables: None,
+                        send_telemetry: None,
+                        show_user: None,
+                        url: None,
+                        url_label: None,
+                    }),
+                }))
+            }
+        });
+
+        let error = client
+            .initialize(
+                initialize_arguments(),
+                || Box::new(|_| {}),
+                Duration::from_secs(2),
+                &mut cx.to_async(),
+            )
+            .await
+            .unwrap_err();
+
+        assert_eq!(attempts.load(Ordering::SeqCst), 1);
+        assert_eq!(error.to_string(), "unsupported initialization");
+    }
+
+    #[gpui::test]
+    pub async fn slow_stdio_initialize_does_not_use_tcp_deadline(cx: &mut TestAppContext) {
+        init_test(cx);
+        cx.executor().allow_parking();
+        let client = DebugAdapterClient::start(
+            SessionId(1),
+            DebugAdapterBinary {
+                command: Some("local-adapter".into()),
+                arguments: Default::default(),
+                envs: Default::default(),
+                connection: None,
+                cwd: None,
+                request_args: StartDebuggingRequestArguments {
+                    configuration: serde_json::Value::Null,
+                    request: dap_types::StartDebuggingRequestArgumentsRequest::Launch,
+                },
+                stdin_prelude: Default::default(),
+            },
+            Box::new(|_| {}),
+            &mut cx.to_async(),
+        )
+        .await
+        .unwrap();
+        client.on_request_ext::<Initialize, _>(move |_, _| {
+            std::thread::sleep(Duration::from_millis(100));
+            crate::transport::RequestHandling::Respond(Ok(Capabilities {
+                supports_configuration_done_request: Some(true),
+                ..Default::default()
+            }))
+        });
+
+        let capabilities = client
+            .initialize(
+                initialize_arguments(),
+                || Box::new(|_| {}),
+                Duration::from_millis(10),
+                &mut cx.to_async(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(capabilities.supports_configuration_done_request, Some(true));
+    }
+
+    #[gpui::test]
+    pub async fn slow_non_ssh_tcp_initialize_does_not_use_ssh_deadline(cx: &mut TestAppContext) {
+        init_test(cx);
+        cx.executor().allow_parking();
+        let client = DebugAdapterClient::start(
+            SessionId(1),
+            DebugAdapterBinary {
+                command: Some("local-adapter".into()),
+                arguments: Default::default(),
+                envs: Default::default(),
+                connection: Some(crate::adapters::TcpArguments {
+                    host: "127.0.0.1".parse().unwrap(),
+                    port: 1,
+                    timeout: Some(10),
+                }),
+                cwd: None,
+                request_args: StartDebuggingRequestArguments {
+                    configuration: serde_json::Value::Null,
+                    request: dap_types::StartDebuggingRequestArgumentsRequest::Launch,
+                },
+                stdin_prelude: Default::default(),
+            },
+            Box::new(|_| {}),
+            &mut cx.to_async(),
+        )
+        .await
+        .unwrap();
+        client.on_request_ext::<Initialize, _>(move |_, _| {
+            std::thread::sleep(Duration::from_millis(100));
+            crate::transport::RequestHandling::Respond(Ok(Capabilities {
+                supports_configuration_done_request: Some(true),
+                ..Default::default()
+            }))
+        });
+
+        let capabilities = client
+            .initialize(
+                initialize_arguments(),
+                || Box::new(|_| {}),
+                Duration::from_millis(10),
+                &mut cx.to_async(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(capabilities.supports_configuration_done_request, Some(true));
     }
 
     #[gpui::test]
@@ -367,6 +762,7 @@ mod tests {
                     configuration: serde_json::Value::Null,
                     request: dap_types::StartDebuggingRequestArgumentsRequest::Launch,
                 },
+                stdin_prelude: Default::default(),
             },
             Box::new({
                 let called_event_handler = called_event_handler.clone();
@@ -418,6 +814,7 @@ mod tests {
                     configuration: serde_json::Value::Null,
                     request: dap_types::StartDebuggingRequestArgumentsRequest::Launch,
                 },
+                stdin_prelude: Default::default(),
             },
             Box::new({
                 let called_event_handler = called_event_handler.clone();

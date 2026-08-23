@@ -6,7 +6,7 @@ use async_channel::bounded;
 use futures::{FutureExt, future::Shared};
 use itertools::Itertools as _;
 use language::LanguageName;
-use remote::{Interactive, RemoteClient};
+use remote::RemoteClient;
 use settings::{Settings, SettingsLocation};
 use std::{
     borrow::Cow,
@@ -15,8 +15,8 @@ use std::{
 };
 use task::{Shell, ShellBuilder, ShellKind, SpawnInTerminal};
 use terminal::{
-    TaskState, TaskStatus, Terminal, TerminalBuilder, insert_zed_terminal_env,
-    terminal_settings::TerminalSettings,
+    TaskState, TaskStatus, Terminal, TerminalBuilder, TerminalStdinBootstrap,
+    insert_zed_terminal_env, terminal_settings::TerminalSettings,
 };
 use util::{
     command::new_std_command, get_default_system_shell, get_system_shell, maybe, rel_path::RelPath,
@@ -138,6 +138,7 @@ impl Project {
         let lang_registry = self.languages.clone();
         cx.spawn(async move |project, cx| {
             let mut env = env_task.await.unwrap_or_default();
+            sanitize_captured_terminal_environment(&mut env);
             env.extend(settings.env);
 
             let activation_script = maybe!(async {
@@ -170,7 +171,7 @@ impl Project {
                         )
                     };
 
-                    let (shell, env) = {
+                    let (shell, env, stdin_bootstrap) = {
                         let to_run =
                             (!activation_script.is_empty()).then(|| format_to_run(&spawn_task));
                         env.extend(spawn_task.env);
@@ -225,6 +226,7 @@ impl Project {
                                             title_override: None,
                                         },
                                         env,
+                                        None,
                                     )
                                 }
                                 _ => (
@@ -238,6 +240,7 @@ impl Project {
                                         Shell::System
                                     },
                                     env,
+                                    None,
                                 ),
                             },
                         }
@@ -255,6 +258,7 @@ impl Project {
                         is_via_remote,
                         cx.entity_id().as_u64(),
                         Some(completion_tx),
+                        stdin_bootstrap,
                         cx,
                         activation_script,
                         path_style,
@@ -381,6 +385,7 @@ impl Project {
         cx.spawn(async move |project, cx| {
             let shell_kind = ShellKind::new(&shell, path_style.is_windows());
             let mut env = env_task.await.unwrap_or_default();
+            sanitize_captured_terminal_environment(&mut env);
             env.extend(settings.env);
 
             let activation_script = maybe!(async {
@@ -404,12 +409,12 @@ impl Project {
 
             let builder = project
                 .update(cx, move |_, cx| {
-                    let (shell, env) = {
+                    let (shell, env, stdin_bootstrap) = {
                         match remote_client {
                             Some(remote_client) => {
                                 create_remote_shell(None, env, path, remote_client, cx)?
                             }
-                            None => (settings.shell, env),
+                            None => (settings.shell, env, None),
                         }
                     };
                     anyhow::Ok(TerminalBuilder::new(
@@ -425,6 +430,7 @@ impl Project {
                         is_via_remote,
                         cx.entity_id().as_u64(),
                         None,
+                        stdin_bootstrap,
                         cx,
                         activation_script,
                         path_style,
@@ -525,7 +531,7 @@ impl Project {
         &self,
         command: String,
         cx: &mut Context<Self>,
-    ) -> Task<Result<smol::process::Command>> {
+    ) -> Task<Result<(smol::process::Command, Vec<u8>)>> {
         let path = self.first_project_directory(cx);
         let remote_client = self.remote_client.clone();
         let settings = self.terminal_settings(&path, cx).clone();
@@ -547,23 +553,27 @@ impl Project {
 
         cx.spawn(async move |project, cx| {
             let mut env = env_task.await.unwrap_or_default();
+            sanitize_captured_terminal_environment(&mut env);
             env.extend(settings.env);
 
             project.update(cx, move |_, cx| {
                 match remote_client {
                     Some(remote_client) => {
-                        let command_template = remote_client.read(cx).build_command(
-                            Some(command),
-                            &args,
-                            &env,
-                            None,
-                            None,
-                            Interactive::Yes,
-                        )?;
+                        let working_directory =
+                            path.as_ref().map(|path| path.display().to_string());
+                        let command_template = remote_client
+                            .read(cx)
+                            .build_command_with_stdin_environment(
+                                command,
+                                &args,
+                                &env,
+                                working_directory,
+                                None,
+                            )?;
                         let mut command = new_std_command(command_template.program);
                         command.args(command_template.args);
                         command.envs(command_template.env);
-                        Ok(command)
+                        Ok((command, command_template.stdin_prelude))
                     }
                     None => {
                         let mut command = new_std_command(command);
@@ -572,12 +582,12 @@ impl Project {
                         if let Some(path) = path {
                             command.current_dir(path);
                         }
-                        Ok(command)
+                        Ok((command, Vec::new()))
                     }
                 }
-                .map(|mut process| {
+                .map(|(mut process, stdin_prelude)| {
                     util::set_pre_exec_to_start_new_session(&mut process);
-                    smol::process::Command::from(process)
+                    (smol::process::Command::from(process), stdin_prelude)
                 })
             })?
         })
@@ -618,7 +628,11 @@ fn create_remote_shell(
     working_directory: Option<Arc<Path>>,
     remote_client: Entity<RemoteClient>,
     cx: &mut App,
-) -> Result<(Shell, HashMap<String, String>)> {
+) -> Result<(
+    Shell,
+    HashMap<String, String>,
+    Option<TerminalStdinBootstrap>,
+)> {
     insert_zed_terminal_env(&mut env, &release_channel::AppVersion::global(cx));
 
     let (program, args) = match spawn_command {
@@ -626,14 +640,27 @@ fn create_remote_shell(
         None => (None, &Vec::new()),
     };
 
-    let command = remote_client.read(cx).build_command(
-        program,
-        args.as_slice(),
-        &env,
-        working_directory.map(|path| path.display().to_string()),
-        None,
-        Interactive::Yes,
-    )?;
+    let command = remote_client
+        .read(cx)
+        .build_interactive_command_with_stdin_environment(
+            program,
+            args.as_slice(),
+            &env,
+            working_directory.map(|path| path.display().to_string()),
+        )?;
+
+    let stdin_bootstrap =
+        match (
+            command.stdin_ready_marker,
+            command.stdin_complete_marker,
+            command.stdin_prelude,
+        ) {
+            (Some(ready_marker), Some(complete_marker), prelude) => Some(
+                TerminalStdinBootstrap::new(ready_marker, complete_marker, prelude),
+            ),
+            (None, None, prelude) if prelude.is_empty() => None,
+            _ => anyhow::bail!("secure remote terminal command omitted its bootstrap contract"),
+        };
 
     log::debug!("Connecting to a remote server: {:?}", command.program);
     let host = remote_client.read(cx).connection_options().display_name();
@@ -645,7 +672,15 @@ fn create_remote_shell(
             title_override: Some(format!("{} — Terminal", host)),
         },
         command.env,
+        stdin_bootstrap,
     ))
+}
+
+fn sanitize_captured_terminal_environment(environment: &mut HashMap<String, String>) {
+    // PROMPT_COMMAND belongs to the shell instance that produced the captured
+    // environment and can call functions that are not exported. Explicit
+    // terminal or task environment overrides are applied after this filter.
+    environment.remove("PROMPT_COMMAND");
 }
 
 fn format_task_for_activation(
@@ -719,6 +754,24 @@ fn quote_cmd_command_arg_for_outer_shell(arg: &str, shell_kind: ShellKind) -> Op
 mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
+
+    #[test]
+    fn removes_prompt_command_from_captured_terminal_environment() {
+        let mut environment = HashMap::default();
+        environment.insert("PATH".to_string(), "/usr/bin".to_string());
+        environment.insert(
+            "PROMPT_COMMAND".to_string(),
+            "missing_shell_function".to_string(),
+        );
+
+        sanitize_captured_terminal_environment(&mut environment);
+
+        assert_eq!(
+            environment.get("PATH").map(String::as_str),
+            Some("/usr/bin")
+        );
+        assert!(!environment.contains_key("PROMPT_COMMAND"));
+    }
 
     fn prepared_cmd_task(command_arg: &str) -> SpawnInTerminal {
         SpawnInTerminal {

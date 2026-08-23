@@ -1,0 +1,28 @@
+{
+  "commandArgvSha256": "3fe7cc578f37fe5ac7a26c3d612ddb828915b111a6cb1b28895253e6e63b2358",
+  "cwdSha256": "cbbd06551d932f95f5f157ce0a0b51e0599021bed92a2bc3ff6bab0b5b791e8f",
+  "elapsedMs": 14067,
+  "endpoint": "direct",
+  "failureClass": null,
+  "permissionRequestsApproved": 0,
+  "permissionRequestsObserved": 0,
+  "processGroupGone": true,
+  "processStarted": true,
+  "promptOrResponseContentRetained": false,
+  "schema": "zed-acp-project-canary-v1",
+  "sentinelPathSha256": "b335630551682c19a781afebcf4d07bf978fb1f8ac04c6bf87428ed5106870f5",
+  "sentinelSha256": "8517215742133f4927fc0c511236f1d24ecb774a9a39df48c8f1872294a35637",
+  "status": "pass",
+  "stopReason": "end_turn",
+  "surface": "intrepid-installed-zed10x-glm",
+  "terminalMarkerObserved": true,
+  "toolCallCompleted": true,
+  "toolCallStarted": true,
+  "toolEvidenceMatched": true,
+  "transport": {
+    "exitCode": 0,
+    "stderrBytes": 0,
+    "stderrClassifications": [],
+    "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}

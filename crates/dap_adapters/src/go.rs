@@ -560,6 +560,7 @@ impl DebugAdapter for GoDebugAdapter {
                 configuration,
                 request: self.request_kind(&task_definition.config).await?,
             },
+            stdin_prelude: Default::default(),
         })
     }
 }

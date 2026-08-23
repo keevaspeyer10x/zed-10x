@@ -251,6 +251,7 @@ impl TryFrom<DebugAdapterBinary> for extension::DebugAdapterBinary {
             cwd: value.cwd.map(|s| s.into()),
             connection: value.connection.map(Into::into),
             request_args: value.request_args.try_into()?,
+            stdin_prelude: Default::default(),
         })
     }
 }

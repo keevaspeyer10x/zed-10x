@@ -55,8 +55,12 @@ impl StdioTransport {
         let (stdout_sender, stdout_receiver) = async_channel::unbounded::<String>();
         let (stderr_sender, stderr_receiver) = async_channel::unbounded::<String>();
 
-        cx.spawn(async move |_| Self::handle_output(stdin, stdout_receiver).log_err().await)
-            .detach();
+        cx.spawn(async move |_| {
+            Self::handle_output(stdin, binary.stdin_prelude, stdout_receiver)
+                .log_err()
+                .await
+        })
+        .detach();
 
         cx.spawn(async move |_| Self::handle_input(stdout, stdin_sender).await)
             .detach();
@@ -91,12 +95,17 @@ impl StdioTransport {
 
     async fn handle_output<Stdin>(
         stdin: Stdin,
+        stdin_prelude: Vec<u8>,
         outbound_rx: async_channel::Receiver<String>,
     ) -> Result<()>
     where
         Stdin: AsyncWrite + Unpin + Send + 'static,
     {
         let mut stdin = BufWriter::new(stdin);
+        if !stdin_prelude.is_empty() {
+            stdin.write_all(&stdin_prelude).await?;
+            stdin.flush().await?;
+        }
         let mut pinned_rx = Box::pin(outbound_rx);
         while let Some(message) = pinned_rx.next().await {
             log::trace!("outgoing message: {}", message);
@@ -144,5 +153,53 @@ impl Transport for StdioTransport {
 impl Drop for StdioTransport {
     fn drop(&mut self) {
         let _ = self.server.kill();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use parking_lot::Mutex;
+    use std::{
+        sync::Arc,
+        task::{Context, Poll},
+    };
+
+    struct SharedWriter(Arc<Mutex<Vec<u8>>>);
+
+    impl AsyncWrite for SharedWriter {
+        fn poll_write(
+            self: Pin<&mut Self>,
+            _cx: &mut Context<'_>,
+            bytes: &[u8],
+        ) -> Poll<std::io::Result<usize>> {
+            self.0.lock().extend_from_slice(bytes);
+            Poll::Ready(Ok(bytes.len()))
+        }
+
+        fn poll_flush(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
+            Poll::Ready(Ok(()))
+        }
+
+        fn poll_close(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
+            Poll::Ready(Ok(()))
+        }
+    }
+
+    #[test]
+    fn stdin_prelude_precedes_first_protocol_message() -> Result<()> {
+        let bytes = Arc::new(Mutex::new(Vec::new()));
+        let (sender, receiver) = async_channel::unbounded();
+        sender.try_send("first-message".to_string())?;
+        drop(sender);
+
+        pollster::block_on(StdioTransport::handle_output(
+            SharedWriter(bytes.clone()),
+            b"private-prelude".to_vec(),
+            receiver,
+        ))?;
+
+        assert_eq!(&*bytes.lock(), b"private-preludefirst-message\n");
+        Ok(())
     }
 }

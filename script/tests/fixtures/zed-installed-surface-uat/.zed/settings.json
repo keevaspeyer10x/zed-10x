@@ -1,0 +1,36 @@
+{
+  "load_direnv": "direct",
+  "terminal": {
+    "env": {
+      "ZED_UAT_TERMINAL_VALUE": "zed-terminal-setting-v1"
+    }
+  },
+  "context_servers": {
+    "zed-installed-uat": {
+      "enabled": true,
+      "remote": true,
+      "command": "/usr/bin/python3",
+      "args": [
+        "__ZED_UAT_PROJECT__/mcp_server.py"
+      ],
+      "env": {
+        "ZED_UAT_MCP_VALUE": "zed-mcp-setting-v1"
+      }
+    }
+  },
+  "dap": {
+    "CodeLLDB": {
+      "binary": "__ZED_UAT_PROJECT__/fake_dap.py",
+      "args": ["--stdio"],
+      "env": {
+        "ZED_UAT_DAP_STDIO_VALUE": "zed-dap-stdio-setting-v1"
+      }
+    },
+    "Debugpy": {
+      "binary": "__ZED_UAT_PROJECT__/fake_dap.py",
+      "env": {
+        "ZED_UAT_DAP_TCP_VALUE": "zed-dap-tcp-setting-v1"
+      }
+    }
+  }
+}

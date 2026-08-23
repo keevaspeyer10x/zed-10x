@@ -173,6 +173,7 @@ impl JsDebugAdapter {
                 port,
                 timeout,
             }),
+            stdin_prelude: Default::default(),
             request_args: StartDebuggingRequestArguments {
                 configuration,
                 request: self.request_kind(&task_definition.config).await?,

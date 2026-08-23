@@ -425,6 +425,7 @@ impl PythonDebugAdapter {
             cwd: Some(delegate.worktree_root_path().to_path_buf()),
             envs: user_env.unwrap_or_default(),
             request_args: self.request_args(delegate, config).await?,
+            stdin_prelude: Default::default(),
         })
     }
 }

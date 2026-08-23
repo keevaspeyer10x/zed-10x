@@ -2557,13 +2557,13 @@ impl ShellExec {
         let is_read = self.is_read;
 
         let task = cx.spawn_in(window, async move |vim, cx| {
-            let Some(mut process) = process_task.await.log_err() else {
+            let Some((mut process, stdin_prelude)) = process_task.await.log_err() else {
                 return;
             };
             process.stdout(Stdio::piped());
             process.stderr(Stdio::piped());
 
-            if input_snapshot.is_some() {
+            if input_snapshot.is_some() || !stdin_prelude.is_empty() {
                 process.stdin(Stdio::piped());
             } else {
                 process.stdin(Stdio::null());
@@ -2577,14 +2577,17 @@ impl ShellExec {
                 return;
             };
 
-            if let Some(mut stdin) = running.stdin.take()
-                && let Some(snapshot) = input_snapshot
-            {
+            if let Some(mut stdin) = running.stdin.take() {
                 let range = range.clone();
                 cx.background_spawn(async move {
-                    for chunk in snapshot.text_for_range(range) {
-                        if stdin.write_all(chunk.as_bytes()).await.log_err().is_none() {
-                            return;
+                    if stdin.write_all(&stdin_prelude).await.log_err().is_none() {
+                        return;
+                    }
+                    if let Some(snapshot) = input_snapshot {
+                        for chunk in snapshot.text_for_range(range) {
+                            if stdin.write_all(chunk.as_bytes()).await.log_err().is_none() {
+                                return;
+                            }
                         }
                     }
                     stdin.flush().await.log_err();

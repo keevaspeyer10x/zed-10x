@@ -1,0 +1,28 @@
+{
+  "commandArgvSha256": "910d4f2066b98d30626a0175b2718a73c9747f309e42bd5de75bdadc24d679c3",
+  "cwdSha256": "44aa40f37385224355a967e1ca1db65dfef12c92aa6d4272e5e3c23cd5b4abb1",
+  "elapsedMs": 27162,
+  "endpoint": "Codex Mac (primary)",
+  "failureClass": null,
+  "permissionRequestsApproved": 0,
+  "permissionRequestsObserved": 0,
+  "processGroupGone": true,
+  "processStarted": true,
+  "promptOrResponseContentRetained": false,
+  "schema": "zed-acp-project-canary-v1",
+  "sentinelPathSha256": "b335630551682c19a781afebcf4d07bf978fb1f8ac04c6bf87428ed5106870f5",
+  "sentinelSha256": "fd6e191ca31259f9ef7b527a6007b23c0f3fe76857a7c32ff3939effa664eb66",
+  "status": "pass",
+  "stopReason": "end_turn",
+  "surface": "mac-local-installed-zed10x-codex-primary",
+  "terminalMarkerObserved": true,
+  "toolCallCompleted": true,
+  "toolCallStarted": true,
+  "toolEvidenceMatched": true,
+  "transport": {
+    "exitCode": 0,
+    "stderrBytes": 0,
+    "stderrClassifications": [],
+    "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}

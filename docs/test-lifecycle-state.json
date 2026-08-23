@@ -1,0 +1,124 @@
+{
+  "schemaVersion": 2,
+  "startedAt": "2026-08-23T01:21:50Z",
+  "repo": "zed-10x",
+  "branch": "test/zed-surface-journey-closure",
+  "scope": {
+    "id": "zed-10x-remote-execution-release",
+    "description": "Installed Zed 10x external-agent and environment-bearing remote execution journeys across Mac-local and Mac-to-Intrepid projects",
+    "excluded": [
+      "Unrelated upstream Zed editor features",
+      "Provider account repair",
+      "Public notarized distribution"
+    ]
+  },
+  "implementationTarget": "full_plan_implemented",
+  "freshLifecycleRequired": true,
+  "phases": {
+    "0-preflight": {
+      "status": "complete",
+      "nativeCommands": [
+        "rustup run 1.95.0-aarch64-apple-darwin cargo test -p project remote_external_agent",
+        "rustup run 1.95.0-aarch64-apple-darwin cargo test -p remote_server remote_external_agent",
+        "node --test script/tests/zed-10x-product-identity.test.mjs"
+      ],
+      "toolGaps": [
+        "cargo is not on the ambient PATH; rustup provides the pinned 1.95.0 toolchain",
+        "cargo is exposed through the pinned rustup toolchain directory rather than the ambient PATH"
+      ],
+      "tooling": {
+        "rustToolchain": "1.95.0-aarch64-apple-darwin",
+        "node": "v22.22.3",
+        "mindsDoctorAudit": "all_9_reviewers_healthy",
+        "semanticVisualTesting": "authorized_pending_installed_candidate"
+      },
+      "implementationTarget": "full_plan_implemented",
+      "freshLifecycleRequired": true
+    },
+    "1-discovery": {
+      "status": "complete",
+      "artifact": "docs/discovery-ir.json",
+      "productSurfaces": 3,
+      "criticalJourneys": 10,
+      "surfaceJourneyCells": 30,
+      "applicableCells": 30
+    },
+    "2-generation": {
+      "status": "complete",
+      "artifacts": ["docs/test-plan.json", "docs/TEST_PLAN.md"],
+      "plannedRows": 18,
+      "readyNowRows": 18
+    },
+    "3-implementation": {
+      "status": "complete",
+      "plannedRows": 18,
+      "readyNowRows": 18,
+      "implementedRows": 18,
+      "testsCollected": 18,
+      "remainingRows": 0,
+      "redEvidence": "The prior installed app exposed a resolved remote environment in the local SSH argv; generic builders accepted private values, PTY startup had no private readiness channel, and the prior ACP-only plan omitted sibling consumers.",
+      "greenEvidence": "All 18 rows map to deterministic tests or executable installed UAT. Private netstring framing, POSIX SSH builders, real PTY behavior, terminal ordering, MCP/DAP ordering, the full consumer inventory, capability mismatch, unsupported backends, content-free receipts, and package identity now have direct executable coverage. The full remote_server target set found and closed a stale capability assertion plus an under-budgeted cold-start harness timeout.",
+      "remainingEvidence": "none"
+    },
+    "4-execution": {
+      "status": "complete",
+      "plannedRows": 18,
+      "executedRows": 18,
+      "passedRows": 18,
+      "failedRows": 0,
+      "blockedRows": 0,
+      "skippedRows": 0,
+      "evidence": [
+        "docs/test-results/deterministic-suite.json",
+        "docs/test-results/installed-uat.json",
+        "docs/test-results/remote-environment-live-canary.json",
+        "docs/test-results/acp-route-codex-mac-primary.json",
+        "docs/test-results/acp-route-intrepid-glm.json",
+        "docs/test-results/acp-route-claude-mac-primary-negative.json"
+      ],
+      "summary": "All 18 mapped rows passed. The assembled private app opened the populated Intrepid checkout; terminal resize/input/Ctrl-C, task cancellation, Vim filtering, MCP initialize/tools-list, and stdio/TCP DAP request sequences proved exact project cwd, surface environment, actual behavior, and cleanup; the installed remote server passed noninteractive, PTY, and TCP secure-environment journeys; Mac-local Codex and Intrepid GLM each completed a withheld-oracle project read; the Claude permission-request negative approved nothing and cleaned up."
+    },
+    "5-analysis": {
+      "status": "complete",
+      "artifact": "docs/TEST_PLAN_ANALYSIS.md",
+      "summaryArtifact": "docs/test-results/summary.json",
+      "testValidityArtifact": "docs/test-results/test-validity.json",
+      "decisionCandidate": "production_ready",
+      "rootCauseClusters": 6,
+      "unresolvedFindings": 0,
+      "summary": "Three harness defects and three assembled-product defects were fixed and re-run cleanly. The product defects were stale PROMPT_COMMAND replay, missing project cwd for Vim shell execution, and premature acceptance of a reset TCP-forward connection; the harness defects were SSH command quoting, ACP evidence aggregation, and a resize-sensitive terminal fixture."
+    },
+    "6-tracking": {
+      "status": "complete",
+      "issuesCreated": 0,
+      "reason": "No unresolved product, test, infrastructure, or process finding remains. All three newly discovered harness defects were fixed in this candidate with executable regressions. The independent MultiMinds review outage is pre-existing tooling work and was not treated as product approval or duplicated here."
+    }
+  },
+  "defectDiscovery": {
+    "bugsFound": 8,
+    "productDefects": 4,
+    "testHarnessDefects": 3,
+    "infraOrToolingDefects": 0,
+    "processDefects": 1,
+    "fixedDuringRun": [
+      "Replaced the one-second initial inventory push guess with a receiver-driven request/response snapshot, re-request on rejoin, and stale-response suppression.",
+      "Promoted the project-aware ACP route oracle into tracked code with a withheld digest, fail-closed permissions, and deterministic false-green and cleanup tests.",
+      "Corrected the live TCP canary to send Python source across SSH as one shell-quoted remote command and added a RED argv-shape regression.",
+      "Corrected the ACP canary to aggregate content-free project evidence across completed tool calls and added a RED split-evidence fixture.",
+      "Kept the terminal UAT fixture alive across SIGWINCH until the intended Ctrl-C.",
+      "Sanitized captured PROMPT_COMMAND while preserving explicit terminal and task overrides.",
+      "Anchored remote Vim shell commands to the first opened project directory.",
+      "Added a bounded TCP connection-stability probe so an early SSH-forward reset is rejected and retried."
+    ],
+    "knownDefects": [
+      "Initial ExternalAgentsUpdated can arrive before client handler registration and is not replayed",
+      "Prior ACP live canary launched host commands directly instead of exercising the installed Zed client-to-remote-server journey",
+      "Live TCP port allocation modeled SSH as direct argv transport rather than a remote-shell command boundary",
+      "ACP project evidence was coupled to one fixture's single-tool-call transcript shape",
+      "Terminal UAT exited after resize because signal.pause was treated as a lifecycle loop",
+      "Captured shell hook state was replayed without the corresponding function definition",
+      "Remote Vim external commands did not carry the opened project cwd",
+      "SSH local forwarding became reachable before the remote TCP adapter listener"
+    ]
+  }
+}

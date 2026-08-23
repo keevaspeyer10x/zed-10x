@@ -246,6 +246,12 @@ If you do this, you must upload it to `~/.zed_server/zed-remote-server-{RELEASE_
 
 Once the server is initialized, Zed will create new SSH connections (reusing the existing ControlMaster) to run the remote development server.
 
+Environment-bearing remote commands require the version-matched server's
+secure stdin transport. If a newly installed client reports that this
+capability is unavailable, reconnect the project so Zed can reinstall the
+matching remote server. Zed deliberately refuses to fall back to placing
+remote environment values in SSH command arguments.
+
 Each connection tries to run the development server in proxy mode. This mode will start the daemon if it is not running, and reconnect to it if it is. This way when your connection drops and is restarted, you can continue to work without interruption.
 
 In the case that reconnecting fails, the daemon will not be re-used. That said, unsaved changes are by default persisted locally, so that you do not lose work. You can always reconnect to the project at a later date and Zed will restore unsaved changes.

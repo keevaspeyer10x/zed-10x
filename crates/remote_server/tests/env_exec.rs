@@ -9,7 +9,11 @@ mod unix {
         time::{Duration, Instant},
     };
 
-    const EXIT_TIMEOUT: Duration = Duration::from_secs(12);
+    // The debug remote-server binary is several hundred MiB and can take more
+    // than 12 seconds to cold-start on macOS immediately after Cargo relinks
+    // it. The product's missing-frame deadline remains five seconds after
+    // `main` starts; this outer harness budget only covers process startup.
+    const EXIT_TIMEOUT: Duration = Duration::from_secs(45);
 
     fn wait_with_timeout(
         child: &mut std::process::Child,
@@ -71,7 +75,11 @@ mod unix {
         assert!(capabilities.status.success());
         assert_eq!(
             String::from_utf8(capabilities.stdout)?.trim(),
-            remote::STDIN_ENVIRONMENT_CAPABILITY
+            format!(
+                "{}\n{}",
+                remote::STDIN_ENVIRONMENT_CAPABILITY,
+                remote::PTY_STDIN_ENVIRONMENT_CAPABILITY,
+            )
         );
 
         let secret = "sentinel-argv-boundary-20260723";
@@ -125,21 +133,51 @@ mod unix {
         .into_iter()
         .enumerate()
         {
+            let mut delayed_writer = None;
+            let stdin = if case_index == 0 {
+                // A separate process keeps the write side open without sending
+                // bytes. This makes the missing-frame timeout deterministic
+                // without relying on the test process's pipe lifetime.
+                let mut writer = Command::new("/bin/sleep")
+                    .arg("30")
+                    .stdout(Stdio::piped())
+                    .spawn()?;
+                let reader = writer.stdout.take().expect("delayed writer stdout");
+                delayed_writer = Some(writer);
+                Stdio::from(reader)
+            } else {
+                Stdio::piped()
+            };
             let mut child = Command::new(env!("CARGO_BIN_EXE_remote_server"))
                 .args(["env-exec", "--", "/usr/bin/true"])
-                .stdin(Stdio::piped())
+                .stdin(stdin)
                 .stdout(Stdio::null())
-                .stderr(Stdio::null())
+                .stderr(Stdio::piped())
                 .spawn()?;
-            let mut stdin = child.stdin.take().expect("piped stdin");
-            stdin.write_all(frame)?;
-            let keep_writer_open = case_index == 0;
-            if !keep_writer_open {
+            if case_index != 0 {
+                let mut stdin = child.stdin.take().expect("piped stdin");
+                stdin.write_all(frame)?;
                 drop(stdin);
             }
 
-            let status = wait_with_timeout(&mut child)
-                .with_context(|| format!("invalid frame case {case_index}"))?;
+            let status = wait_with_timeout(&mut child);
+            if let Some(mut writer) = delayed_writer {
+                writer.kill()?;
+                writer.wait()?;
+            }
+            let status = match status {
+                Ok(status) => status,
+                Err(error) => {
+                    let mut stderr = String::new();
+                    if let Some(mut child_stderr) = child.stderr.take() {
+                        use std::io::Read as _;
+                        child_stderr.read_to_string(&mut stderr)?;
+                    }
+                    return Err(error).with_context(|| {
+                        format!("invalid frame case {case_index}; child stderr: {stderr}")
+                    });
+                }
+            };
             assert!(
                 !status.success(),
                 "invalid frame executed the requested command: {frame:?}"

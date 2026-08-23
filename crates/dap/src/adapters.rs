@@ -198,6 +198,36 @@ pub struct DebugAdapterBinary {
     pub cwd: Option<PathBuf>,
     pub connection: Option<TcpArguments>,
     pub request_args: StartDebuggingRequestArguments,
+    #[serde(skip)]
+    pub stdin_prelude: PrivateStdinPrelude,
+}
+
+#[derive(Clone, Default, PartialEq)]
+pub struct PrivateStdinPrelude(Vec<u8>);
+
+impl std::fmt::Debug for PrivateStdinPrelude {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("PrivateStdinPrelude")
+            .field("byte_count", &self.0.len())
+            .finish()
+    }
+}
+
+impl PrivateStdinPrelude {
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.0
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+}
+
+impl From<Vec<u8>> for PrivateStdinPrelude {
+    fn from(value: Vec<u8>) -> Self {
+        Self(value)
+    }
 }
 
 impl DebugAdapterBinary {
@@ -224,6 +254,7 @@ impl DebugAdapterBinary {
                 request,
             },
             cwd: binary.cwd.map(|cwd| cwd.into()),
+            stdin_prelude: PrivateStdinPrelude::default(),
         })
     }
 
@@ -478,6 +509,7 @@ impl DebugAdapter for FakeAdapter {
                 request: self.request_kind(&task_definition.config).await?,
                 configuration: task_definition.config.clone(),
             },
+            stdin_prelude: PrivateStdinPrelude::default(),
         })
     }
 }
