@@ -97,6 +97,17 @@ def valid_observation():
 
 
 class InstalledSurfaceUatTests(unittest.TestCase):
+    def test_rendered_fixture_contains_the_directory_environment_contract(self):
+        with tempfile.TemporaryDirectory() as directory:
+            destination = pathlib.Path(directory) / "fixture"
+            manifest = uat.render_fixture(destination, PROJECT)
+
+            self.assertIn(".envrc", manifest)
+            self.assertEqual(
+                (destination / ".envrc").read_text(encoding="utf-8"),
+                "export ZED_UAT_DIRECTORY_VALUE='zed-directory-environment-v1'\n",
+            )
+
     def test_prepare_authorizes_fixture_direnv_before_opening_the_project(self):
         with tempfile.TemporaryDirectory() as directory:
             receipt = pathlib.Path(directory) / "prepare.json"
