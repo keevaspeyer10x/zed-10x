@@ -4,8 +4,6 @@ use super::{
     locators,
     session::{self, Session, SessionStateEvent},
 };
-use remote::Interactive;
-
 use crate::{
     InlayHint, InlayHintLabel, ProjectEnvironment, ResolveState,
     debugger::session::SessionQuirks,
@@ -342,14 +340,16 @@ impl DapStore {
                         connection = None;
                     }
 
+                    let binary_command = binary
+                        .command
+                        .context("remote debug adapter command is missing")?;
                     let command = remote.read_with(cx, |remote, _cx| {
-                        remote.build_command(
-                            binary.command,
+                        remote.build_command_with_stdin_environment(
+                            binary_command,
                             &binary.arguments,
                             &binary.envs,
                             binary.cwd.map(|path| path.display().to_string()),
                             port_forwarding,
-                            Interactive::No,
                         )
                     })?;
 
@@ -360,6 +360,7 @@ impl DapStore {
                         cwd: None,
                         connection,
                         request_args: binary.request_args,
+                        stdin_prelude: command.stdin_prelude.into(),
                     })
                 })
             }

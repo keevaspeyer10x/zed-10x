@@ -1,0 +1,34 @@
+{
+  "capabilities": [
+    "env-exec-pty-v1",
+    "env-exec-v1"
+  ],
+  "host": "intrepid",
+  "localArgvPrivate": true,
+  "logPrivate": true,
+  "noninteractive": {
+    "applicationInputSha256": "dcb1f61a057973ab57ffe080e396ca2d9d1db104ea5416eacf2bb85c75b93c4d",
+    "cwd": "/home/keeva/repos/isla",
+    "environmentSha256": "a8da2044220ad11e5ca96fd449b18f4d5a50717c604b3fc753dc320956263261",
+    "sentinelSha256": "8517215742133f4927fc0c511236f1d24ecb774a9a39df48c8f1872294a35637"
+  },
+  "ownedProcessResidue": false,
+  "project": "/home/keeva/repos/isla",
+  "pty": {
+    "applicationInputSha256": "dcb1f61a057973ab57ffe080e396ca2d9d1db104ea5416eacf2bb85c75b93c4d",
+    "cwd": "/home/keeva/repos/isla",
+    "environmentSha256": "a8da2044220ad11e5ca96fd449b18f4d5a50717c604b3fc753dc320956263261",
+    "sentinelSha256": "8517215742133f4927fc0c511236f1d24ecb774a9a39df48c8f1872294a35637",
+    "stdinIsTty": true
+  },
+  "ptyOutputPrivate": true,
+  "remoteServerSha256": "d6c6a3f79c1c6ca87f6fc05696c24f098dbdc5d3b4ba2463408eb42dd137ece2",
+  "schemaVersion": 1,
+  "secretPersisted": false,
+  "status": "passed",
+  "tcp": {
+    "environmentSha256": "a8da2044220ad11e5ca96fd449b18f4d5a50717c604b3fc753dc320956263261",
+    "protocolInputSha256": "8808496a20662ce284ee12c8544c64bb04c3554629f42b2d3cf628ff21756b7c",
+    "protocolResponseSha256": "8808496a20662ce284ee12c8544c64bb04c3554629f42b2d3cf628ff21756b7c"
+  }
+}

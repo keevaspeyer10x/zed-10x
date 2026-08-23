@@ -1,0 +1,136 @@
+{
+  "schemaVersion": 2,
+  "freshLifecycle": true,
+  "generatedAt": "2026-08-23T07:55:48Z",
+  "scope": "zed-10x-remote-execution-release",
+  "counts": {"totalRows":18,"readyNow":18,"needsTooling":0},
+  "freshnessDelta": {"priorRows":6,"newRows":18,"addedRows":12,"removedRows":0,"materiallyChangedRows":6,"reason":"The security incident proved the prior ACP-only plan omitted every sibling remote execution consumer."},
+  "tests": [
+    {
+      "id":"ACP-SMOKE-001","title":"Cold-open and reconnect inventory is receiver-driven and timing-independent","readiness":"ready_now","risk":"critical","tier":0,"runner":"cargo-test+installed-zed-uat","rowKind":"journey",
+      "surfaceIds":["SURFACE-MAC-LOCAL","SURFACE-MAC-REMOTE-INTREPID"],"journeyIds":["JOURNEY-ACP"],"requirementIds":["REQ-ACP-001"],
+      "provenance":[{"source":"prior_defect","ref":"DEFECT-ACP-INITIAL-INVENTORY-RACE"}],"plannedEvidence":["server-first cold open","client-first settings update","reconnect with stale-response suppression","installed inventory readback"],"specificOracles":["exact latest names","no stale or duplicate names","no fixed delay"],"negativeCase":"server-push-before-client-handler","decisionRule":"hard_fail"
+    },
+    {
+      "id":"ACP-JOURNEY-002","title":"Representative Mac-local and Intrepid routes read real project bytes","readiness":"ready_now","risk":"critical","tier":0,"runner":"installed-zed-uat+zed-acp-live-canary","rowKind":"journey",
+      "surfaceIds":["SURFACE-MAC-LOCAL","SURFACE-MAC-REMOTE-INTREPID"],"journeyIds":["JOURNEY-ACP"],"requirementIds":["REQ-ACP-002"],
+      "provenance":[{"source":"prior_defect","ref":"DEFECT-ACP-CANARY-BYPASS"}],"plannedEvidence":["completed ACP tool call from real cwd","withheld sentinel digest","terminal response","zero approved permissions"],"specificOracles":["tool call completed","cwd exact","sentinel exact","prompt echo cannot pass"],"negativeCase":"marker-only-or-prompt-echo","decisionRule":"hard_fail","resourceLocks":["ai-provider","remote-intrepid"]
+    },
+    {
+      "id":"ACP-NEG-003","title":"External-agent failures remain explicit and non-green","readiness":"ready_now","risk":"high","tier":1,"runner":"zed-acp-live-canary","rowKind":"contract",
+      "surfaceIds":["SURFACE-MAC-LOCAL","SURFACE-MAC-REMOTE-INTREPID"],"journeyIds":["JOURNEY-ACP","JOURNEY-PRIVACY-FAILURE"],"requirementIds":["REQ-ACP-002","REQ-ENV-004"],
+      "provenance":[{"source":"observation","ref":"exit-127-auth-capacity-timeout-incidents"}],"plannedEvidence":["missing executable","authentication","capacity","permission request","nonterminal timeout"],"specificOracles":["distinct failure class","no false success","timeout kills owned process group"],"negativeCase":"all-known-route-failure-classes","decisionRule":"hard_fail"
+    },
+    {
+      "id":"ACP-OPS-004","title":"External-agent completion and timeout prove cleanup","readiness":"ready_now","risk":"high","tier":1,"runner":"zed-acp-live-canary+installed-zed-uat","rowKind":"contract",
+      "surfaceIds":["SURFACE-MAC-LOCAL","SURFACE-MAC-REMOTE-INTREPID"],"journeyIds":["JOURNEY-ACP","JOURNEY-CLEANUP"],"requirementIds":["REQ-ENV-005"],
+      "provenance":[{"source":"risk","ref":"agent-process-residue"}],"plannedEvidence":["normal process group gone","timeout process group gone","installed route cleanup"],"specificOracles":["captured PID identities absent"],"negativeCase":"hung-agent","decisionRule":"hard_fail"
+    },
+    {
+      "id":"ENV-FRAME-005","title":"Private environment frame round-trips and rejects malformed input families","readiness":"ready_now","risk":"critical","tier":0,"runner":"cargo-test","rowKind":"contract","tags":["security","property","contract_compat"],
+      "surfaceIds":["SURFACE-MAC-REMOTE-INTREPID"],"journeyIds":["JOURNEY-CAPABILITY","JOURNEY-PRIVACY-FAILURE"],"requirementIds":["REQ-ENV-003","REQ-ENV-004"],
+      "provenance":[{"source":"risk","ref":"private-frame-parser"}],"plannedEvidence":["partial reads","following protocol bytes preserved","Unicode quotes and newlines","invalid names and NULs","truncated leading-zero malformed and oversized frames"],"specificOracles":["exact map round-trip","first application bytes unchanged","every malformed family rejected"],"negativeCase":"malformed-truncated-oversized","decisionRule":"hard_fail"
+    },
+    {
+      "id":"ENV-SSH-006","title":"SSH builders never serialize environment values and preserve command semantics","readiness":"ready_now","risk":"critical","tier":0,"runner":"cargo-test","rowKind":"contract","tags":["security","contract_compat"],
+      "surfaceIds":["SURFACE-MAC-REMOTE-INTREPID"],"journeyIds":["JOURNEY-CAPABILITY","JOURNEY-PRIVACY-FAILURE"],"requirementIds":["REQ-ENV-001","REQ-ENV-002","REQ-PACKAGE-001"],
+      "provenance":[{"source":"prior_defect","ref":"DEFECT-SSH-ENV-ARGV-LEAK"}],"plannedEvidence":["generic builder rejects nonempty env","PTY and non-PTY secure builders carry only framed stdin","empty-env argv PTY and port-forward unchanged","home-relative bootstrap remains anchored after cd"],"specificOracles":["sentinel absent from args Debug and errors","exact working directory and port forward"],"negativeCase":"generic-builder-with-env","decisionRule":"hard_fail"
+    },
+    {
+      "id":"ENV-PTY-007","title":"Real PTY handshake prevents echo and preserves terminal behavior","readiness":"ready_now","risk":"critical","tier":0,"runner":"cargo-test","rowKind":"journey","tags":["security","stateful"],
+      "surfaceIds":["SURFACE-MAC-REMOTE-INTREPID"],"journeyIds":["JOURNEY-TERMINAL","JOURNEY-TASK","JOURNEY-PRIVACY-FAILURE"],"requirementIds":["REQ-ENV-001","REQ-ENV-003","REQ-ENV-004"],
+      "provenance":[{"source":"risk","ref":"pty-echo-and-canonical-buffering"}],"plannedEvidence":["real openpty readiness","no echo","frame consumed","tty restored","application stdin preserved","TerminalBuilder withholds UI/input","child exit before readiness fails"],"specificOracles":["secret absent from PTY output","terminal flags restored","markers cleared","application input exact"],"negativeCase":"malformed-frame-or-early-exit","decisionRule":"hard_fail"
+    },
+    {
+      "id":"ENV-TERMINAL-008","title":"Installed remote terminal preserves cwd, environment, input, resize, and interrupt","readiness":"ready_now","risk":"critical","tier":0,"runner":"installed-zed-uat","rowKind":"journey",
+      "surfaceIds":["SURFACE-MAC-REMOTE-INTREPID"],"journeyIds":["JOURNEY-TERMINAL","JOURNEY-CLEANUP"],"requirementIds":["REQ-ENV-001","REQ-ENV-002","REQ-ENV-005"],
+      "provenance":[{"source":"observation","ref":"live-ssh-argv-leak"}],"plannedEvidence":["real project cwd","directory and terminal.env sentinels","interactive input","resize","Ctrl-C","ordinary close"],"specificOracles":["terminal output hashes expected values","no sentinel in local process argv or logs","owned process gone"],"negativeCase":"cancel-long-running-command","decisionRule":"hard_fail","resourceLocks":["remote-intrepid"]
+    },
+    {
+      "id":"ENV-TASK-009","title":"Installed remote task preserves task environment and cancellation","readiness":"ready_now","risk":"high","tier":0,"runner":"installed-zed-uat","rowKind":"journey",
+      "surfaceIds":["SURFACE-MAC-REMOTE-INTREPID"],"journeyIds":["JOURNEY-TASK","JOURNEY-CLEANUP"],"requirementIds":["REQ-ENV-001","REQ-ENV-002","REQ-ENV-005"],
+      "provenance":[{"source":"code","ref":"crates/project/src/terminals.rs"}],"plannedEvidence":["task-specific env","directory/toolchain env","terminal output","cancel and cleanup"],"specificOracles":["all configured hashes match","no argv/log sentinel","task process gone"],"negativeCase":"cancel-running-task","decisionRule":"hard_fail","resourceLocks":["remote-intrepid"]
+    },
+    {
+      "id":"ENV-SHELL-010","title":"Remote Vim shell command receives private environment before application stdin","readiness":"ready_now","risk":"high","tier":1,"runner":"cargo-test+installed-zed-uat","rowKind":"journey",
+      "surfaceIds":["SURFACE-MAC-REMOTE-INTREPID"],"journeyIds":["JOURNEY-SHELL"],"requirementIds":["REQ-ENV-001","REQ-ENV-002","REQ-ENV-003"],
+      "provenance":[{"source":"code","ref":"crates/vim/src/command.rs"}],"plannedEvidence":["prelude flushed before selected text","real cwd and env","command output replaces or filters selection"],"specificOracles":["first application byte preserved","output exact","no argv/log sentinel"],"negativeCase":"missing-capability","decisionRule":"hard_fail","resourceLocks":["remote-intrepid"]
+    },
+    {
+      "id":"ENV-MCP-011","title":"Remote context-server stdio writes private prelude before MCP initialize","readiness":"ready_now","risk":"high","tier":0,"runner":"cargo-test+installed-zed-uat","rowKind":"journey",
+      "surfaceIds":["SURFACE-MAC-REMOTE-INTREPID"],"journeyIds":["JOURNEY-CONTEXT"],"requirementIds":["REQ-ENV-001","REQ-ENV-002","REQ-ENV-003"],
+      "provenance":[{"source":"code","ref":"crates/context_server/src/transport/stdio_transport.rs"}],"plannedEvidence":["prelude before first JSON-RPC line","remote MCP initialize and one request","cleanup"],"specificOracles":["captured byte order exact","tool/list or ping succeeds","no argv/log sentinel"],"negativeCase":"truncated-prelude-or-server-exit","decisionRule":"hard_fail","resourceLocks":["remote-intrepid"]
+    },
+    {
+      "id":"ENV-DAP-STDIO-012","title":"Remote stdio debug adapter writes private prelude before DAP initialize","readiness":"ready_now","risk":"high","tier":0,"runner":"cargo-test+installed-zed-uat","rowKind":"journey",
+      "surfaceIds":["SURFACE-MAC-REMOTE-INTREPID"],"journeyIds":["JOURNEY-DAP-STDIO"],"requirementIds":["REQ-ENV-001","REQ-ENV-002","REQ-ENV-003"],
+      "provenance":[{"source":"code","ref":"crates/dap/src/transport.rs"}],"plannedEvidence":["deterministic first-byte ordering","representative remote stdio adapter initialize","cleanup"],"specificOracles":["prelude bytes precede Content-Length","session reaches initialized","no argv/log sentinel"],"negativeCase":"adapter-exits-before-initialize","decisionRule":"hard_fail","resourceLocks":["remote-intrepid"]
+    },
+    {
+      "id":"ENV-DAP-TCP-013","title":"Remote TCP debug adapter consumes private prelude before forwarded connection","readiness":"ready_now","risk":"high","tier":0,"runner":"cargo-test+installed-zed-uat","rowKind":"journey",
+      "surfaceIds":["SURFACE-MAC-REMOTE-INTREPID"],"journeyIds":["JOURNEY-DAP-TCP"],"requirementIds":["REQ-ENV-001","REQ-ENV-002","REQ-ENV-003"],
+      "provenance":[{"source":"code","ref":"crates/project/src/debugger/dap_store.rs"}],"plannedEvidence":["secure builder retains port forwarding","stdin is piped and closed after prelude","representative TCP adapter initializes","cleanup"],"specificOracles":["exact -L forwarding","remote listener sees env","DAP exchange succeeds","no argv/log sentinel"],"negativeCase":"bootstrap-fails-before-listen","decisionRule":"hard_fail","resourceLocks":["remote-intrepid","network-port:dynamic"]
+    },
+    {
+      "id":"ENV-CONSUMER-MATRIX-014","title":"Every environment-bearing remote consumer uses the secure builder","readiness":"ready_now","risk":"critical","tier":0,"runner":"cargo-check+source-contract-test","rowKind":"contract","tags":["security"],
+      "surfaceIds":["SURFACE-MAC-REMOTE-INTREPID"],"journeyIds":["JOURNEY-TERMINAL","JOURNEY-TASK","JOURNEY-SHELL","JOURNEY-CONTEXT","JOURNEY-DAP-STDIO","JOURNEY-DAP-TCP","JOURNEY-ACP"],"requirementIds":["REQ-ENV-001","REQ-ENV-002"],
+      "provenance":[{"source":"prior_defect","ref":"DEFECT-PLAN-SURFACE-OMISSION"}],"plannedEvidence":["caller inventory","no nonempty env reaches generic remote builder","affected crates compile and test"],"specificOracles":["only recent-project empty-env probe uses generic SSH builder","all seven consumers map to secure transport"],"negativeCase":"sibling-consumer-bypasses-secure-builder","decisionRule":"hard_fail"
+    },
+    {
+      "id":"ENV-CAPABILITY-015","title":"Missing or drifted capability fails closed without fallback","readiness":"ready_now","risk":"critical","tier":0,"runner":"cargo-test+installed-zed-uat","rowKind":"contract","tags":["security","contract_compat"],
+      "surfaceIds":["SURFACE-MAC-REMOTE-INTREPID"],"journeyIds":["JOURNEY-CAPABILITY","JOURNEY-PRIVACY-FAILURE"],"requirementIds":["REQ-ENV-004","REQ-PACKAGE-001"],
+      "provenance":[{"source":"risk","ref":"client-server-version-drift"}],"plannedEvidence":["capabilities parsed independently","missing PTY or non-PTY capability errors","no argv fallback","reconnect installs matching binary"],"specificOracles":["content-free error","zero child launch","matching server advertises both capabilities"],"negativeCase":"old-remote-server","decisionRule":"hard_fail","resourceLocks":["remote-intrepid"]
+    },
+    {
+      "id":"ENV-PRIVACY-016","title":"Installed process, debug, error, and log evidence contains no environment sentinel","readiness":"ready_now","risk":"critical","tier":0,"runner":"privacy-safe-installed-uat","rowKind":"gate","tags":["security","observability"],
+      "surfaceIds":["SURFACE-MAC-LOCAL","SURFACE-MAC-REMOTE-INTREPID","SURFACE-UNSUPPORTED-ENV-BACKENDS"],"journeyIds":["JOURNEY-PRIVACY-FAILURE","JOURNEY-CLEANUP"],"requirementIds":["REQ-ENV-001","REQ-ENV-005"],
+      "provenance":[{"source":"observation","ref":"live-ssh-argv-leak"}],"plannedEvidence":["unique sentinel supplied through each consumer","content-free argv census","CommandTemplate Debug/error assertions","log file boolean scan","post-journey cleanup"],"specificOracles":["zero sentinel matches","zero owned residue","audit never prints environment values"],"negativeCase":"known-leaking-command-fixture-detected","decisionRule":"hard_fail","resourceLocks":["remote-intrepid"]
+    },
+    {
+      "id":"ENV-PLATFORM-017","title":"Unsupported environment-bearing backends fail closed","readiness":"ready_now","risk":"high","tier":1,"runner":"cargo-test","rowKind":"contract","tags":["security","contract_compat"],
+      "surfaceIds":["SURFACE-UNSUPPORTED-ENV-BACKENDS"],"journeyIds":["JOURNEY-PRIVACY-FAILURE"],"requirementIds":["REQ-ENV-004"],
+      "provenance":[{"source":"risk","ref":"sibling-transport-exposure"}],"plannedEvidence":["Windows SSH rejects secure environment","WSL rejects nonempty env","Docker command and proxy reject configured or caller env"],"specificOracles":["content-free error","no command template or process start"],"negativeCase":"nonempty-env-on-unsupported-backend","decisionRule":"hard_fail"
+    },
+    {
+      "id":"ENV-PACKAGE-018","title":"Built and installed app carries matching secure remote-server capability","readiness":"ready_now","risk":"critical","tier":0,"runner":"bundle+installed-uat","rowKind":"gate","tags":["migration","contract_compat"],
+      "surfaceIds":["SURFACE-MAC-REMOTE-INTREPID"],"journeyIds":["JOURNEY-CAPABILITY","JOURNEY-CLEANUP"],"requirementIds":["REQ-PACKAGE-001","REQ-ENV-005"],
+      "provenance":[{"source":"prior_defect","ref":"remote-server-path-and-debug-assets-incidents"}],"plannedEvidence":["debug bundle includes remote_server debug assets","installed app identity","remote binary version and capabilities","home-anchored launch after project cd","rollback backup","ordinary cleanup"],"specificOracles":["both capability lines exact","installed app opens","remote project and journeys succeed","backup remains recoverable"],"negativeCase":"missing-or-stale-remote-binary","decisionRule":"hard_fail","resourceLocks":["dist-build","remote-intrepid"]
+    }
+  ],
+  "surfaceJourneyCoverage": {
+    "cells": [
+      {"surfaceId":"SURFACE-MAC-LOCAL","journeyId":"JOURNEY-ACP","applicability":"applicable","rowIds":["ACP-SMOKE-001","ACP-JOURNEY-002","ACP-NEG-003","ACP-OPS-004"]},
+      {"surfaceId":"SURFACE-MAC-LOCAL","journeyId":"JOURNEY-TERMINAL","applicability":"not_applicable","reason":"No SSH environment transport is crossed."},
+      {"surfaceId":"SURFACE-MAC-LOCAL","journeyId":"JOURNEY-TASK","applicability":"not_applicable","reason":"No SSH environment transport is crossed."},
+      {"surfaceId":"SURFACE-MAC-LOCAL","journeyId":"JOURNEY-SHELL","applicability":"not_applicable","reason":"No SSH environment transport is crossed."},
+      {"surfaceId":"SURFACE-MAC-LOCAL","journeyId":"JOURNEY-CONTEXT","applicability":"not_applicable","reason":"Only remote context launch changed."},
+      {"surfaceId":"SURFACE-MAC-LOCAL","journeyId":"JOURNEY-DAP-STDIO","applicability":"not_applicable","reason":"Only remote DAP launch changed."},
+      {"surfaceId":"SURFACE-MAC-LOCAL","journeyId":"JOURNEY-DAP-TCP","applicability":"not_applicable","reason":"Only remote DAP launch changed."},
+      {"surfaceId":"SURFACE-MAC-LOCAL","journeyId":"JOURNEY-CAPABILITY","applicability":"not_applicable","reason":"Capability is remote-only."},
+      {"surfaceId":"SURFACE-MAC-LOCAL","journeyId":"JOURNEY-PRIVACY-FAILURE","applicability":"applicable","rowIds":["ACP-NEG-003","ENV-PRIVACY-016"]},
+      {"surfaceId":"SURFACE-MAC-LOCAL","journeyId":"JOURNEY-CLEANUP","applicability":"applicable","rowIds":["ACP-OPS-004","ENV-PRIVACY-016"]},
+
+      {"surfaceId":"SURFACE-MAC-REMOTE-INTREPID","journeyId":"JOURNEY-ACP","applicability":"applicable","rowIds":["ACP-SMOKE-001","ACP-JOURNEY-002","ACP-NEG-003","ACP-OPS-004","ENV-CONSUMER-MATRIX-014"]},
+      {"surfaceId":"SURFACE-MAC-REMOTE-INTREPID","journeyId":"JOURNEY-TERMINAL","applicability":"applicable","rowIds":["ENV-PTY-007","ENV-TERMINAL-008","ENV-CONSUMER-MATRIX-014"]},
+      {"surfaceId":"SURFACE-MAC-REMOTE-INTREPID","journeyId":"JOURNEY-TASK","applicability":"applicable","rowIds":["ENV-PTY-007","ENV-TASK-009","ENV-CONSUMER-MATRIX-014"]},
+      {"surfaceId":"SURFACE-MAC-REMOTE-INTREPID","journeyId":"JOURNEY-SHELL","applicability":"applicable","rowIds":["ENV-SHELL-010","ENV-CONSUMER-MATRIX-014"]},
+      {"surfaceId":"SURFACE-MAC-REMOTE-INTREPID","journeyId":"JOURNEY-CONTEXT","applicability":"applicable","rowIds":["ENV-MCP-011","ENV-CONSUMER-MATRIX-014"]},
+      {"surfaceId":"SURFACE-MAC-REMOTE-INTREPID","journeyId":"JOURNEY-DAP-STDIO","applicability":"applicable","rowIds":["ENV-DAP-STDIO-012","ENV-CONSUMER-MATRIX-014"]},
+      {"surfaceId":"SURFACE-MAC-REMOTE-INTREPID","journeyId":"JOURNEY-DAP-TCP","applicability":"applicable","rowIds":["ENV-DAP-TCP-013","ENV-CONSUMER-MATRIX-014"]},
+      {"surfaceId":"SURFACE-MAC-REMOTE-INTREPID","journeyId":"JOURNEY-CAPABILITY","applicability":"applicable","rowIds":["ENV-FRAME-005","ENV-SSH-006","ENV-CAPABILITY-015","ENV-PACKAGE-018"]},
+      {"surfaceId":"SURFACE-MAC-REMOTE-INTREPID","journeyId":"JOURNEY-PRIVACY-FAILURE","applicability":"applicable","rowIds":["ENV-FRAME-005","ENV-SSH-006","ENV-PTY-007","ENV-CAPABILITY-015","ENV-PRIVACY-016"]},
+      {"surfaceId":"SURFACE-MAC-REMOTE-INTREPID","journeyId":"JOURNEY-CLEANUP","applicability":"applicable","rowIds":["ACP-OPS-004","ENV-TERMINAL-008","ENV-TASK-009","ENV-PRIVACY-016","ENV-PACKAGE-018"]},
+
+      {"surfaceId":"SURFACE-UNSUPPORTED-ENV-BACKENDS","journeyId":"JOURNEY-ACP","applicability":"not_applicable","reason":"No supported private environment channel exists."},
+      {"surfaceId":"SURFACE-UNSUPPORTED-ENV-BACKENDS","journeyId":"JOURNEY-TERMINAL","applicability":"not_applicable","reason":"Environment-bearing launch is unsupported."},
+      {"surfaceId":"SURFACE-UNSUPPORTED-ENV-BACKENDS","journeyId":"JOURNEY-TASK","applicability":"not_applicable","reason":"Environment-bearing launch is unsupported."},
+      {"surfaceId":"SURFACE-UNSUPPORTED-ENV-BACKENDS","journeyId":"JOURNEY-SHELL","applicability":"not_applicable","reason":"Environment-bearing launch is unsupported."},
+      {"surfaceId":"SURFACE-UNSUPPORTED-ENV-BACKENDS","journeyId":"JOURNEY-CONTEXT","applicability":"not_applicable","reason":"Environment-bearing launch is unsupported."},
+      {"surfaceId":"SURFACE-UNSUPPORTED-ENV-BACKENDS","journeyId":"JOURNEY-DAP-STDIO","applicability":"not_applicable","reason":"Environment-bearing launch is unsupported."},
+      {"surfaceId":"SURFACE-UNSUPPORTED-ENV-BACKENDS","journeyId":"JOURNEY-DAP-TCP","applicability":"not_applicable","reason":"Environment-bearing launch is unsupported."},
+      {"surfaceId":"SURFACE-UNSUPPORTED-ENV-BACKENDS","journeyId":"JOURNEY-CAPABILITY","applicability":"not_applicable","reason":"POSIX SSH capability does not apply."},
+      {"surfaceId":"SURFACE-UNSUPPORTED-ENV-BACKENDS","journeyId":"JOURNEY-PRIVACY-FAILURE","applicability":"applicable","rowIds":["ENV-PLATFORM-017","ENV-PRIVACY-016"]},
+      {"surfaceId":"SURFACE-UNSUPPORTED-ENV-BACKENDS","journeyId":"JOURNEY-CLEANUP","applicability":"not_applicable","reason":"Fail-closed construction starts no process."}
+    ]
+  }
+}

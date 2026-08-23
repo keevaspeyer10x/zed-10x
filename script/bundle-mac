@@ -382,12 +382,18 @@ function sign_app_binaries() {
     bundle_name=$(basename "$app_path")
 
     if [ "$local_install" = true ]; then
-        rm -rf "/Applications/$bundle_name"
-        mv "$app_path" "/Applications/$bundle_name"
-        echo "Installed application bundle: /Applications/$bundle_name"
+        local installed_app_path="/Applications/$bundle_name"
+        rm -rf "$installed_app_path"
+        mv "$app_path" "$installed_app_path"
+        # File-provider metadata may be stamped during the move into /Applications,
+        # after the pre-signing cleanup above. Clear it again and prove the installed
+        # bundle still satisfies the signature contract before reporting success.
+        xattr -cr "$installed_app_path"
+        codesign --verify --deep --strict "$installed_app_path"
+        echo "Installed application bundle: $installed_app_path"
         if [ "$open_result" = true ]; then
-            echo "Opening /Applications/$bundle_name"
-            open "/Applications/$bundle_name"
+            echo "Opening $installed_app_path"
+            open "$installed_app_path"
         fi
     elif [ "$open_result" = true ]; then
         open "$app_path"

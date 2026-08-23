@@ -260,6 +260,7 @@ impl DebugAdapter for GdbDebugAdapter {
                 request: self.request_kind(&config.config).await?,
                 configuration,
             },
+            stdin_prelude: Default::default(),
         })
     }
 }

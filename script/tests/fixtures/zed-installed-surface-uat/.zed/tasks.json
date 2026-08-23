@@ -1,0 +1,15 @@
+[
+  {
+    "label": "ZED UAT Cancellable Task",
+    "command": "/usr/bin/python3",
+    "args": [
+      "__ZED_UAT_PROJECT__/task_uat.py"
+    ],
+    "env": {
+      "ZED_UAT_TASK_VALUE": "zed-task-setting-v1"
+    },
+    "use_new_terminal": true,
+    "allow_concurrent_runs": false,
+    "reveal": "always"
+  }
+]

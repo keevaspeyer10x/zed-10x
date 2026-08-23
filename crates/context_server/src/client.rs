@@ -154,12 +154,14 @@ pub(crate) struct Error {
     pub code: i32,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Clone, Deserialize)]
 pub struct ModelContextServerBinary {
     pub executable: PathBuf,
     pub args: Vec<String>,
     pub env: Option<HashMap<String, String>>,
     pub timeout: Option<u64>,
+    #[serde(skip)]
+    pub stdin_prelude: Vec<u8>,
 }
 
 impl Client {

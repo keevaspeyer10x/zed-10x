@@ -824,6 +824,7 @@ impl AcpConnection {
                             &command.args,
                             &command.env.clone().into_iter().flatten().collect(),
                             root_dir.as_ref().map(|path| path.display().to_string()),
+                            None,
                         )
                         .context("Failed to build secure remote agent command")?;
                     Ok(Some((

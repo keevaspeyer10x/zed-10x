@@ -1,0 +1,409 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-24T06:02:32+10:00",
+  "decisionCandidate": "production_ready",
+  "plannedRows": 18,
+  "implementedRows": 18,
+  "executedRows": 18,
+  "remainingPlannedRows": 0,
+  "requirements": {
+    "total": 8,
+    "covered": 8,
+    "passed": 8,
+    "failed": 0,
+    "blocked": 0,
+    "untested": 0
+  },
+  "uat": {
+    "status": "passed",
+    "personas": [
+      "Mac-local Zed 10x user",
+      "Mac-to-Intrepid remote-project user"
+    ],
+    "tasks": [
+      "open a populated remote project",
+      "use, resize, interrupt, and close a remote interactive terminal",
+      "spawn and cancel a remote task with task-specific environment",
+      "filter selected project text through a remote Vim shell command",
+      "initialize a remote MCP context server and list its tools",
+      "launch, configure, and terminate remote stdio and TCP debug adapters",
+      "read real project bytes through a Mac-local ACP route",
+      "read real project bytes through an Intrepid ACP route",
+      "exercise noninteractive, PTY, and TCP secure environment transport"
+    ],
+    "unacceptableFriction": [],
+    "evidencePath": "docs/test-results/installed-uat.json"
+  },
+  "observability": {
+    "status": "passed",
+    "checks": [
+      "installed Zed log contains no private environment sentinel",
+      "installed journey reports exact remote server identity and capability set",
+      "ACP receipts classify permission/auth/capacity/timeout outcomes without retaining content"
+    ],
+    "evidencePath": "docs/test-results/installed-uat.json"
+  },
+  "dataCleanup": {
+    "status": "passed",
+    "evidence": [
+      "all owned ACP process groups gone",
+      "no live canary process identity remains on Mac or Intrepid",
+      "transport canary reports no owned process residue",
+      "all exact terminal, task, Vim, MCP, and DAP fixture process identities are absent"
+    ]
+  },
+  "flakiness": {
+    "rerunCount": 2,
+    "flakyTests": [],
+    "criticalOrHighFlakes": 0,
+    "classification": "Seven deterministic harness defects and four assembled-product defects were fixed before clean reruns; no product-path flake remained."
+  },
+  "testValidity": {
+    "status": "passed",
+    "evidencePath": "docs/test-results/test-validity.json"
+  },
+  "uiUxCoverage": {
+    "status": "complete",
+    "scope": "Remote execution release surfaces only",
+    "everyScreenReviewed": true,
+    "everyStateReviewed": true,
+    "everySignificantElementReviewed": true,
+    "fullScreenInteractionReview": true,
+    "reviewedScreens": [
+      "remote-project selector and upload state",
+      "opened Intrepid workspace",
+      "agent conversation with completed filesystem read",
+      "remote terminal panel",
+      "task spawn and cancellation panel",
+      "Vim command and transformed editor selection",
+      "context-server initialization surface",
+      "stdio and TCP debug sessions"
+    ],
+    "reviewedStates": [
+      "connecting",
+      "remote server upload",
+      "workspace ready",
+      "terminal ready",
+      "terminal resized and interrupted",
+      "task cancelled",
+      "context server initialized",
+      "debug adapter initialized and terminated",
+      "permission request rejected"
+    ],
+    "reviewedInteractions": [
+      "select saved Intrepid project",
+      "open project",
+      "execute remote terminal command",
+      "resize and interrupt remote terminal",
+      "spawn and cancel a task",
+      "run a Vim external filter from the project cwd",
+      "initialize MCP and request tools/list",
+      "run stdio and TCP DAP request sequences",
+      "run project-aware ACP calls"
+    ],
+    "highOrCriticalFindings": []
+  },
+  "defectDiscovery": {
+    "bugsFound": 12,
+    "productDefects": [
+      "Remote external-agent inventory relied on a fixed startup delay instead of receiver-driven snapshot and reconnect ordering.",
+      "Captured directory environments replayed PROMPT_COMMAND without its non-exported shell function, producing an immediate broken prompt.",
+      "Remote Vim shell commands inherited the remote home directory rather than the opened project cwd.",
+      "TCP DAP accepted an SSH forward before the remote adapter owned the destination, allowing a reset connection to become the session transport."
+    ],
+    "testHarnessDefects": [
+      "Live TCP port allocation sent python -c source to SSH without one remote-shell quoting boundary.",
+      "ACP project evidence was incorrectly required to coexist in one tool call instead of the union of completed calls.",
+      "The terminal UAT fixture returned from signal.pause after SIGWINCH instead of remaining alive for Ctrl-C.",
+      "The fake TCP adapter emitted an invalid empty ThreadsResponse.",
+      "The terminal resize oracle compared only the first and last widths instead of requiring distinct observed widths.",
+      "The synthetic directory environment was authorized after project open, so Zed had already cached the pre-authorization environment.",
+      "The cleanup census matched its own remote observer ancestors because their argv contained the fixture path."
+    ],
+    "infraOrToolingDefects": [],
+    "processDefects": [
+      "Earlier release acceptance sampled components and marker responses without executing every changed assembled-product surface and user journey."
+    ],
+    "fixedDuringRun": [
+      "Replaced fixed-delay external-agent inventory with request/response snapshots, rejoin refresh, and stale-response suppression.",
+      "Added a RED SSH argv-shape regression and one shell-quoted remote command.",
+      "Added a RED split-tool-evidence fixture and unioned only completed tool evidence.",
+      "Kept the terminal fixture alive across resize until the intended interrupt.",
+      "Removed captured PROMPT_COMMAND before explicit terminal or task settings are applied.",
+      "Anchored remote Vim shell execution to the opened project directory.",
+      "Tagged header/body disconnect I/O errors and replayed initialize once, within the existing SSH/TCP timeout; stdio and non-SSH DAP keep the ordinary request path.",
+      "Made the fake adapter return a protocol-valid empty threads list.",
+      "Required two distinct observed terminal widths rather than a brittle first-versus-last comparison.",
+      "Authorized the exact synthetic direnv before opening the installed app.",
+      "Excluded only the observer's reuse-safe ancestor identities from cleanup census while retaining sibling/descendant residue detection.",
+      "Retained marker-only, prompt-echo, permission, timeout, and cleanup negatives."
+    ],
+    "confidenceOnlyRows": [],
+    "weakRows": [],
+    "newInformationSummary": [
+      "The installed 658ad7c7 remote server advertises both secure environment capabilities and passes real noninteractive, PTY, and TCP journeys.",
+      "Zed 10x opens the populated Intrepid checkout and terminal/task processes inherit exact cwd, directory/surface environment, input, resize, interrupt, and cleanup behavior.",
+      "Installed Vim, MCP, DAP stdio, and DAP TCP journeys run from the real project and complete their actual protocol or editor behavior.",
+      "Real ACP agents may establish cwd and digest through different completed tool calls.",
+      "Codex Mac primary and Intrepid GLM each complete a withheld-oracle project read with no approved permission request."
+    ],
+    "lowYieldAssessment": "high_confidence",
+    "residualRisk": [
+      "Public notarized distribution is intentionally out of scope; the installed private app uses a verified ad-hoc signature.",
+      "The exact merged commit still requires a fresh post-merge bundle/install and focused repeat canary; the current installed binary identifies the pre-merge candidate."
+    ]
+  },
+  "rowResults": [
+    {
+      "id": "ACP-SMOKE-001",
+      "status": "passed",
+      "command": "cargo test -p remote_server --lib remote_external_agent && cargo test -p project remote_agent --lib",
+      "evidencePath": "docs/test-results/deterministic-suite.json",
+      "evidenceStrength": "direct",
+      "resourceLocks": [],
+      "attempts": 1,
+      "failureCategory": null,
+      "defectMateriality": "none",
+      "cleanupStatus": "passed",
+      "newInformation": "Cold-open, push ordering, and reconnect converge on the latest exact inventory."
+    },
+    {
+      "id": "ACP-JOURNEY-002",
+      "status": "passed",
+      "command": "node --test script/tests/zed-acp-live-canary.test.mjs plus Mac-local and Intrepid live routes",
+      "evidencePath": "docs/test-results/installed-uat.json",
+      "evidenceStrength": "direct",
+      "resourceLocks": [
+        "ai-provider",
+        "remote-intrepid"
+      ],
+      "attempts": 3,
+      "failureCategory": "test_bug_fixed",
+      "defectMateriality": "high test-validity defect fixed inline",
+      "cleanupStatus": "passed",
+      "newInformation": "Withheld-oracle evidence may legitimately be split across completed tool calls."
+    },
+    {
+      "id": "ACP-NEG-003",
+      "status": "passed",
+      "command": "node --test script/tests/zed-acp-live-canary.test.mjs",
+      "evidencePath": "docs/test-results/test-validity.json",
+      "evidenceStrength": "direct",
+      "resourceLocks": [],
+      "attempts": 1,
+      "failureCategory": null,
+      "defectMateriality": "none",
+      "cleanupStatus": "passed",
+      "newInformation": "A real Claude read permission request is rejected and cleaned up without being mistaken for route success."
+    },
+    {
+      "id": "ACP-OPS-004",
+      "status": "passed",
+      "command": "node --test script/tests/zed-acp-live-canary.test.mjs",
+      "evidencePath": "docs/test-results/installed-uat.json",
+      "evidenceStrength": "direct",
+      "resourceLocks": [],
+      "attempts": 1,
+      "failureCategory": null,
+      "defectMateriality": "none",
+      "cleanupStatus": "passed",
+      "newInformation": "Both successful live routes and the rejected permission route leave their process groups gone."
+    },
+    {
+      "id": "ENV-FRAME-005",
+      "status": "passed",
+      "command": "cargo test -p remote remote_client::tests::stdin_environment --lib && cargo test -p remote_server --test env_exec",
+      "evidencePath": "docs/test-results/deterministic-suite.json",
+      "evidenceStrength": "direct",
+      "resourceLocks": [],
+      "attempts": 1,
+      "failureCategory": null,
+      "defectMateriality": "none",
+      "cleanupStatus": "passed",
+      "newInformation": "Malformed, partial, oversized, Unicode, and following-stdin families are covered."
+    },
+    {
+      "id": "ENV-SSH-006",
+      "status": "passed",
+      "command": "cargo test -p remote transport::ssh::tests --lib",
+      "evidencePath": "docs/test-results/deterministic-suite.json",
+      "evidenceStrength": "direct",
+      "resourceLocks": [],
+      "attempts": 1,
+      "failureCategory": null,
+      "defectMateriality": "none",
+      "cleanupStatus": "passed",
+      "newInformation": "Generic POSIX SSH command construction rejects environment-bearing calls."
+    },
+    {
+      "id": "ENV-PTY-007",
+      "status": "passed",
+      "command": "cargo test -p remote_server --test env_exec_pty && cargo test -p terminal private_stdin_bootstrap --lib",
+      "evidencePath": "docs/test-results/remote-environment-live-canary.json",
+      "evidenceStrength": "direct",
+      "resourceLocks": [
+        "remote-intrepid"
+      ],
+      "attempts": 1,
+      "failureCategory": null,
+      "defectMateriality": "none",
+      "cleanupStatus": "passed",
+      "newInformation": "A real SSH PTY reaches readiness without echoing the value and preserves application input."
+    },
+    {
+      "id": "ENV-TERMINAL-008",
+      "status": "passed",
+      "command": "installed Zed 10x Intrepid terminal UAT",
+      "evidencePath": "docs/test-results/installed-uat.json",
+      "evidenceStrength": "direct",
+      "resourceLocks": [
+        "remote-intrepid"
+      ],
+      "attempts": 1,
+      "failureCategory": null,
+      "defectMateriality": "none",
+      "cleanupStatus": "passed",
+      "newInformation": "The assembled app terminal preserves exact cwd and directory/surface environment, survives resize, accepts input, handles Ctrl-C, and opens without the stale PROMPT_COMMAND warning."
+    },
+    {
+      "id": "ENV-TASK-009",
+      "status": "passed",
+      "command": "installed Zed 10x Intrepid task environment and cancellation UAT",
+      "evidencePath": "docs/test-results/installed-uat.json",
+      "evidenceStrength": "direct",
+      "resourceLocks": [
+        "remote-intrepid"
+      ],
+      "attempts": 1,
+      "failureCategory": null,
+      "defectMateriality": "none",
+      "cleanupStatus": "passed",
+      "newInformation": "The assembled task path preserves exact cwd plus directory/task environment and terminates cleanly after cancellation."
+    },
+    {
+      "id": "ENV-SHELL-010",
+      "status": "passed",
+      "command": "installed Zed 10x remote Vim external-filter UAT plus cargo test -p vim --lib",
+      "evidencePath": "docs/test-results/installed-uat.json",
+      "evidenceStrength": "direct",
+      "resourceLocks": [],
+      "attempts": 1,
+      "failureCategory": null,
+      "defectMateriality": "none",
+      "cleanupStatus": "passed",
+      "newInformation": "A real Vim external filter receives the private environment, runs in the opened project cwd, and transforms the selected text."
+    },
+    {
+      "id": "ENV-MCP-011",
+      "status": "passed",
+      "command": "installed Zed 10x remote MCP initialize/notifications/initialized/tools-list UAT plus deterministic ordering test",
+      "evidencePath": "docs/test-results/installed-uat.json",
+      "evidenceStrength": "direct",
+      "resourceLocks": [],
+      "attempts": 1,
+      "failureCategory": null,
+      "defectMateriality": "none",
+      "cleanupStatus": "passed",
+      "newInformation": "The installed context-server consumer runs from the project cwd and completes initialize, initialized notification, and tools/list with the expected environment."
+    },
+    {
+      "id": "ENV-DAP-STDIO-012",
+      "status": "passed",
+      "command": "installed Zed 10x remote stdio DAP launch/configuration/terminate UAT plus deterministic ordering test",
+      "evidencePath": "docs/test-results/installed-uat.json",
+      "evidenceStrength": "direct",
+      "resourceLocks": [],
+      "attempts": 1,
+      "failureCategory": null,
+      "defectMateriality": "none",
+      "cleanupStatus": "passed",
+      "newInformation": "The installed stdio adapter runs from the project cwd and completes initialize, launch, configurationDone, and terminate with the expected environment."
+    },
+    {
+      "id": "ENV-DAP-TCP-013",
+      "status": "passed",
+      "command": "installed Zed 10x remote TCP DAP launch/configuration/threads/terminate UAT plus delayed true-RST initialize replay and stable-connection regressions",
+      "evidencePath": "docs/test-results/installed-uat.json",
+      "evidenceStrength": "direct",
+      "resourceLocks": [
+        "remote-intrepid"
+      ],
+      "attempts": 3,
+      "failureCategory": "product_and_test_bugs_fixed",
+      "defectMateriality": "high assembled-product and test-validity defects fixed inline",
+      "cleanupStatus": "passed",
+      "newInformation": "The installed TCP adapter classifies a delayed real TCP reset, replays initialize exactly once on the next connection within the SSH/TCP timeout, completes the DAP sequence, and leaves no adapter process."
+    },
+    {
+      "id": "ENV-CONSUMER-MATRIX-014",
+      "status": "passed",
+      "command": "node --test script/tests/zed-remote-environment-live-canary.test.mjs",
+      "evidencePath": "docs/test-results/deterministic-suite.json",
+      "evidenceStrength": "direct",
+      "resourceLocks": [],
+      "attempts": 1,
+      "failureCategory": null,
+      "defectMateriality": "none",
+      "cleanupStatus": "passed",
+      "newInformation": "Every supported environment-bearing remote consumer uses a private transport API."
+    },
+    {
+      "id": "ENV-CAPABILITY-015",
+      "status": "passed",
+      "command": "cargo test -p remote_server --all-targets -- --test-threads=1 plus installed capability canary",
+      "evidencePath": "docs/test-results/remote-environment-live-canary.json",
+      "evidenceStrength": "direct",
+      "resourceLocks": [
+        "remote-intrepid"
+      ],
+      "attempts": 1,
+      "failureCategory": null,
+      "defectMateriality": "none",
+      "cleanupStatus": "passed",
+      "newInformation": "The installed server exposes exactly the two versioned secure environment capabilities."
+    },
+    {
+      "id": "ENV-PRIVACY-016",
+      "status": "passed",
+      "command": "cargo test -p remote command_template_debug_does_not_expose_environment_values --lib plus installed privacy canary",
+      "evidencePath": "docs/test-results/remote-environment-live-canary.json",
+      "evidenceStrength": "direct",
+      "resourceLocks": [
+        "remote-intrepid"
+      ],
+      "attempts": 1,
+      "failureCategory": null,
+      "defectMateriality": "none",
+      "cleanupStatus": "passed",
+      "newInformation": "The unique value is absent from local argv, PTY output, and installed Zed logs."
+    },
+    {
+      "id": "ENV-PLATFORM-017",
+      "status": "passed",
+      "command": "cargo test -p remote caller_environment_fails_closed_without_exposing_values --lib && cargo test -p remote caller_and_configured_environment_fail_closed_without_exposing_values --lib",
+      "evidencePath": "docs/test-results/deterministic-suite.json",
+      "evidenceStrength": "direct",
+      "resourceLocks": [],
+      "attempts": 1,
+      "failureCategory": null,
+      "defectMateriality": "none",
+      "cleanupStatus": "passed",
+      "newInformation": "Windows SSH, WSL, and Docker do not inherit an unsafe default environment transport."
+    },
+    {
+      "id": "ENV-PACKAGE-018",
+      "status": "passed",
+      "command": "node --test script/tests/zed-10x-product-identity.test.mjs plus bundle/install/live SSH canary",
+      "evidencePath": "docs/test-results/installed-uat.json",
+      "evidenceStrength": "direct",
+      "resourceLocks": [
+        "remote-intrepid"
+      ],
+      "attempts": 1,
+      "failureCategory": null,
+      "defectMateriality": "none",
+      "cleanupStatus": "passed",
+      "newInformation": "The installed app carries the matching Linux remote server and opens the populated Intrepid project."
+    }
+  ]
+}

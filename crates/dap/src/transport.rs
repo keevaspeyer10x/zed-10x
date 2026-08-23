@@ -8,7 +8,7 @@ use dap_types::{
 use futures::{AsyncRead, AsyncReadExt as _, AsyncWrite, FutureExt as _, channel::oneshot, select};
 use gpui::{AppContext as _, AsyncApp, BackgroundExecutor, Task};
 use parking_lot::Mutex;
-use proto::ErrorExt;
+use proto::{ErrorCode, ErrorCodeExt as _, ErrorExt};
 use settings::Settings as _;
 use smallvec::SmallVec;
 use smol::{
@@ -20,17 +20,56 @@ use std::{
     collections::HashMap,
     net::{IpAddr, SocketAddr},
     process::Stdio,
-    sync::Arc,
+    sync::{
+        Arc,
+        atomic::{AtomicU64, Ordering},
+    },
     time::Duration,
 };
 use task::TcpArgumentsTemplate;
 use util::{ConnectionResult, ResultExt, process::Child};
 
 use crate::{
-    adapters::{DebugAdapterBinary, TcpArguments},
+    adapters::{DebugAdapterBinary, PrivateStdinPrelude, TcpArguments},
     client::DapMessageHandler,
     debugger_settings::DebuggerSettings,
 };
+
+const TRANSPORT_ERROR_TAG: &str = "dap_transport";
+const DISCONNECTED_ERROR_VALUE: &str = "disconnected";
+
+fn is_disconnect_io_error(error: &std::io::Error) -> bool {
+    matches!(
+        error.kind(),
+        std::io::ErrorKind::BrokenPipe
+            | std::io::ErrorKind::ConnectionAborted
+            | std::io::ErrorKind::ConnectionReset
+            | std::io::ErrorKind::NotConnected
+            | std::io::ErrorKind::UnexpectedEof
+    )
+}
+
+fn transport_disconnected_error() -> anyhow::Error {
+    ErrorCode::Internal
+        .message("debugger connection closed before initialization completed".to_owned())
+        .with_tag(TRANSPORT_ERROR_TAG, DISCONNECTED_ERROR_VALUE)
+        .anyhow()
+}
+
+pub(crate) fn is_transport_disconnected(error: &anyhow::Error) -> bool {
+    error.error_tag(TRANSPORT_ERROR_TAG) == Some(DISCONNECTED_ERROR_VALUE)
+}
+
+async fn write_private_stdin_prelude<W>(stdin: &mut W, prelude: &PrivateStdinPrelude) -> Result<()>
+where
+    W: AsyncWrite + Unpin,
+{
+    if !prelude.is_empty() {
+        stdin.write_all(prelude.as_bytes()).await?;
+        stdin.flush().await?;
+    }
+    Ok(())
+}
 
 pub(crate) type IoMessage = str;
 pub(crate) type Command = str;
@@ -153,6 +192,7 @@ pub(crate) struct TransportDelegate {
     pub(crate) pending_requests: Arc<Mutex<PendingRequests>>,
     pub(crate) transport: Mutex<Box<dyn Transport>>,
     pub(crate) server_tx: smol::lock::Mutex<Option<Sender<Message>>>,
+    connection_generation: Arc<AtomicU64>,
     tasks: Mutex<Vec<Task<()>>>,
 }
 
@@ -165,6 +205,7 @@ impl TransportDelegate {
             log_handlers,
             server_tx: Default::default(),
             pending_requests: Arc::new(Mutex::new(PendingRequests::new())),
+            connection_generation: Arc::new(AtomicU64::new(0)),
             tasks: Default::default(),
         })
     }
@@ -175,7 +216,11 @@ impl TransportDelegate {
         cx: &mut AsyncApp,
     ) -> Result<()> {
         let (server_tx, client_rx) = unbounded::<Message>();
+        let generation = self.connection_generation.fetch_add(1, Ordering::SeqCst) + 1;
         self.tasks.lock().clear();
+        self.pending_requests
+            .lock()
+            .flush(anyhow!("debugger connection replaced"));
 
         let log_dap_communications =
             cx.update(|cx| DebuggerSettings::get_global(cx).log_dap_communications);
@@ -190,33 +235,41 @@ impl TransportDelegate {
         };
 
         let pending_requests = self.pending_requests.clone();
+        let connection_generation = self.connection_generation.clone();
+        let send_pending_requests = pending_requests.clone();
+        let send_connection_generation = connection_generation.clone();
         let output_log_handler = log_handler.clone();
         {
             let mut tasks = self.tasks.lock();
             tasks.push(cx.background_spawn(async move {
-                match Self::recv_from_server(
+                let result = Self::recv_from_server(
                     output,
                     message_handler,
                     pending_requests.clone(),
                     output_log_handler,
                 )
-                .await
-                {
-                    Ok(()) => {
-                        pending_requests
+                .await;
+                if connection_generation.load(Ordering::SeqCst) == generation {
+                    match result {
+                        Ok(()) => pending_requests
                             .lock()
-                            .flush(anyhow!("debugger shutdown unexpectedly"));
+                            .flush(transport_disconnected_error()),
+                        Err(error) => pending_requests.lock().flush(error),
                     }
-                    Err(e) => {
-                        pending_requests.lock().flush(e);
-                    }
+                } else {
+                    log::debug!("Ignored stale debugger connection generation {generation}");
                 }
             }));
 
             tasks.push(cx.background_spawn(async move {
-                match Self::send_to_server(input, client_rx, log_handler).await {
-                    Ok(()) => {}
-                    Err(e) => log::error!("Error handling debugger input: {e}"),
+                let result = Self::send_to_server(input, client_rx, log_handler).await;
+                if let Err(error) = &result {
+                    log::error!("Error handling debugger input: {error}");
+                }
+                if send_connection_generation.load(Ordering::SeqCst) == generation {
+                    send_pending_requests
+                        .lock()
+                        .flush(transport_disconnected_error());
                 }
             }));
         }
@@ -402,6 +455,9 @@ impl TransportDelegate {
             match reader.read_line(buffer).await {
                 Ok(0) => return ConnectionResult::ConnectionReset,
                 Ok(_) => {}
+                Err(error) if is_disconnect_io_error(&error) => {
+                    return ConnectionResult::ConnectionReset;
+                }
                 Err(e) => return ConnectionResult::Result(Err(e.into())),
             };
 
@@ -423,12 +479,11 @@ impl TransportDelegate {
         };
 
         let mut content = vec![0; content_length];
-        if let Err(e) = reader
-            .read_exact(&mut content)
-            .await
-            .with_context(|| "reading after a loop")
-        {
-            return ConnectionResult::Result(Err(e));
+        if let Err(error) = reader.read_exact(&mut content).await {
+            if is_disconnect_io_error(&error) {
+                return ConnectionResult::ConnectionReset;
+            }
+            return ConnectionResult::Result(Err(error).context("reading after a loop"));
         }
 
         let message_str = match std::str::from_utf8(&content).context("invalid utf8 from server") {
@@ -523,8 +578,21 @@ impl TcpTransport {
             command.args(&binary.arguments);
             command.envs(&binary.envs);
 
-            let mut p = Child::spawn(command, Stdio::null(), Stdio::piped(), Stdio::piped())
+            let stdin = if binary.stdin_prelude.is_empty() {
+                Stdio::null()
+            } else {
+                Stdio::piped()
+            };
+            let mut p = Child::spawn(command, stdin, Stdio::piped(), Stdio::piped())
                 .with_context(|| "failed to start debug adapter.")?;
+
+            if !binary.stdin_prelude.is_empty() {
+                let mut stdin = p
+                    .stdin
+                    .take()
+                    .context("secure debug adapter bootstrap stdin is unavailable")?;
+                write_private_stdin_prelude(&mut stdin, &binary.stdin_prelude).await?;
+            }
 
             stdout_task = p.stdout.take().map(|stdout| {
                 cx.background_executor()
@@ -673,6 +741,12 @@ impl StdioTransport {
         command.envs(&binary.envs);
 
         let mut process = Child::spawn(command, Stdio::piped(), Stdio::piped(), Stdio::piped())?;
+
+        let stdin = process
+            .stdin
+            .as_mut()
+            .context("debug adapter stdin is unavailable")?;
+        write_private_stdin_prelude(stdin, &binary.stdin_prelude).await?;
 
         let _stderr_task = process.stderr.take().map(|stderr| {
             cx.background_spawn(TransportDelegate::handle_adapter_log(
@@ -1016,5 +1090,128 @@ impl Transport for FakeTransport {
     #[cfg(any(test, feature = "test-support"))]
     fn as_fake(&self) -> &FakeTransport {
         self
+    }
+}
+
+#[cfg(test)]
+mod private_stdin_tests {
+    use super::*;
+    use std::{
+        pin::Pin,
+        task::{Context, Poll},
+    };
+
+    struct RecordingWriter(Vec<u8>);
+
+    impl AsyncWrite for RecordingWriter {
+        fn poll_write(
+            mut self: Pin<&mut Self>,
+            _cx: &mut Context<'_>,
+            bytes: &[u8],
+        ) -> Poll<std::io::Result<usize>> {
+            self.0.extend_from_slice(bytes);
+            Poll::Ready(Ok(bytes.len()))
+        }
+
+        fn poll_flush(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
+            Poll::Ready(Ok(()))
+        }
+
+        fn poll_close(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
+            Poll::Ready(Ok(()))
+        }
+    }
+
+    #[test]
+    fn private_prelude_is_written_before_first_dap_byte() {
+        let mut writer = RecordingWriter(Vec::new());
+        let prelude = PrivateStdinPrelude::from(b"private-prelude".to_vec());
+
+        smol::block_on(async {
+            write_private_stdin_prelude(&mut writer, &prelude)
+                .await
+                .expect("write private prelude");
+            writer
+                .write_all(b"first-dap-byte")
+                .await
+                .expect("write first DAP byte");
+        });
+
+        assert_eq!(writer.0, b"private-preludefirst-dap-byte");
+    }
+
+    #[cfg(unix)]
+    fn set_abortive_close(stream: &std::net::TcpStream) {
+        use std::os::fd::AsRawFd as _;
+
+        let linger = libc::linger {
+            l_onoff: 1,
+            l_linger: 0,
+        };
+        let result = unsafe {
+            libc::setsockopt(
+                stream.as_raw_fd(),
+                libc::SOL_SOCKET,
+                libc::SO_LINGER,
+                std::ptr::from_ref(&linger).cast(),
+                std::mem::size_of_val(&linger) as libc::socklen_t,
+            )
+        };
+        assert_eq!(result, 0, "failed to configure abortive TCP close");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn delayed_tcp_reset_before_header_is_a_disconnect() {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let (connected_tx, connected_rx) = std::sync::mpsc::channel();
+        let server = std::thread::spawn(move || {
+            let (stream, _) = listener.accept().unwrap();
+            connected_rx.recv().unwrap();
+            std::thread::sleep(Duration::from_millis(150));
+            set_abortive_close(&stream);
+        });
+
+        smol::block_on(async {
+            let stream = smol::net::TcpStream::connect(address).await.unwrap();
+            connected_tx.send(()).unwrap();
+            let mut reader = BufReader::new(stream);
+            let mut buffer = String::new();
+            let result =
+                TransportDelegate::receive_server_message(&mut reader, &mut buffer, None).await;
+            assert!(matches!(result, ConnectionResult::ConnectionReset));
+        });
+
+        server.join().unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn tcp_reset_during_body_is_a_disconnect() {
+        use std::io::Write as _;
+
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let (connected_tx, connected_rx) = std::sync::mpsc::channel();
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            connected_rx.recv().unwrap();
+            stream.write_all(b"Content-Length: 10\r\n\r\nabc").unwrap();
+            stream.flush().unwrap();
+            set_abortive_close(&stream);
+        });
+
+        smol::block_on(async {
+            let stream = smol::net::TcpStream::connect(address).await.unwrap();
+            connected_tx.send(()).unwrap();
+            let mut reader = BufReader::new(stream);
+            let mut buffer = String::new();
+            let result =
+                TransportDelegate::receive_server_message(&mut reader, &mut buffer, None).await;
+            assert!(matches!(result, ConnectionResult::ConnectionReset));
+        });
+
+        server.join().unwrap();
     }
 }

@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "status": "passed",
+  "sourceCommit": "5aeae9f3fb8ad57cfe84eca7cb8663d58ca94d82",
+  "sourceTree": "787d58af5d35c474d0256e67bfa69aba20f9c0d0",
+  "installedProductCommit": "658ad7c73805733d584c19cc063ef36d2ef612c4",
+  "installedCandidateDifference": "The later candidate commits harden the tracked UAT cleanup census, its tests, and evidence; they do not change product runtime behavior. The exact merged commit remains subject to a fresh post-merge install and canary.",
+  "testedWorkingTree": false,
+  "testedWorkingTreeChanges": [],
+  "suites": [
+    {
+      "name": "remote-consumer-rust-matrix",
+      "command": "cargo test -p remote -p remote_server -p terminal -p context_server -p dap -p project -p agent_servers -p vim --all-targets -- --test-threads=1",
+      "status": "passed",
+      "scope": "all targets for every changed remote consumer and protocol owner"
+    },
+    {
+      "name": "remote-consumer-clippy",
+      "command": "./script/clippy -p remote -p remote_server -p terminal -p context_server -p dap -p project -p agent_servers -p vim",
+      "status": "passed",
+      "scope": "release, all targets, all features"
+    },
+    {
+      "name": "format-and-diff",
+      "command": "cargo fmt --all -- --check && git diff --check",
+      "status": "passed"
+    },
+    {
+      "name": "changed-node-contracts",
+      "command": "node --test script/tests/zed-10x-product-identity.test.mjs script/tests/zed-acp-live-canary.test.mjs script/tests/zed-remote-environment-live-canary.test.mjs",
+      "status": "passed",
+      "tests": 25,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "name": "python-canary-compile",
+      "command": "python3 -m py_compile script/zed-acp-live-canary.py script/zed-remote-environment-live-canary.py script/zed-installed-surface-uat.py script/tests/fixtures/fake-zed-acp-project-agent.py script/tests/fixtures/zed-installed-surface-uat/*.py",
+      "status": "passed"
+    },
+    {
+      "name": "installed-surface-uat-runner",
+      "command": "python3 -m unittest script.tests.zed_installed_surface_uat_test",
+      "status": "passed",
+      "tests": 9,
+      "failed": 0,
+      "skipped": 1,
+      "skipReason": "The Linux procfs ancestry regression is exercised by Linux CI; macOS has no /proc.",
+      "linuxProcfsFocusedCommand": "python3 -m unittest script.tests.zed_installed_surface_uat_test.InstalledSurfaceUatTests.test_remote_collection_script_excludes_ancestors_but_reports_matching_sibling",
+      "linuxProcfsFocusedStatus": "passed on Intrepid",
+      "scope": "tracked production-shaped fixture rendering, strong journey oracles, delayed true TCP RST, valid DAP response shapes, resize observation, direnv authorization, and reuse-safe cleanup rejection"
+    },
+    {
+      "name": "mac-bundle",
+      "command": "./script/bundle-mac -d -i",
+      "status": "passed",
+      "installedCommit": "658ad7c73805733d584c19cc063ef36d2ef612c4",
+      "installedWorkingTree": false,
+      "signatureVerified": true
+    }
+  ]
+}

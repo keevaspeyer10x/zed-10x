@@ -4,7 +4,6 @@ mod alacritty;
 mod pty_info;
 pub mod terminal_settings;
 
-#[cfg(not(windows))]
 use anyhow::Context as _;
 use anyhow::{Result, bail};
 use futures_lite::future::yield_now;
@@ -942,6 +941,23 @@ fn init_command_startup_marker_command(shell_kind: ShellKind, marker_id: u64) ->
 pub struct TerminalBuilder {
     terminal: Terminal,
     events_rx: UnboundedReceiver<PtyEvent>,
+    pending_events: Vec<PtyEvent>,
+}
+
+pub struct TerminalStdinBootstrap {
+    ready_marker: String,
+    complete_marker: String,
+    prelude: Vec<u8>,
+}
+
+impl TerminalStdinBootstrap {
+    pub fn new(ready_marker: String, complete_marker: String, prelude: Vec<u8>) -> Self {
+        Self {
+            ready_marker,
+            complete_marker,
+            prelude,
+        }
+    }
 }
 
 impl TerminalBuilder {
@@ -1041,6 +1057,7 @@ impl TerminalBuilder {
         TerminalBuilder {
             terminal,
             events_rx,
+            pending_events: Vec::new(),
         }
     }
 
@@ -1057,6 +1074,7 @@ impl TerminalBuilder {
         is_remote_terminal: bool,
         window_id: u64,
         completion_tx: Option<Sender<Option<ExitStatus>>>,
+        stdin_bootstrap: Option<TerminalStdinBootstrap>,
         cx: &App,
         activation_script: Vec<String>,
         path_style: PathStyle,
@@ -1311,13 +1329,27 @@ impl TerminalBuilder {
                 pty_write_log: Default::default(),
             };
 
+            let mut builder = TerminalBuilder {
+                terminal,
+                events_rx,
+                pending_events: Vec::new(),
+            };
+
+            if let Some(stdin_bootstrap) = stdin_bootstrap {
+                builder
+                    .complete_private_stdin_bootstrap(stdin_bootstrap)
+                    .await?;
+            }
+
             if !activation_script.is_empty() && no_task {
                 for activation_script in activation_script {
-                    terminal.write_to_pty(activation_script.into_bytes());
+                    builder
+                        .terminal
+                        .write_to_pty(activation_script.into_bytes());
                     // Simulate enter key press
                     // NOTE(PowerShell): using `\r\n` will put PowerShell in a continuation mode (infamous >> character)
                     // and generally mess up the rendering.
-                    terminal.write_to_pty(b"\x0d");
+                    builder.terminal.write_to_pty(b"\x0d");
                 }
                 // In order to clear the screen at this point, we have two options:
                 // 1. We can send a shell-specific command such as "clear" or "cls"
@@ -1327,17 +1359,75 @@ impl TerminalBuilder {
                 // and while we have sent the activation script to the pty, it will be executed asynchronously.
                 // Therefore, we somehow need to wait for the activation script to finish executing before we
                 // can proceed with clearing the screen.
-                terminal.write_to_pty(shell_kind.clear_screen_command().as_bytes());
+                builder
+                    .terminal
+                    .write_to_pty(shell_kind.clear_screen_command().as_bytes());
                 // Simulate enter key press
-                terminal.write_to_pty(b"\x0d");
+                builder.terminal.write_to_pty(b"\x0d");
             }
 
-            Ok(TerminalBuilder {
-                terminal,
-                events_rx,
-            })
+            Ok(builder)
         };
         cx.background_spawn(fut)
+    }
+
+    async fn complete_private_stdin_bootstrap(
+        &mut self,
+        bootstrap: TerminalStdinBootstrap,
+    ) -> Result<()> {
+        anyhow::ensure!(
+            matches!(&self.terminal.terminal_type, TerminalType::Pty { .. }),
+            "secure terminal environment bootstrap requires a PTY"
+        );
+
+        self.wait_for_private_stdin_marker(&bootstrap.ready_marker)
+            .await
+            .context("waiting for secure terminal environment readiness")?;
+        self.terminal.write_private_to_pty(bootstrap.prelude);
+        self.wait_for_private_stdin_marker(&bootstrap.complete_marker)
+            .await
+            .context("waiting for secure terminal environment completion")?;
+
+        clear_saved_screen(&mut self.terminal.term.lock());
+        Ok(())
+    }
+
+    async fn wait_for_private_stdin_marker(&mut self, marker: &str) -> Result<()> {
+        const PRIVATE_STDIN_BOOTSTRAP_TIMEOUT: Duration = Duration::from_secs(30);
+
+        let timer = self
+            .terminal
+            .background_executor
+            .timer(PRIVATE_STDIN_BOOTSTRAP_TIMEOUT)
+            .fuse();
+        futures::pin_mut!(timer);
+        loop {
+            if last_non_empty_lines(
+                &self.terminal.term.lock_unfair(),
+                INIT_COMMAND_STARTUP_MARKER_SEARCH_LINES,
+            )
+            .iter()
+            .any(|line| line.contains(marker))
+            {
+                return Ok(());
+            }
+
+            futures::select_biased! {
+                event = self.events_rx.next() => {
+                    let Some(event) = event else {
+                        anyhow::bail!("terminal exited before secure environment bootstrap completed");
+                    };
+                    if matches!(
+                        event,
+                        PtyEvent::Event(TerminalBackendEvent::Exit | TerminalBackendEvent::ChildExit(_))
+                    ) {
+                        anyhow::bail!("terminal exited before secure environment bootstrap completed");
+                    }
+                    self.pending_events.push(event);
+                }
+                _ = timer => anyhow::bail!("secure terminal environment bootstrap timed out"),
+            }
+        }
     }
 
     pub fn subscribe(mut self, cx: &Context<Terminal>) -> Terminal {
@@ -1368,7 +1458,13 @@ impl TerminalBuilder {
             .detach();
 
         //Event loop
+        let pending_events = std::mem::take(&mut self.pending_events);
         self.terminal.event_loop_task = cx.spawn(async move |terminal, cx| {
+            for event in pending_events {
+                terminal.update(cx, |terminal, cx| {
+                    terminal.process_pty_event(event, cx);
+                })?;
+            }
             while let Some(event) = self.events_rx.next().await {
                 terminal.update(cx, |terminal, cx| {
                     //Process the first event immediately for lowered latency
@@ -2037,6 +2133,14 @@ impl Terminal {
                     log::debug!("Writing to PTY: {:?}", input);
                 }
             }
+            pty_tx.notify(input);
+        }
+    }
+
+    fn write_private_to_pty(&self, input: Vec<u8>) {
+        if let TerminalType::Pty { pty_tx, .. } = &self.terminal_type {
+            // Environment frames can contain credentials. They deliberately
+            // bypass terminal input logging and the debug representation.
             pty_tx.notify(input);
         }
     }
@@ -2989,6 +3093,7 @@ impl Terminal {
             self.is_remote_terminal,
             self.template.window_id,
             None,
+            None,
             cx,
             self.activation_script.clone(),
             self.path_style,
@@ -3534,6 +3639,7 @@ mod tests {
                     false,
                     0,
                     Some(completion_tx),
+                    None,
                     cx,
                     vec![],
                     PathStyle::local(),
@@ -3585,6 +3691,7 @@ mod tests {
                     false,
                     0,
                     Some(completion_tx),
+                    None,
                     cx,
                     vec![],
                     PathStyle::local(),
@@ -3951,6 +4058,119 @@ mod tests {
 
     #[cfg(unix)]
     #[gpui::test]
+    async fn private_stdin_bootstrap_precedes_application_input(cx: &mut TestAppContext) {
+        init_test(cx);
+        cx.executor().allow_parking();
+
+        let ready = "zed_private_stdin_ready";
+        let complete = "zed_private_stdin_complete";
+        let script = format!(
+            "saved=$(stty -g) || exit 10; \
+             stty -echo -icanon min 1 time 0 || exit 11; \
+             printf '%s\\r\\n' {ready}; \
+             frame=$(dd bs=1 count=5 2>/dev/null); \
+             stty \"$saved\" || exit 12; \
+             test \"$frame\" = frame || exit 13; \
+             printf '%s\\r\\n' {complete}; \
+             IFS= read -r line; \
+             printf 'APP:%s\\n' \"$line\""
+        );
+        let (completion_tx, completion_rx) = async_channel::unbounded();
+        let builder = cx
+            .update(|cx| {
+                TerminalBuilder::new(
+                    None,
+                    None,
+                    task::Shell::WithArguments {
+                        program: "/bin/sh".to_string(),
+                        args: vec!["-c".to_string(), script],
+                        title_override: None,
+                    },
+                    HashMap::default(),
+                    SettingsCursorShape::default(),
+                    AlternateScroll::On,
+                    None,
+                    vec![],
+                    0,
+                    false,
+                    0,
+                    Some(completion_tx),
+                    Some(TerminalStdinBootstrap::new(
+                        ready.to_string(),
+                        complete.to_string(),
+                        b"frame".to_vec(),
+                    )),
+                    cx,
+                    vec![],
+                    PathStyle::local(),
+                )
+            })
+            .await
+            .expect("secure terminal bootstrap");
+        let terminal = cx.new(|cx| builder.subscribe(cx));
+
+        terminal.update(cx, |terminal, _| {
+            terminal.input(b"application-input\r".to_vec())
+        });
+        assert_eq!(
+            completion_rx.recv().await.expect("terminal completion"),
+            Some(ExitStatus::default())
+        );
+        assert_content_eventually(&terminal, "APP:application-input", cx).await;
+        let content = terminal.update(cx, |terminal, _| terminal.get_content());
+        assert!(!content.contains(ready));
+        assert!(!content.contains(complete));
+        assert!(!content.contains("frame"));
+    }
+
+    #[cfg(unix)]
+    #[gpui::test]
+    async fn private_stdin_bootstrap_fails_when_child_exits_before_readiness(
+        cx: &mut TestAppContext,
+    ) {
+        init_test(cx);
+        cx.executor().allow_parking();
+
+        let result = cx
+            .update(|cx| {
+                TerminalBuilder::new(
+                    None,
+                    None,
+                    task::Shell::WithArguments {
+                        program: "/bin/false".to_string(),
+                        args: Vec::new(),
+                        title_override: None,
+                    },
+                    HashMap::default(),
+                    SettingsCursorShape::default(),
+                    AlternateScroll::On,
+                    None,
+                    vec![],
+                    0,
+                    false,
+                    0,
+                    None,
+                    Some(TerminalStdinBootstrap::new(
+                        "never-ready".to_string(),
+                        "never-complete".to_string(),
+                        b"private".to_vec(),
+                    )),
+                    cx,
+                    vec![],
+                    PathStyle::local(),
+                )
+            })
+            .await;
+
+        let error = match result {
+            Ok(_) => panic!("bootstrap must fail when the child exits before readiness"),
+            Err(error) => error,
+        };
+        assert!(!format!("{error:?}").contains("private"));
+    }
+
+    #[cfg(unix)]
+    #[gpui::test]
     async fn test_foreground_process_command_tracks_path_command(cx: &mut TestAppContext) {
         cx.executor().allow_parking();
 
@@ -3990,6 +4210,7 @@ mod tests {
                     false,
                     0,
                     Some(completion_tx),
+                    None,
                     cx,
                     Vec::new(),
                     PathStyle::local(),
@@ -4058,6 +4279,7 @@ mod tests {
                     false,
                     0,
                     None,
+                    None,
                     cx,
                     Vec::new(),
                     PathStyle::local(),
@@ -4124,6 +4346,7 @@ mod tests {
                     false,
                     0,
                     Some(completion_tx),
+                    None,
                     cx,
                     Vec::new(),
                     PathStyle::local(),
@@ -5092,6 +5315,7 @@ mod tests {
                         test_path_hyperlink_timeout_ms,
                         false,
                         window.window_handle().window_id().as_u64(),
+                        None,
                         None,
                         cx,
                         vec![],

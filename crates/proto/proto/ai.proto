@@ -35,6 +35,10 @@ message ExternalAgentsUpdated {
   repeated string names = 2;
 }
 
+message GetExternalAgents {
+  uint64 project_id = 1;
+}
+
 message ExternalExtensionAgentTarget {
   string archive = 1;
   string cmd = 2;

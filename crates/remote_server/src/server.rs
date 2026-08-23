@@ -87,6 +87,15 @@ pub enum Commands {
         command: Vec<OsString>,
     },
     #[command(hide = true)]
+    EnvExecPty {
+        #[arg(long)]
+        ready_marker: String,
+        #[arg(long)]
+        complete_marker: String,
+        #[arg(required = true, trailing_var_arg = true)]
+        command: Vec<OsString>,
+    },
+    #[command(hide = true)]
     Capabilities,
     Version,
 }
@@ -127,9 +136,18 @@ pub fn run(command: Commands) -> anyhow::Result<()> {
         Commands::EnvExec { command } => {
             execute_env_exec(command).context("starting command with stdin environment")
         }
+        Commands::EnvExecPty {
+            ready_marker,
+            complete_marker,
+            command,
+        } => execute_env_exec_pty(ready_marker, complete_marker, command)
+            .context("starting PTY command with stdin environment"),
         Commands::Capabilities => {
             #[cfg(unix)]
-            println!("{}", remote::STDIN_ENVIRONMENT_CAPABILITY);
+            {
+                println!("{}", remote::STDIN_ENVIRONMENT_CAPABILITY);
+                println!("{}", remote::PTY_STDIN_ENVIRONMENT_CAPABILITY);
+            }
             Ok(())
         }
         Commands::Version => {
@@ -252,9 +270,128 @@ fn execute_env_exec(command: Vec<OsString>) -> anyhow::Result<()> {
     Err(error).context("executing stdin environment command")
 }
 
+#[cfg(unix)]
+struct TerminalModeGuard {
+    original: libc::termios,
+    restored: bool,
+}
+
+#[cfg(unix)]
+impl TerminalModeGuard {
+    fn enter_private_input_mode() -> anyhow::Result<Self> {
+        let mut original = std::mem::MaybeUninit::<libc::termios>::uninit();
+        // SAFETY: `original` points to writable storage for one `termios` value.
+        let result = unsafe { libc::tcgetattr(libc::STDIN_FILENO, original.as_mut_ptr()) };
+        if result != 0 {
+            return Err(std::io::Error::last_os_error()).context("reading terminal mode");
+        }
+        // SAFETY: `tcgetattr` succeeded and initialized `original`.
+        let original = unsafe { original.assume_init() };
+        let mut private = original;
+        private.c_lflag &= !(libc::ECHO | libc::ECHONL | libc::ICANON);
+        private.c_cc[libc::VMIN] = 1;
+        private.c_cc[libc::VTIME] = 0;
+        // SAFETY: stdin is a terminal (proved by `tcgetattr`) and `private`
+        // remains valid for the duration of the call.
+        let result = unsafe { libc::tcsetattr(libc::STDIN_FILENO, libc::TCSANOW, &private) };
+        if result != 0 {
+            return Err(std::io::Error::last_os_error()).context("setting private terminal mode");
+        }
+        Ok(Self {
+            original,
+            restored: false,
+        })
+    }
+
+    fn restore(&mut self) -> anyhow::Result<()> {
+        if self.restored {
+            return Ok(());
+        }
+        // SAFETY: `original` was returned by `tcgetattr` for this descriptor.
+        let result = unsafe { libc::tcsetattr(libc::STDIN_FILENO, libc::TCSANOW, &self.original) };
+        if result != 0 {
+            return Err(std::io::Error::last_os_error()).context("restoring terminal mode");
+        }
+        self.restored = true;
+        Ok(())
+    }
+}
+
+#[cfg(unix)]
+impl Drop for TerminalModeGuard {
+    fn drop(&mut self) {
+        if !self.restored {
+            // Best effort only in `Drop`; the main path propagates restoration
+            // errors before executing the requested command.
+            unsafe {
+                libc::tcsetattr(libc::STDIN_FILENO, libc::TCSANOW, &self.original);
+            }
+        }
+    }
+}
+
+#[cfg(unix)]
+fn validate_pty_marker(marker: &str) -> anyhow::Result<()> {
+    anyhow::ensure!(
+        !marker.is_empty()
+            && marker.len() <= 128
+            && marker
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_'),
+        "invalid PTY environment marker"
+    );
+    Ok(())
+}
+
+#[cfg(unix)]
+fn execute_env_exec_pty(
+    ready_marker: String,
+    complete_marker: String,
+    command: Vec<OsString>,
+) -> anyhow::Result<()> {
+    use std::os::unix::process::CommandExt as _;
+
+    validate_pty_marker(&ready_marker)?;
+    validate_pty_marker(&complete_marker)?;
+    anyhow::ensure!(ready_marker != complete_marker, "PTY markers must differ");
+    let (program, arguments) = command
+        .split_first()
+        .context("stdin environment command is missing")?;
+
+    let mut terminal_mode = TerminalModeGuard::enter_private_input_mode()?;
+    let mut stdout = std::io::stdout().lock();
+    writeln!(stdout, "{ready_marker}")?;
+    stdout.flush()?;
+
+    let mut stdin = UnbufferedStdin {
+        deadline: Instant::now() + STDIN_ENVIRONMENT_READ_TIMEOUT,
+    };
+    let environment =
+        remote::read_stdin_environment(&mut stdin).context("reading PTY environment frame")?;
+    terminal_mode.restore()?;
+    writeln!(stdout, "{complete_marker}")?;
+    stdout.flush()?;
+    drop(stdout);
+
+    let error = std::process::Command::new(program)
+        .args(arguments)
+        .envs(environment)
+        .exec();
+    Err(error).context("executing stdin environment PTY command")
+}
+
 #[cfg(not(unix))]
 fn execute_env_exec(_command: Vec<OsString>) -> anyhow::Result<()> {
     anyhow::bail!("stdin environment command is not supported on this platform")
+}
+
+#[cfg(not(unix))]
+fn execute_env_exec_pty(
+    _ready_marker: String,
+    _complete_marker: String,
+    _command: Vec<OsString>,
+) -> anyhow::Result<()> {
+    anyhow::bail!("PTY stdin environment command is not supported on this platform")
 }
 
 pub static VERSION: LazyLock<String> = LazyLock::new(|| match *RELEASE_CHANNEL {

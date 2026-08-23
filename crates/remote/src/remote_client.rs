@@ -118,6 +118,7 @@ pub struct RemotePlatform {
 
 pub const MAX_STDIN_ENVIRONMENT_BYTES: usize = 1024 * 1024;
 pub const STDIN_ENVIRONMENT_CAPABILITY: &str = "env-exec-v1";
+pub const PTY_STDIN_ENVIRONMENT_CAPABILITY: &str = "env-exec-pty-v1";
 
 /// A process invocation prepared for a remote transport.
 ///
@@ -131,6 +132,8 @@ pub struct CommandTemplate {
     pub args: Vec<String>,
     pub env: HashMap<String, String>,
     pub stdin_prelude: Vec<u8>,
+    pub stdin_ready_marker: Option<String>,
+    pub stdin_complete_marker: Option<String>,
 }
 
 impl fmt::Debug for CommandTemplate {
@@ -141,6 +144,8 @@ impl fmt::Debug for CommandTemplate {
             .field("args", &self.args)
             .field("env_keys", &self.env.keys().collect::<BTreeSet<_>>())
             .field("stdin_prelude_bytes", &self.stdin_prelude.len())
+            .field("stdin_ready", &self.stdin_ready_marker.is_some())
+            .field("stdin_complete", &self.stdin_complete_marker.is_some())
             .finish()
     }
 }
@@ -1102,11 +1107,31 @@ impl RemoteClient {
         args: &[String],
         env: &HashMap<String, String>,
         working_dir: Option<String>,
+        port_forward: Option<(u16, String, u16)>,
     ) -> Result<CommandTemplate> {
         let Some(connection) = self.remote_connection() else {
             return Err(anyhow!("no remote connection"));
         };
-        connection.build_command_with_stdin_environment(program, args, env, working_dir)
+        connection.build_command_with_stdin_environment(
+            program,
+            args,
+            env,
+            working_dir,
+            port_forward,
+        )
+    }
+
+    pub fn build_interactive_command_with_stdin_environment(
+        &self,
+        program: Option<String>,
+        args: &[String],
+        env: &HashMap<String, String>,
+        working_dir: Option<String>,
+    ) -> Result<CommandTemplate> {
+        let Some(connection) = self.remote_connection() else {
+            return Err(anyhow!("no remote connection"));
+        };
+        connection.build_interactive_command_with_stdin_environment(program, args, env, working_dir)
     }
 
     pub fn build_forward_ports_command(
@@ -1639,6 +1664,27 @@ mod tests {
     }
 
     #[test]
+    fn stdin_environment_enforces_exact_payload_size_boundary() -> Result<()> {
+        // `{"A":"<value>"}` adds eight bytes around an unescaped ASCII value.
+        let maximum_value = "x".repeat(MAX_STDIN_ENVIRONMENT_BYTES - 8);
+        let maximum_environment = [("A".to_string(), maximum_value)]
+            .into_iter()
+            .collect::<HashMap<_, _>>();
+        let frame = encode_stdin_environment(&maximum_environment)?;
+        assert_eq!(
+            read_stdin_environment(&mut std::io::Cursor::new(frame))?,
+            maximum_environment
+        );
+
+        let oversized_environment =
+            [("A".to_string(), "x".repeat(MAX_STDIN_ENVIRONMENT_BYTES - 7))]
+                .into_iter()
+                .collect::<HashMap<_, _>>();
+        assert!(encode_stdin_environment(&oversized_environment).is_err());
+        Ok(())
+    }
+
+    #[test]
     fn command_template_debug_does_not_expose_environment_values() {
         let secret = "sentinel-secret-that-must-not-appear-in-debug";
         let command = CommandTemplate {
@@ -1648,6 +1694,8 @@ mod tests {
                 .into_iter()
                 .collect(),
             stdin_prelude: secret.as_bytes().to_vec(),
+            stdin_ready_marker: None,
+            stdin_complete_marker: None,
         };
 
         let debug = format!("{command:?}");
@@ -1853,8 +1901,20 @@ pub trait RemoteConnection: Send + Sync {
         args: &[String],
         env: &HashMap<String, String>,
         working_dir: Option<String>,
+        port_forward: Option<(u16, String, u16)>,
     ) -> Result<CommandTemplate> {
-        self.build_command(Some(program), args, env, working_dir, None, Interactive::No)
+        let _ = (program, args, env, working_dir, port_forward);
+        anyhow::bail!("secure stdin environment transport is not supported by this remote")
+    }
+    fn build_interactive_command_with_stdin_environment(
+        &self,
+        program: Option<String>,
+        args: &[String],
+        env: &HashMap<String, String>,
+        working_dir: Option<String>,
+    ) -> Result<CommandTemplate> {
+        let _ = (program, args, env, working_dir);
+        anyhow::bail!("secure PTY environment transport is not supported by this remote")
     }
     fn build_forward_ports_command(
         &self,

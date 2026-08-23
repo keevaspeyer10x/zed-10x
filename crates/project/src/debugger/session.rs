@@ -45,6 +45,7 @@ use node_runtime::NodeRuntime;
 use remote::RemoteClient;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use settings::Settings;
 use smol::net::{TcpListener, TcpStream};
 use std::any::TypeId;
 use std::collections::{BTreeMap, VecDeque};
@@ -544,22 +545,6 @@ impl RunningMode {
             result?;
             anyhow::Ok(())
         })
-    }
-
-    fn reconnect_for_ssh(&self, cx: &mut AsyncApp) -> Option<Task<Result<()>>> {
-        let client = self.client.clone();
-        let messages_tx = self.messages_tx.clone();
-        let message_handler = Box::new(move |message| {
-            messages_tx.unbounded_send(message).ok();
-        });
-        if client.should_reconnect_for_ssh() {
-            Some(cx.spawn(async move |cx| {
-                client.connect(message_handler, cx).await?;
-                anyhow::Ok(())
-            }))
-        } else {
-            None
-        }
     }
 
     fn request<R: LocalDapCommand>(&self, request: R) -> Task<Result<R::Response>>
@@ -1277,40 +1262,36 @@ impl Session {
                 "Cannot send initialize request, task still building"
             )));
         };
-        let mut response = running.request(request.clone());
+        let client = running.client.clone();
+        let messages_tx = running.messages_tx.clone();
+        let arguments = request.to_dap();
+        let timeout = running
+            .binary
+            .connection
+            .as_ref()
+            .and_then(|connection| connection.timeout)
+            .unwrap_or_else(|| dap::debugger_settings::DebuggerSettings::get_global(cx).timeout);
 
         cx.spawn(async move |this, cx| {
-            loop {
-                let capabilities = response.await;
-                match capabilities {
-                    Err(e) => {
-                        let Ok(Some(reconnect)) = this.update(cx, |this, cx| {
-                            this.as_running()
-                                .and_then(|running| running.reconnect_for_ssh(&mut cx.to_async()))
-                        }) else {
-                            return Err(e);
-                        };
-                        log::info!("Failed to connect to debug adapter: {}, retrying...", e);
-                        reconnect.await?;
-
-                        let Ok(Some(r)) = this.update(cx, |this, _| {
-                            this.as_running()
-                                .map(|running| running.request(request.clone()))
-                        }) else {
-                            return Err(e);
-                        };
-                        response = r
-                    }
-                    Ok(capabilities) => {
-                        this.update(cx, |session, cx| {
-                            session.capabilities = capabilities;
-
-                            cx.emit(SessionEvent::CapabilitiesLoaded);
-                        })?;
-                        return Ok(());
-                    }
-                }
-            }
+            let capabilities = client
+                .initialize(
+                    arguments,
+                    || {
+                        let messages_tx = messages_tx.clone();
+                        Box::new(move |message| {
+                            messages_tx.unbounded_send(message).ok();
+                        })
+                    },
+                    Duration::from_millis(timeout),
+                    cx,
+                )
+                .await?;
+            let capabilities = request.response_from_dap(capabilities)?;
+            this.update(cx, |session, cx| {
+                session.capabilities = capabilities;
+                cx.emit(SessionEvent::CapabilitiesLoaded);
+            })?;
+            Ok(())
         })
     }
 

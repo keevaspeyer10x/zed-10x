@@ -217,6 +217,7 @@
 # Developing Zed
 
 - [Developing Zed](./development.md)
+- [Secure Remote Environment Transport](./development/secure-remote-environment-transport.md)
   - [macOS](./development/macos.md)
   - [Linux](./development/linux.md)
   - [Windows](./development/windows.md)

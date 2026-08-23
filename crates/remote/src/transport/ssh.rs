@@ -1,8 +1,8 @@
 use crate::{
     RemoteArch, RemoteClientDelegate, RemoteOs, RemotePlatform,
     remote_client::{
-        CommandTemplate, Interactive, RemoteConnection, RemoteConnectionOptions,
-        encode_stdin_environment,
+        CommandTemplate, Interactive, PTY_STDIN_ENVIRONMENT_CAPABILITY, RemoteConnection,
+        RemoteConnectionOptions, encode_stdin_environment,
     },
     transport::{parse_platform, parse_shell},
 };
@@ -50,6 +50,7 @@ pub(crate) struct SshRemoteConnection {
     killed: AtomicBool,
     remote_binary_path: Option<Arc<RelPath>>,
     supports_stdin_environment: bool,
+    supports_pty_stdin_environment: bool,
     ssh_platform: RemotePlatform,
     ssh_os_version: Option<String>,
     ssh_path_style: PathStyle,
@@ -319,6 +320,10 @@ impl RemoteConnection for SshRemoteConnection {
         port_forward: Option<(u16, String, u16)>,
         interactive: Interactive,
     ) -> Result<CommandTemplate> {
+        anyhow::ensure!(
+            input_env.is_empty(),
+            "refusing to serialize remote environment values into SSH arguments"
+        );
         let Self {
             ssh_path_style,
             socket,
@@ -367,6 +372,7 @@ impl RemoteConnection for SshRemoteConnection {
         input_args: &[String],
         input_env: &HashMap<String, String>,
         working_dir: Option<String>,
+        port_forward: Option<(u16, String, u16)>,
     ) -> Result<CommandTemplate> {
         anyhow::ensure!(
             !self.ssh_platform.os.is_windows(),
@@ -390,8 +396,45 @@ impl RemoteConnection for SshRemoteConnection {
             input_args,
             input_env,
             working_dir,
+            port_forward,
             self.socket.envs.clone(),
             self.ssh_path_style,
+            self.ssh_shell_kind,
+            self.socket.ssh_command_options(),
+            &self.socket.connection_options.ssh_destination(),
+            remote_binary_path.as_ref(),
+        )
+    }
+
+    fn build_interactive_command_with_stdin_environment(
+        &self,
+        input_program: Option<String>,
+        input_args: &[String],
+        input_env: &HashMap<String, String>,
+        working_dir: Option<String>,
+    ) -> Result<CommandTemplate> {
+        anyhow::ensure!(
+            !self.ssh_platform.os.is_windows(),
+            "secure PTY environment transport is not supported for Windows SSH remotes"
+        );
+        anyhow::ensure!(
+            self.supports_pty_stdin_environment,
+            "remote development server does not support secure terminal environment transport; \
+             reconnect to reinstall the version-matched server"
+        );
+        let remote_binary_path = self
+            .remote_binary_path
+            .as_ref()
+            .context("remote binary path not set for secure terminal environment transport")?;
+
+        build_command_posix_with_pty_stdin_environment(
+            input_program,
+            input_args,
+            input_env,
+            working_dir,
+            self.socket.envs.clone(),
+            self.ssh_path_style,
+            &self.ssh_shell,
             self.ssh_shell_kind,
             self.socket.ssh_command_options(),
             &self.socket.connection_options.ssh_destination(),
@@ -421,6 +464,8 @@ impl RemoteConnection for SshRemoteConnection {
             args,
             env: Default::default(),
             stdin_prelude: Vec::new(),
+            stdin_ready_marker: None,
+            stdin_complete_marker: None,
         })
     }
 
@@ -825,6 +870,7 @@ impl SshRemoteConnection {
             _temp_dir: temp_dir,
             remote_binary_path: None,
             supports_stdin_environment: false,
+            supports_pty_stdin_environment: false,
             ssh_path_style,
             ssh_platform,
             ssh_os_version,
@@ -840,7 +886,7 @@ impl SshRemoteConnection {
             .await?;
         if !this.ssh_platform.os.is_windows() {
             let remote_binary = remote_binary_path.display(this.path_style()).into_owned();
-            this.supports_stdin_environment = this
+            let capabilities = this
                 .socket
                 .run_command(
                     this.ssh_shell_kind,
@@ -849,11 +895,13 @@ impl SshRemoteConnection {
                     false,
                 )
                 .await
-                .is_ok_and(|output| {
-                    output
-                        .lines()
-                        .any(|capability| capability.trim() == crate::STDIN_ENVIRONMENT_CAPABILITY)
-                });
+                .unwrap_or_default();
+            this.supports_stdin_environment = capabilities
+                .lines()
+                .any(|capability| capability.trim() == crate::STDIN_ENVIRONMENT_CAPABILITY);
+            this.supports_pty_stdin_environment = capabilities
+                .lines()
+                .any(|capability| capability.trim() == PTY_STDIN_ENVIRONMENT_CAPABILITY);
         }
         this.remote_binary_path = Some(remote_binary_path);
 
@@ -1884,11 +1932,20 @@ fn build_command_posix(
     )
 }
 
+const PTY_ENVIRONMENT_READY_MARKER_PREFIX: &str = "__zed_env_exec_pty_ready_v1_";
+const PTY_ENVIRONMENT_COMPLETE_MARKER_PREFIX: &str = "__zed_env_exec_pty_complete_v1_";
+
+enum StdinEnvironmentBootstrap<'a> {
+    NonInteractive(&'a RelPath),
+    Pty(&'a RelPath),
+}
+
 fn build_command_posix_with_stdin_environment(
     input_program: String,
     input_args: &[String],
     input_env: &HashMap<String, String>,
     working_dir: Option<String>,
+    port_forward: Option<(u16, String, u16)>,
     ssh_env: HashMap<String, String>,
     ssh_path_style: PathStyle,
     ssh_shell_kind: ShellKind,
@@ -1905,7 +1962,7 @@ fn build_command_posix_with_stdin_environment(
         input_args,
         input_env,
         working_dir,
-        None,
+        port_forward,
         ssh_env,
         ssh_path_style,
         "",
@@ -1913,7 +1970,44 @@ fn build_command_posix_with_stdin_environment(
         ssh_options,
         ssh_destination,
         Interactive::No,
-        Some(remote_binary_path),
+        Some(StdinEnvironmentBootstrap::NonInteractive(
+            remote_binary_path,
+        )),
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn build_command_posix_with_pty_stdin_environment(
+    input_program: Option<String>,
+    input_args: &[String],
+    input_env: &HashMap<String, String>,
+    working_dir: Option<String>,
+    ssh_env: HashMap<String, String>,
+    ssh_path_style: PathStyle,
+    ssh_shell: &str,
+    ssh_shell_kind: ShellKind,
+    ssh_options: Vec<String>,
+    ssh_destination: &str,
+    remote_binary_path: &RelPath,
+) -> Result<CommandTemplate> {
+    anyhow::ensure!(
+        !remote_binary_path.is_empty(),
+        "secure terminal environment bootstrap path must not be empty"
+    );
+    build_command_posix_inner(
+        input_program,
+        input_args,
+        input_env,
+        working_dir,
+        None,
+        ssh_env,
+        ssh_path_style,
+        ssh_shell,
+        ssh_shell_kind,
+        ssh_options,
+        ssh_destination,
+        Interactive::Yes,
+        Some(StdinEnvironmentBootstrap::Pty(remote_binary_path)),
     )
 }
 
@@ -1931,13 +2025,21 @@ fn build_command_posix_inner(
     ssh_options: Vec<String>,
     ssh_destination: &str,
     interactive: Interactive,
-    stdin_environment_bootstrap: Option<&RelPath>,
+    stdin_environment_bootstrap: Option<StdinEnvironmentBootstrap<'_>>,
 ) -> Result<CommandTemplate> {
     use std::fmt::Write as _;
 
     anyhow::ensure!(
-        stdin_environment_bootstrap.is_none() || input_program.is_some(),
+        !matches!(
+            &stdin_environment_bootstrap,
+            Some(StdinEnvironmentBootstrap::NonInteractive(_))
+        ) || input_program.is_some(),
         "stdin environment transport requires an explicit command"
+    );
+
+    anyhow::ensure!(
+        stdin_environment_bootstrap.is_some() || input_env.is_empty(),
+        "refusing to serialize remote environment values into SSH arguments"
     );
 
     let mut exec = String::new();
@@ -1983,22 +2085,44 @@ fn build_command_posix_inner(
             ssh_shell_kind.sequential_and_commands_separator()
         )?;
     };
-    let stdin_prelude = if let Some(bootstrap) = stdin_environment_bootstrap {
+    let (stdin_prelude, stdin_ready_marker, stdin_complete_marker) = if let Some(bootstrap) =
+        stdin_environment_bootstrap
+    {
+        let (bootstrap, pty) = match bootstrap {
+            StdinEnvironmentBootstrap::NonInteractive(path) => (path, false),
+            StdinEnvironmentBootstrap::Pty(path) => (path, true),
+        };
         let bootstrap = ssh_shell_kind
             .try_quote(bootstrap.as_unix_str())
             .context("shell quoting")?;
-        write!(exec, "exec \"$HOME\"/{bootstrap} env-exec -- ")?;
-        encode_stdin_environment(input_env)?
-    } else {
-        write!(exec, "exec env ")?;
-        for (key, value) in input_env {
-            let assignment = format!("{key}={value}");
-            let assignment = ssh_shell_kind
-                .try_quote(&assignment)
+        if pty {
+            let marker_nonce = uuid::Uuid::new_v4().simple();
+            let ready_marker_value =
+                format!("{PTY_ENVIRONMENT_READY_MARKER_PREFIX}{marker_nonce}__");
+            let complete_marker_value =
+                format!("{PTY_ENVIRONMENT_COMPLETE_MARKER_PREFIX}{marker_nonce}__");
+            let ready_marker = ssh_shell_kind
+                .try_quote(&ready_marker_value)
                 .context("shell quoting")?;
-            write!(exec, "{assignment} ")?;
+            let complete_marker = ssh_shell_kind
+                .try_quote(&complete_marker_value)
+                .context("shell quoting")?;
+            write!(
+                exec,
+                "exec \"$HOME\"/{bootstrap} env-exec-pty --ready-marker {ready_marker} --complete-marker {complete_marker} -- "
+            )?;
+            (
+                encode_stdin_environment(input_env)?,
+                Some(ready_marker_value),
+                Some(complete_marker_value),
+            )
+        } else {
+            write!(exec, "exec \"$HOME\"/{bootstrap} env-exec -- ")?;
+            (encode_stdin_environment(input_env)?, None, None)
         }
-        Vec::new()
+    } else {
+        write!(exec, "exec ")?;
+        (Vec::new(), None, None)
     };
 
     if let Some(input_program) = input_program {
@@ -2048,6 +2172,8 @@ fn build_command_posix_inner(
         args,
         env: ssh_env,
         stdin_prelude,
+        stdin_ready_marker,
+        stdin_complete_marker,
     })
 }
 
@@ -2152,6 +2278,8 @@ fn build_command_windows(
         args,
         env: ssh_env,
         stdin_prelude: Vec::new(),
+        stdin_ready_marker: None,
+        stdin_complete_marker: None,
     })
 }
 
@@ -2161,8 +2289,7 @@ mod tests {
 
     #[test]
     fn test_build_command() -> Result<()> {
-        let mut input_env = HashMap::default();
-        input_env.insert("INPUT_VA".to_string(), "val".to_string());
+        let input_env = HashMap::default();
         let mut env = HashMap::default();
         env.insert("SSH_VAR".to_string(), "ssh-val".to_string());
 
@@ -2212,13 +2339,12 @@ mod tests {
                 "LogLevel=ERROR",
                 "-t",
                 "user@host",
-                "cd \"$HOME\"/work && exec env 'INPUT_VA=val' remote_program arg1 arg2"
+                "cd \"$HOME\"/work && exec remote_program arg1 arg2"
             ]
         );
         assert_eq!(command.env, env);
 
-        let mut input_env = HashMap::default();
-        input_env.insert("INPUT_VA".to_string(), "val".to_string());
+        let input_env = HashMap::default();
         let mut env = HashMap::default();
         env.insert("SSH_VAR".to_string(), "ssh-val".to_string());
 
@@ -2249,7 +2375,7 @@ mod tests {
                 "LogLevel=ERROR",
                 "-t",
                 "user@host",
-                "cd && exec env 'INPUT_VA=val' /bin/fish -l"
+                "cd && exec /bin/fish -l"
             ]
         );
         assert_eq!(command.env, env);
@@ -2258,34 +2384,84 @@ mod tests {
     }
 
     #[test]
-    fn test_build_command_quotes_env_assignment() -> Result<()> {
+    fn test_generic_builder_rejects_environment_without_exposing_it() -> Result<()> {
+        let secret = "sentinel-secret-that-must-not-appear";
         let mut input_env = HashMap::default();
-        input_env.insert("ZED$(echo foo)".to_string(), "value".to_string());
+        input_env.insert("PROVIDER_TOKEN".to_string(), secret.to_string());
 
-        let command = build_command_posix(
-            Some("remote_program".to_string()),
+        for interactive in [Interactive::No, Interactive::Yes] {
+            let error = build_command_posix(
+                Some("remote_program".to_string()),
+                &[],
+                &input_env,
+                None,
+                None,
+                HashMap::default(),
+                PathStyle::Unix,
+                "/bin/bash",
+                ShellKind::Posix,
+                vec![],
+                "user@host",
+                interactive,
+            )
+            .expect_err("generic SSH builder must fail closed for non-empty environments");
+            assert!(!format!("{error:?}").contains(secret));
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_interactive_command_uses_private_pty_environment_bootstrap() -> Result<()> {
+        let secret = "interactive-secret-that-must-not-appear-in-argv";
+        let mut input_env = HashMap::default();
+        input_env.insert("PROVIDER_TOKEN".to_string(), secret.to_string());
+
+        let command = build_command_posix_with_pty_stdin_environment(
+            None,
             &[],
             &input_env,
-            None,
-            None,
+            Some("~/work".to_string()),
             HashMap::default(),
             PathStyle::Unix,
             "/bin/bash",
             ShellKind::Posix,
             vec![],
             "user@host",
-            Interactive::No,
+            RelPath::from_unix_str(".zed-10x-server/zed-remote-server")?,
         )?;
 
-        let remote_command = command
-            .args
-            .last()
-            .context("missing remote command argument")?;
         assert!(
-            remote_command.contains("exec env 'ZED$(echo foo)=value' remote_program"),
-            "expected env assignment to be quoted, got: {remote_command}"
+            command
+                .args
+                .iter()
+                .all(|argument| !argument.contains(secret))
+        );
+        assert!(!format!("{command:?}").contains(secret));
+        assert!(
+            command
+                .stdin_ready_marker
+                .as_deref()
+                .is_some_and(|marker| { marker.starts_with(PTY_ENVIRONMENT_READY_MARKER_PREFIX) })
+        );
+        assert!(
+            command
+                .stdin_complete_marker
+                .as_deref()
+                .is_some_and(|marker| {
+                    marker.starts_with(PTY_ENVIRONMENT_COMPLETE_MARKER_PREFIX)
+                })
+        );
+        assert_ne!(command.stdin_ready_marker, command.stdin_complete_marker);
+        assert!(
+            command
+                .args
+                .last()
+                .is_some_and(|argument| argument.contains("env-exec-pty"))
         );
 
+        let mut framed_input = std::io::Cursor::new(command.stdin_prelude);
+        assert_eq!(crate::read_stdin_environment(&mut framed_input)?, input_env);
         Ok(())
     }
 
@@ -2300,6 +2476,7 @@ mod tests {
             &["--acp".to_string()],
             &input_env,
             Some("~/work".to_string()),
+            None,
             HashMap::default(),
             PathStyle::Unix,
             ShellKind::Posix,
@@ -2342,6 +2519,7 @@ mod tests {
             &["--acp".to_string()],
             &HashMap::default(),
             Some("/home/keeva/repos/isla".to_string()),
+            None,
             HashMap::default(),
             PathStyle::Unix,
             ShellKind::Posix,
@@ -2369,6 +2547,7 @@ mod tests {
             "agent".to_string(),
             &[],
             &HashMap::default(),
+            None,
             None,
             HashMap::default(),
             PathStyle::Unix,
@@ -2415,6 +2594,7 @@ mod tests {
             &[],
             &HashMap::default(),
             Some(working_dir.to_string_lossy().into_owned()),
+            None,
             HashMap::default(),
             PathStyle::Unix,
             ShellKind::Posix,

@@ -521,6 +521,10 @@ impl DockerExecConnection {
         env: &HashMap<String, String>,
         program_args: &[impl AsRef<str>],
     ) -> Result<String> {
+        anyhow::ensure!(
+            env.is_empty() && self.connection_options.remote_env.is_empty(),
+            "secure stdin environment transport is not supported by Docker"
+        );
         let mut args = match working_directory {
             Some(dir) => vec!["-w".to_string(), dir.to_string()],
             None => vec![],
@@ -528,16 +532,6 @@ impl DockerExecConnection {
 
         args.push("-u".to_string());
         args.push(self.connection_options.remote_user.clone());
-
-        for (k, v) in self.connection_options.remote_env.iter() {
-            args.push("-e".to_string());
-            args.push(format!("{k}={v}"));
-        }
-
-        for (k, v) in env.iter() {
-            args.push("-e".to_string());
-            args.push(format!("{k}={v}"));
-        }
 
         args.push(self.connection_options.container_id.clone());
         args.push(inner_program.to_string());
@@ -659,6 +653,12 @@ impl RemoteConnection for DockerExecConnection {
             };
         }
 
+        if !self.connection_options.remote_env.is_empty() {
+            return Task::ready(Err(anyhow!(
+                "secure stdin environment transport is not supported by Docker"
+            )));
+        }
+
         delegate.set_status(Some("Starting proxy"), cx);
 
         let Some(remote_binary_relpath) = self.remote_binary_relpath.clone() else {
@@ -667,10 +667,6 @@ impl RemoteConnection for DockerExecConnection {
 
         let mut docker_args = vec!["exec".to_string()];
 
-        for (k, v) in self.connection_options.remote_env.iter() {
-            docker_args.push("-e".to_string());
-            docker_args.push(format!("{k}={v}"));
-        }
         for env_var in ["RUST_LOG", "RUST_BACKTRACE", "ZED_GENERATE_MINIDUMPS"] {
             if let Some(value) = std::env::var(env_var).ok() {
                 docker_args.push("-e".to_string());
@@ -766,6 +762,10 @@ impl RemoteConnection for DockerExecConnection {
         _port_forward: Option<(u16, String, u16)>,
         interactive: Interactive,
     ) -> Result<CommandTemplate> {
+        anyhow::ensure!(
+            env.is_empty() && self.connection_options.remote_env.is_empty(),
+            "secure stdin environment transport is not supported by Docker"
+        );
         let mut parsed_working_dir = None;
 
         let path_style = self.path_style();
@@ -806,16 +806,6 @@ impl RemoteConnection for DockerExecConnection {
             docker_args.push(parsed_working_dir);
         }
 
-        for (k, v) in self.connection_options.remote_env.iter() {
-            docker_args.push("-e".to_string());
-            docker_args.push(format!("{k}={v}"));
-        }
-
-        for (k, v) in env.iter() {
-            docker_args.push("-e".to_string());
-            docker_args.push(format!("{k}={v}"));
-        }
-
         match interactive {
             Interactive::Yes => docker_args.push("-it".to_string()),
             Interactive::No => docker_args.push("-i".to_string()),
@@ -830,6 +820,8 @@ impl RemoteConnection for DockerExecConnection {
             // Docker-exec pipes in environment via the "-e" argument
             env: Default::default(),
             stdin_prelude: Vec::new(),
+            stdin_ready_marker: None,
+            stdin_complete_marker: None,
         })
     }
 
@@ -867,5 +859,71 @@ impl RemoteConnection for DockerExecConnection {
 
     fn default_system_shell(&self) -> String {
         String::from("/bin/sh")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn connection(remote_env: BTreeMap<String, String>) -> DockerExecConnection {
+        DockerExecConnection {
+            proxy_process: Mutex::new(None),
+            remote_dir_for_server: "/home/user".to_string(),
+            remote_binary_relpath: None,
+            connection_options: DockerConnectionOptions {
+                name: "container".to_string(),
+                container_id: "container-id".to_string(),
+                remote_user: "user".to_string(),
+                upload_binary_over_docker_exec: false,
+                use_podman: false,
+                remote_env,
+            },
+            remote_platform: Some(RemotePlatform {
+                os: RemoteOs::Linux,
+                arch: RemoteArch::X86_64,
+            }),
+            os_version: None,
+            path_style: Some(PathStyle::Unix),
+            shell: "/bin/sh".to_string(),
+        }
+    }
+
+    #[test]
+    fn caller_and_configured_environment_fail_closed_without_exposing_values() {
+        let secret = "docker-secret-sentinel";
+        let caller_environment = [("TOKEN".to_string(), secret.to_string())]
+            .into_iter()
+            .collect();
+        let error = connection(BTreeMap::new())
+            .build_command(
+                Some("/usr/bin/true".to_string()),
+                &[],
+                &caller_environment,
+                None,
+                None,
+                Interactive::No,
+            )
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("not supported by Docker"));
+        assert!(!error.contains(secret));
+
+        let configured_environment = [("TOKEN".to_string(), secret.to_string())]
+            .into_iter()
+            .collect();
+        let error = connection(configured_environment)
+            .build_command(
+                Some("/usr/bin/true".to_string()),
+                &[],
+                &HashMap::default(),
+                None,
+                None,
+                Interactive::No,
+            )
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("not supported by Docker"));
+        assert!(!error.contains(secret));
     }
 }

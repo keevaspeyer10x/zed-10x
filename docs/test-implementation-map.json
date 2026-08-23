@@ -1,0 +1,1080 @@
+{
+  "plannedRows": 18,
+  "readyNowRows": 18,
+  "implementedRows": 18,
+  "executedRows": 18,
+  "remainingRows": 0,
+  "unimplementedRows": [],
+  "blockedRows": [],
+  "mappings": [
+    {
+      "id": "ACP-SMOKE-001",
+      "readiness": "ready_now",
+      "risk": "critical",
+      "tier": 0,
+      "runner": "cargo-test+installed-zed-uat",
+      "rowKind": "journey",
+      "provenance": [
+        {
+          "source": "prior_defect",
+          "ref": "DEFECT-ACP-INITIAL-INVENTORY-RACE"
+        }
+      ],
+      "plannedEvidence": [
+        "server-first cold open",
+        "client-first settings update",
+        "reconnect with stale-response suppression",
+        "installed inventory readback"
+      ],
+      "decisionRule": "hard_fail",
+      "specificOracles": [
+        "exact latest names",
+        "no stale or duplicate names",
+        "no fixed delay"
+      ],
+      "negativeCase": "server-push-before-client-handler",
+      "requirements": [
+        "REQ-ACP-001"
+      ],
+      "evidenceStrength": "direct",
+      "assertionType": "journey_contract",
+      "confidenceOnly": false,
+      "weakRow": false,
+      "implemented": true,
+      "assertionRefs": [
+        {
+          "file": "crates/remote_server/src/remote_editing_tests.rs",
+          "testName": "test_remote_external_agent_server_recovers_inventory_published_before_client_ready",
+          "asserts": [
+            "server-first inventory is recovered"
+          ]
+        },
+        {
+          "file": "crates/remote_server/src/remote_editing_tests.rs",
+          "testName": "test_remote_external_agent_server_reconnects_to_latest_inventory",
+          "asserts": [
+            "reconnect returns only latest inventory"
+          ]
+        }
+      ],
+      "runCommand": "cargo test -p remote_server --lib remote_external_agent && cargo test -p project remote_agent --lib"
+    },
+    {
+      "id": "ACP-JOURNEY-002",
+      "readiness": "ready_now",
+      "risk": "critical",
+      "tier": 0,
+      "runner": "installed-zed-uat+zed-acp-live-canary",
+      "rowKind": "journey",
+      "provenance": [
+        {
+          "source": "prior_defect",
+          "ref": "DEFECT-ACP-CANARY-BYPASS"
+        }
+      ],
+      "plannedEvidence": [
+        "completed ACP tool call from real cwd",
+        "withheld sentinel digest",
+        "terminal response",
+        "zero approved permissions"
+      ],
+      "decisionRule": "hard_fail",
+      "specificOracles": [
+        "tool call completed",
+        "cwd exact",
+        "sentinel exact",
+        "prompt echo cannot pass"
+      ],
+      "negativeCase": "marker-only-or-prompt-echo",
+      "resourceLocks": [
+        "ai-provider",
+        "remote-intrepid"
+      ],
+      "requirements": [
+        "REQ-ACP-002"
+      ],
+      "evidenceStrength": "direct",
+      "assertionType": "journey_contract",
+      "confidenceOnly": false,
+      "weakRow": false,
+      "implemented": true,
+      "assertionRefs": [
+        {
+          "file": "script/tests/zed-acp-live-canary.test.mjs",
+          "testName": "project-aware ACP canary accepts a completed tool call with exact project evidence",
+          "asserts": [
+            "withheld digest read through completed tool call",
+            "exact cwd",
+            "cleanup"
+          ]
+        },
+        {
+          "file": "script/tests/zed-acp-live-canary.test.mjs",
+          "testName": "echoing every prompt-visible value cannot impersonate a project read",
+          "asserts": [
+            "prompt echo is non-green"
+          ]
+        }
+      ],
+      "runCommand": "node --test script/tests/zed-acp-live-canary.test.mjs && installed Zed 10x Mac-local/Intrepid ACP UAT"
+    },
+    {
+      "id": "ACP-NEG-003",
+      "readiness": "ready_now",
+      "risk": "high",
+      "tier": 1,
+      "runner": "zed-acp-live-canary",
+      "rowKind": "contract",
+      "provenance": [
+        {
+          "source": "observation",
+          "ref": "exit-127-auth-capacity-timeout-incidents"
+        }
+      ],
+      "plannedEvidence": [
+        "missing executable",
+        "authentication",
+        "capacity",
+        "permission request",
+        "nonterminal timeout"
+      ],
+      "decisionRule": "hard_fail",
+      "specificOracles": [
+        "distinct failure class",
+        "no false success",
+        "timeout kills owned process group"
+      ],
+      "negativeCase": "all-known-route-failure-classes",
+      "requirements": [
+        "REQ-ACP-002",
+        "REQ-ENV-004"
+      ],
+      "evidenceStrength": "direct",
+      "assertionType": "contract",
+      "confidenceOnly": false,
+      "weakRow": false,
+      "implemented": true,
+      "assertionRefs": [
+        {
+          "file": "script/tests/zed-acp-live-canary.test.mjs",
+          "testName": "authentication and capacity failures remain distinct",
+          "asserts": [
+            "distinct non-green classifications"
+          ]
+        },
+        {
+          "file": "script/tests/zed-acp-live-canary.test.mjs",
+          "testName": "read-only canary never grants route-requested permissions",
+          "asserts": [
+            "zero approvals"
+          ]
+        }
+      ],
+      "runCommand": "node --test script/tests/zed-acp-live-canary.test.mjs"
+    },
+    {
+      "id": "ACP-OPS-004",
+      "readiness": "ready_now",
+      "risk": "high",
+      "tier": 1,
+      "runner": "zed-acp-live-canary+installed-zed-uat",
+      "rowKind": "contract",
+      "provenance": [
+        {
+          "source": "risk",
+          "ref": "agent-process-residue"
+        }
+      ],
+      "plannedEvidence": [
+        "normal process group gone",
+        "timeout process group gone",
+        "installed route cleanup"
+      ],
+      "decisionRule": "hard_fail",
+      "specificOracles": [
+        "captured PID identities absent"
+      ],
+      "negativeCase": "hung-agent",
+      "requirements": [
+        "REQ-ENV-005"
+      ],
+      "evidenceStrength": "direct",
+      "assertionType": "contract",
+      "confidenceOnly": false,
+      "weakRow": false,
+      "implemented": true,
+      "assertionRefs": [
+        {
+          "file": "script/tests/zed-acp-live-canary.test.mjs",
+          "testName": "timeout kills the owned ACP process group",
+          "asserts": [
+            "parent and child gone"
+          ]
+        }
+      ],
+      "runCommand": "node --test script/tests/zed-acp-live-canary.test.mjs"
+    },
+    {
+      "id": "ENV-FRAME-005",
+      "readiness": "ready_now",
+      "risk": "critical",
+      "tier": 0,
+      "runner": "cargo-test",
+      "rowKind": "contract",
+      "tags": [
+        "security",
+        "property",
+        "contract_compat"
+      ],
+      "provenance": [
+        {
+          "source": "risk",
+          "ref": "private-frame-parser"
+        }
+      ],
+      "plannedEvidence": [
+        "partial reads",
+        "following protocol bytes preserved",
+        "Unicode quotes and newlines",
+        "invalid names and NULs",
+        "truncated leading-zero malformed and oversized frames"
+      ],
+      "decisionRule": "hard_fail",
+      "specificOracles": [
+        "exact map round-trip",
+        "first application bytes unchanged",
+        "every malformed family rejected"
+      ],
+      "negativeCase": "malformed-truncated-oversized",
+      "requirements": [
+        "REQ-ENV-003",
+        "REQ-ENV-004"
+      ],
+      "evidenceStrength": "direct",
+      "assertionType": "contract",
+      "confidenceOnly": false,
+      "weakRow": false,
+      "implemented": true,
+      "assertionRefs": [
+        {
+          "file": "crates/remote/src/remote_client.rs",
+          "testName": "stdin_environment_round_trip_preserves_following_protocol_bytes",
+          "asserts": [
+            "exact map",
+            "following bytes unchanged"
+          ]
+        },
+        {
+          "file": "crates/remote/src/remote_client.rs",
+          "testName": "stdin_environment_enforces_exact_payload_size_boundary",
+          "asserts": [
+            "exact 1 MiB payload accepted",
+            "oversize rejected"
+          ]
+        },
+        {
+          "file": "crates/remote_server/tests/env_exec.rs",
+          "testName": "env_exec_rejects_invalid_frames_finitely_before_exec",
+          "asserts": [
+            "empty truncated malformed and oversized frames exit nonzero finitely"
+          ]
+        }
+      ],
+      "runCommand": "cargo test -p remote remote_client::tests::stdin_environment --lib && cargo test -p remote_server --test env_exec"
+    },
+    {
+      "id": "ENV-SSH-006",
+      "readiness": "ready_now",
+      "risk": "critical",
+      "tier": 0,
+      "runner": "cargo-test",
+      "rowKind": "contract",
+      "tags": [
+        "security",
+        "contract_compat"
+      ],
+      "provenance": [
+        {
+          "source": "prior_defect",
+          "ref": "DEFECT-SSH-ENV-ARGV-LEAK"
+        }
+      ],
+      "plannedEvidence": [
+        "generic builder rejects nonempty env",
+        "PTY and non-PTY secure builders carry only framed stdin",
+        "empty-env argv PTY and port-forward unchanged",
+        "home-relative bootstrap remains anchored after cd"
+      ],
+      "decisionRule": "hard_fail",
+      "specificOracles": [
+        "sentinel absent from args Debug and errors",
+        "exact working directory and port forward"
+      ],
+      "negativeCase": "generic-builder-with-env",
+      "requirements": [
+        "REQ-ENV-001",
+        "REQ-ENV-002",
+        "REQ-PACKAGE-001"
+      ],
+      "evidenceStrength": "direct",
+      "assertionType": "contract",
+      "confidenceOnly": false,
+      "weakRow": false,
+      "implemented": true,
+      "assertionRefs": [
+        {
+          "file": "crates/remote/src/transport/ssh.rs",
+          "testName": "test_generic_builder_rejects_environment_without_exposing_it",
+          "asserts": [
+            "both PTY modes reject generic env content-free"
+          ]
+        },
+        {
+          "file": "crates/remote/src/transport/ssh.rs",
+          "testName": "test_non_interactive_command_does_not_expose_environment_in_ssh_argv",
+          "asserts": [
+            "secret absent from argv and Debug",
+            "application stdin preserved"
+          ]
+        },
+        {
+          "file": "crates/remote/src/transport/ssh.rs",
+          "testName": "test_stdin_environment_bootstrap_executes_from_remote_home_after_cd",
+          "asserts": [
+            "home-relative bootstrap survives cwd change"
+          ]
+        }
+      ],
+      "runCommand": "cargo test -p remote transport::ssh::tests --lib"
+    },
+    {
+      "id": "ENV-PTY-007",
+      "readiness": "ready_now",
+      "risk": "critical",
+      "tier": 0,
+      "runner": "cargo-test",
+      "rowKind": "journey",
+      "tags": [
+        "security",
+        "stateful"
+      ],
+      "provenance": [
+        {
+          "source": "risk",
+          "ref": "pty-echo-and-canonical-buffering"
+        }
+      ],
+      "plannedEvidence": [
+        "real openpty readiness",
+        "no echo",
+        "frame consumed",
+        "tty restored",
+        "application stdin preserved",
+        "TerminalBuilder withholds UI/input",
+        "child exit before readiness fails"
+      ],
+      "decisionRule": "hard_fail",
+      "specificOracles": [
+        "secret absent from PTY output",
+        "terminal flags restored",
+        "markers cleared",
+        "application input exact"
+      ],
+      "negativeCase": "malformed-frame-or-early-exit",
+      "requirements": [
+        "REQ-ENV-001",
+        "REQ-ENV-003",
+        "REQ-ENV-004"
+      ],
+      "evidenceStrength": "direct",
+      "assertionType": "journey_contract",
+      "confidenceOnly": false,
+      "weakRow": false,
+      "implemented": true,
+      "assertionRefs": [
+        {
+          "file": "crates/remote_server/tests/env_exec_pty.rs",
+          "testName": "pty_environment_is_private_and_application_stdin_survives",
+          "asserts": [
+            "no secret echo",
+            "tty restored",
+            "application input exact"
+          ]
+        },
+        {
+          "file": "crates/terminal/src/terminal.rs",
+          "testName": "private_stdin_bootstrap_fails_when_child_exits_before_readiness",
+          "asserts": [
+            "early exit fails content-free"
+          ]
+        }
+      ],
+      "runCommand": "cargo test -p remote_server --test env_exec_pty && cargo test -p terminal private_stdin_bootstrap --lib"
+    },
+    {
+      "id": "ENV-TERMINAL-008",
+      "readiness": "ready_now",
+      "risk": "critical",
+      "tier": 0,
+      "runner": "installed-zed-uat",
+      "rowKind": "journey",
+      "provenance": [
+        {
+          "source": "observation",
+          "ref": "live-ssh-argv-leak"
+        }
+      ],
+      "plannedEvidence": [
+        "real project cwd",
+        "directory and terminal.env sentinels",
+        "interactive input",
+        "resize",
+        "Ctrl-C",
+        "ordinary close"
+      ],
+      "decisionRule": "hard_fail",
+      "specificOracles": [
+        "terminal output hashes expected values",
+        "no sentinel in local process argv or logs",
+        "owned process gone"
+      ],
+      "negativeCase": "cancel-long-running-command",
+      "resourceLocks": [
+        "remote-intrepid"
+      ],
+      "requirements": [
+        "REQ-ENV-001",
+        "REQ-ENV-002",
+        "REQ-ENV-005"
+      ],
+      "evidenceStrength": "direct",
+      "assertionType": "journey_contract",
+      "confidenceOnly": false,
+      "weakRow": false,
+      "implemented": true,
+      "assertionRefs": [
+        {
+          "file": "crates/terminal/src/terminal.rs",
+          "testName": "private_stdin_bootstrap_precedes_application_input",
+          "asserts": [
+            "frame precedes input",
+            "markers and frame withheld from terminal"
+          ]
+        },
+        {
+          "file": "script/zed-installed-surface-uat.py",
+          "testName": "validate_observation",
+          "asserts": [
+            "installed terminal proves cwd, directory and terminal environment, input, resize, interrupt, and cleanup"
+          ]
+        }
+      ],
+      "runCommand": "cargo test -p terminal private_stdin_bootstrap --lib && python3 -m unittest script.tests.zed_installed_surface_uat_test && python3 script/zed-installed-surface-uat.py prepare <fresh-intrepid-project> && installed Zed 10x Intrepid terminal UAT && python3 script/zed-installed-surface-uat.py verify <fresh-intrepid-project>"
+    },
+    {
+      "id": "ENV-TASK-009",
+      "readiness": "ready_now",
+      "risk": "high",
+      "tier": 0,
+      "runner": "installed-zed-uat",
+      "rowKind": "journey",
+      "provenance": [
+        {
+          "source": "code",
+          "ref": "crates/project/src/terminals.rs"
+        }
+      ],
+      "plannedEvidence": [
+        "task-specific env",
+        "directory/toolchain env",
+        "terminal output",
+        "cancel and cleanup"
+      ],
+      "decisionRule": "hard_fail",
+      "specificOracles": [
+        "all configured hashes match",
+        "no argv/log sentinel",
+        "task process gone"
+      ],
+      "negativeCase": "cancel-running-task",
+      "resourceLocks": [
+        "remote-intrepid"
+      ],
+      "requirements": [
+        "REQ-ENV-001",
+        "REQ-ENV-002",
+        "REQ-ENV-005"
+      ],
+      "evidenceStrength": "direct",
+      "assertionType": "journey_contract",
+      "confidenceOnly": false,
+      "weakRow": false,
+      "implemented": true,
+      "assertionRefs": [
+        {
+          "file": "crates/terminal/src/terminal.rs",
+          "testName": "private_stdin_bootstrap_precedes_application_input",
+          "asserts": [
+            "shared terminal/task PTY bootstrap precedes task input"
+          ]
+        },
+        {
+          "file": "crates/terminal/src/terminal.rs",
+          "testName": "test_kill_active_task_completes_and_captures_output",
+          "asserts": [
+            "task cancellation completes and captures output"
+          ]
+        },
+        {
+          "file": "script/zed-installed-surface-uat.py",
+          "testName": "validate_observation",
+          "asserts": [
+            "installed task proves cwd, directory and task environment, PTY, interrupt, and cleanup"
+          ]
+        }
+      ],
+      "runCommand": "cargo test -p terminal private_stdin_bootstrap --lib && python3 -m unittest script.tests.zed_installed_surface_uat_test && installed Zed 10x Intrepid task UAT through script/zed-installed-surface-uat.py"
+    },
+    {
+      "id": "ENV-SHELL-010",
+      "readiness": "ready_now",
+      "risk": "high",
+      "tier": 1,
+      "runner": "cargo-test+installed-zed-uat",
+      "rowKind": "journey",
+      "provenance": [
+        {
+          "source": "code",
+          "ref": "crates/vim/src/command.rs"
+        }
+      ],
+      "plannedEvidence": [
+        "prelude flushed before selected text",
+        "real cwd and env",
+        "command output replaces or filters selection"
+      ],
+      "decisionRule": "hard_fail",
+      "specificOracles": [
+        "first application byte preserved",
+        "output exact",
+        "no argv/log sentinel"
+      ],
+      "negativeCase": "missing-capability",
+      "resourceLocks": [
+        "remote-intrepid"
+      ],
+      "requirements": [
+        "REQ-ENV-001",
+        "REQ-ENV-002",
+        "REQ-ENV-003"
+      ],
+      "evidenceStrength": "direct",
+      "assertionType": "journey_contract",
+      "confidenceOnly": false,
+      "weakRow": false,
+      "implemented": true,
+      "assertionRefs": [
+        {
+          "file": "script/tests/zed-remote-environment-live-canary.test.mjs",
+          "testName": "every supported remote environment consumer uses the private transport",
+          "asserts": [
+            "Vim writes prelude before selected text"
+          ]
+        },
+        {
+          "file": "script/zed-installed-surface-uat.py",
+          "testName": "validate_observation",
+          "asserts": [
+            "installed Vim filter proves project cwd, private environment, and exact selected input"
+          ]
+        }
+      ],
+      "runCommand": "node --test script/tests/zed-remote-environment-live-canary.test.mjs && cargo test -p vim --lib && installed Zed 10x Vim UAT through script/zed-installed-surface-uat.py"
+    },
+    {
+      "id": "ENV-MCP-011",
+      "readiness": "ready_now",
+      "risk": "high",
+      "tier": 0,
+      "runner": "cargo-test+installed-zed-uat",
+      "rowKind": "journey",
+      "provenance": [
+        {
+          "source": "code",
+          "ref": "crates/context_server/src/transport/stdio_transport.rs"
+        }
+      ],
+      "plannedEvidence": [
+        "prelude before first JSON-RPC line",
+        "remote MCP initialize and one request",
+        "cleanup"
+      ],
+      "decisionRule": "hard_fail",
+      "specificOracles": [
+        "captured byte order exact",
+        "tool/list or ping succeeds",
+        "no argv/log sentinel"
+      ],
+      "negativeCase": "truncated-prelude-or-server-exit",
+      "resourceLocks": [
+        "remote-intrepid"
+      ],
+      "requirements": [
+        "REQ-ENV-001",
+        "REQ-ENV-002",
+        "REQ-ENV-003"
+      ],
+      "evidenceStrength": "direct",
+      "assertionType": "journey_contract",
+      "confidenceOnly": false,
+      "weakRow": false,
+      "implemented": true,
+      "assertionRefs": [
+        {
+          "file": "crates/context_server/src/transport/stdio_transport.rs",
+          "testName": "stdin_prelude_precedes_first_protocol_message",
+          "asserts": [
+            "prelude bytes precede first MCP message"
+          ]
+        },
+        {
+          "file": "script/zed-installed-surface-uat.py",
+          "testName": "validate_observation",
+          "asserts": [
+            "installed MCP server proves cwd, environment, initialize, initialized notification, tools/list, and cleanup"
+          ]
+        }
+      ],
+      "runCommand": "cargo test -p context_server stdin_prelude_precedes_first_protocol_message --lib && installed Zed 10x MCP UAT through script/zed-installed-surface-uat.py"
+    },
+    {
+      "id": "ENV-DAP-STDIO-012",
+      "readiness": "ready_now",
+      "risk": "high",
+      "tier": 0,
+      "runner": "cargo-test+installed-zed-uat",
+      "rowKind": "journey",
+      "provenance": [
+        {
+          "source": "code",
+          "ref": "crates/dap/src/transport.rs"
+        }
+      ],
+      "plannedEvidence": [
+        "deterministic first-byte ordering",
+        "representative remote stdio adapter initialize",
+        "cleanup"
+      ],
+      "decisionRule": "hard_fail",
+      "specificOracles": [
+        "prelude bytes precede Content-Length",
+        "session reaches initialized",
+        "no argv/log sentinel"
+      ],
+      "negativeCase": "adapter-exits-before-initialize",
+      "resourceLocks": [
+        "remote-intrepid"
+      ],
+      "requirements": [
+        "REQ-ENV-001",
+        "REQ-ENV-002",
+        "REQ-ENV-003"
+      ],
+      "evidenceStrength": "direct",
+      "assertionType": "journey_contract",
+      "confidenceOnly": false,
+      "weakRow": false,
+      "implemented": true,
+      "assertionRefs": [
+        {
+          "file": "crates/dap/src/transport.rs",
+          "testName": "private_prelude_is_written_before_first_dap_byte",
+          "asserts": [
+            "prelude precedes first DAP byte"
+          ]
+        },
+        {
+          "file": "script/zed-installed-surface-uat.py",
+          "testName": "validate_observation",
+          "asserts": [
+            "installed stdio DAP proves cwd, environment, full initialize/launch/configure/terminate exchange, and cleanup"
+          ]
+        }
+      ],
+      "runCommand": "cargo test -p dap private_prelude_is_written_before_first_dap_byte --lib && installed Zed 10x stdio DAP UAT through script/zed-installed-surface-uat.py"
+    },
+    {
+      "id": "ENV-DAP-TCP-013",
+      "readiness": "ready_now",
+      "risk": "high",
+      "tier": 0,
+      "runner": "cargo-test+installed-zed-uat",
+      "rowKind": "journey",
+      "provenance": [
+        {
+          "source": "code",
+          "ref": "crates/project/src/debugger/dap_store.rs"
+        }
+      ],
+      "plannedEvidence": [
+        "secure builder retains port forwarding",
+        "stdin is piped and closed after prelude",
+        "representative TCP adapter initializes",
+        "cleanup"
+      ],
+      "decisionRule": "hard_fail",
+      "specificOracles": [
+        "exact -L forwarding",
+        "remote listener sees env",
+        "DAP exchange succeeds",
+        "no argv/log sentinel"
+      ],
+      "negativeCase": "bootstrap-fails-before-listen",
+      "resourceLocks": [
+        "remote-intrepid",
+        "network-port:dynamic"
+      ],
+      "requirements": [
+        "REQ-ENV-001",
+        "REQ-ENV-002",
+        "REQ-ENV-003"
+      ],
+      "evidenceStrength": "direct",
+      "assertionType": "journey_contract",
+      "confidenceOnly": false,
+      "weakRow": false,
+      "implemented": true,
+      "assertionRefs": [
+        {
+          "file": "crates/dap/src/transport.rs",
+          "testName": "private_prelude_is_written_before_first_dap_byte",
+          "asserts": [
+            "TCP spawn writes framed prelude before port client"
+          ]
+        },
+        {
+          "file": "script/zed-remote-environment-live-canary.py",
+          "testName": "run_tcp",
+          "asserts": [
+            "real SSH port forwarding preserves DAP-like message after private prelude"
+          ]
+        },
+        {
+          "file": "crates/dap/src/client.rs",
+          "testName": "initialize_reconnects_after_delayed_first_connection_reset",
+          "asserts": [
+            "a reset after more than the removed grace interval reconnects under the original deadline and replays only initialize"
+          ]
+        },
+        {
+          "file": "crates/dap/src/client.rs",
+          "testName": "stable_initialize_does_not_reconnect",
+          "asserts": [
+            "a valid initialize response is authoritative and is never replayed"
+          ]
+        },
+        {
+          "file": "crates/dap/src/client.rs",
+          "testName": "rejected_initialize_does_not_reconnect",
+          "asserts": [
+            "a semantic DAP rejection is terminal and is not mistaken for a transport reset"
+          ]
+        },
+        {
+          "file": "script/zed-installed-surface-uat.py",
+          "testName": "validate_observation",
+          "asserts": [
+            "installed TCP DAP deliberately resets its first initialize after more than 100 ms, reconnects once in the same adapter process, completes the protocol, and cleans up"
+          ]
+        }
+      ],
+      "runCommand": "cargo test -p dap private_prelude_is_written_before_first_dap_byte --lib && cargo test -p dap initialize_ --lib && script/zed-remote-environment-live-canary.py (TCP mode) && installed Zed 10x TCP DAP reset/reconnect UAT through script/zed-installed-surface-uat.py"
+    },
+    {
+      "id": "ENV-CONSUMER-MATRIX-014",
+      "readiness": "ready_now",
+      "risk": "critical",
+      "tier": 0,
+      "runner": "cargo-check+source-contract-test",
+      "rowKind": "contract",
+      "tags": [
+        "security"
+      ],
+      "provenance": [
+        {
+          "source": "prior_defect",
+          "ref": "DEFECT-PLAN-SURFACE-OMISSION"
+        }
+      ],
+      "plannedEvidence": [
+        "caller inventory",
+        "no nonempty env reaches generic remote builder",
+        "affected crates compile and test"
+      ],
+      "decisionRule": "hard_fail",
+      "specificOracles": [
+        "only recent-project empty-env probe uses generic SSH builder",
+        "all seven consumers map to secure transport"
+      ],
+      "negativeCase": "sibling-consumer-bypasses-secure-builder",
+      "requirements": [
+        "REQ-ENV-001",
+        "REQ-ENV-002"
+      ],
+      "evidenceStrength": "direct",
+      "assertionType": "contract",
+      "confidenceOnly": false,
+      "weakRow": false,
+      "implemented": true,
+      "assertionRefs": [
+        {
+          "file": "script/tests/zed-remote-environment-live-canary.test.mjs",
+          "testName": "every supported remote environment consumer uses the private transport",
+          "asserts": [
+            "ACP context DAP terminal task and Vim secure call sites present"
+          ]
+        }
+      ],
+      "runCommand": "node --test script/tests/zed-remote-environment-live-canary.test.mjs"
+    },
+    {
+      "id": "ENV-CAPABILITY-015",
+      "readiness": "ready_now",
+      "risk": "critical",
+      "tier": 0,
+      "runner": "cargo-test+installed-zed-uat",
+      "rowKind": "contract",
+      "tags": [
+        "security",
+        "contract_compat"
+      ],
+      "provenance": [
+        {
+          "source": "risk",
+          "ref": "client-server-version-drift"
+        }
+      ],
+      "plannedEvidence": [
+        "capabilities parsed independently",
+        "missing PTY or non-PTY capability errors",
+        "no argv fallback",
+        "reconnect installs matching binary"
+      ],
+      "decisionRule": "hard_fail",
+      "specificOracles": [
+        "content-free error",
+        "zero child launch",
+        "matching server advertises both capabilities"
+      ],
+      "negativeCase": "old-remote-server",
+      "resourceLocks": [
+        "remote-intrepid"
+      ],
+      "requirements": [
+        "REQ-ENV-004",
+        "REQ-PACKAGE-001"
+      ],
+      "evidenceStrength": "direct",
+      "assertionType": "contract",
+      "confidenceOnly": false,
+      "weakRow": false,
+      "implemented": true,
+      "assertionRefs": [
+        {
+          "file": "crates/remote_server/tests/env_exec.rs",
+          "testName": "env_exec_transfers_environment_without_argv_exposure_and_preserves_stdin",
+          "asserts": [
+            "exact capability lines include env-exec-v1 and env-exec-pty-v1"
+          ]
+        },
+        {
+          "file": "script/zed-remote-environment-live-canary.py",
+          "testName": "verify_capabilities",
+          "asserts": [
+            "installed mismatch is non-green"
+          ]
+        }
+      ],
+      "runCommand": "cargo test -p remote_server --all-targets -- --test-threads=1 && script/zed-remote-environment-live-canary.py"
+    },
+    {
+      "id": "ENV-PRIVACY-016",
+      "readiness": "ready_now",
+      "risk": "critical",
+      "tier": 0,
+      "runner": "privacy-safe-installed-uat",
+      "rowKind": "gate",
+      "tags": [
+        "security",
+        "observability"
+      ],
+      "provenance": [
+        {
+          "source": "observation",
+          "ref": "live-ssh-argv-leak"
+        }
+      ],
+      "plannedEvidence": [
+        "unique sentinel supplied through each consumer",
+        "content-free argv census",
+        "CommandTemplate Debug/error assertions",
+        "log file boolean scan",
+        "post-journey cleanup"
+      ],
+      "decisionRule": "hard_fail",
+      "specificOracles": [
+        "zero sentinel matches",
+        "zero owned residue",
+        "audit never prints environment values"
+      ],
+      "negativeCase": "known-leaking-command-fixture-detected",
+      "resourceLocks": [
+        "remote-intrepid"
+      ],
+      "requirements": [
+        "REQ-ENV-001",
+        "REQ-ENV-005"
+      ],
+      "evidenceStrength": "direct",
+      "assertionType": "contract",
+      "confidenceOnly": false,
+      "weakRow": false,
+      "implemented": true,
+      "assertionRefs": [
+        {
+          "file": "crates/remote/src/remote_client.rs",
+          "testName": "command_template_debug_does_not_expose_environment_values",
+          "asserts": [
+            "secret absent from Debug"
+          ]
+        },
+        {
+          "file": "script/zed-remote-environment-live-canary.py",
+          "testName": "owned_process_argv_is_private",
+          "asserts": [
+            "owned argv and installed log scan are content-free booleans"
+          ]
+        }
+      ],
+      "runCommand": "cargo test -p remote command_template_debug_does_not_expose_environment_values --lib && script/zed-remote-environment-live-canary.py --log <installed-log>"
+    },
+    {
+      "id": "ENV-PLATFORM-017",
+      "readiness": "ready_now",
+      "risk": "high",
+      "tier": 1,
+      "runner": "cargo-test",
+      "rowKind": "contract",
+      "tags": [
+        "security",
+        "contract_compat"
+      ],
+      "provenance": [
+        {
+          "source": "risk",
+          "ref": "sibling-transport-exposure"
+        }
+      ],
+      "plannedEvidence": [
+        "Windows SSH rejects secure environment",
+        "WSL rejects nonempty env",
+        "Docker command and proxy reject configured or caller env"
+      ],
+      "decisionRule": "hard_fail",
+      "specificOracles": [
+        "content-free error",
+        "no command template or process start"
+      ],
+      "negativeCase": "nonempty-env-on-unsupported-backend",
+      "requirements": [
+        "REQ-ENV-004"
+      ],
+      "evidenceStrength": "direct",
+      "assertionType": "contract",
+      "confidenceOnly": false,
+      "weakRow": false,
+      "implemented": true,
+      "assertionRefs": [
+        {
+          "file": "crates/remote/src/transport/wsl.rs",
+          "testName": "caller_environment_fails_closed_without_exposing_values",
+          "asserts": [
+            "WSL rejects private env without value in error"
+          ]
+        },
+        {
+          "file": "crates/remote/src/transport/docker.rs",
+          "testName": "caller_and_configured_environment_fail_closed_without_exposing_values",
+          "asserts": [
+            "Docker caller and configured env reject content-free"
+          ]
+        }
+      ],
+      "runCommand": "cargo test -p remote caller_environment_fails_closed_without_exposing_values --lib && cargo test -p remote caller_and_configured_environment_fail_closed_without_exposing_values --lib"
+    },
+    {
+      "id": "ENV-PACKAGE-018",
+      "readiness": "ready_now",
+      "risk": "critical",
+      "tier": 0,
+      "runner": "bundle+installed-uat",
+      "rowKind": "gate",
+      "tags": [
+        "migration",
+        "contract_compat"
+      ],
+      "provenance": [
+        {
+          "source": "prior_defect",
+          "ref": "remote-server-path-and-debug-assets-incidents"
+        }
+      ],
+      "plannedEvidence": [
+        "debug bundle includes remote_server debug assets",
+        "installed app identity",
+        "remote binary version and capabilities",
+        "home-anchored launch after project cd",
+        "rollback backup",
+        "ordinary cleanup"
+      ],
+      "decisionRule": "hard_fail",
+      "specificOracles": [
+        "both capability lines exact",
+        "installed app opens",
+        "remote project and journeys succeed",
+        "backup remains recoverable"
+      ],
+      "negativeCase": "missing-or-stale-remote-binary",
+      "resourceLocks": [
+        "dist-build",
+        "remote-intrepid"
+      ],
+      "requirements": [
+        "REQ-PACKAGE-001",
+        "REQ-ENV-005"
+      ],
+      "evidenceStrength": "direct",
+      "assertionType": "contract",
+      "confidenceOnly": false,
+      "weakRow": false,
+      "implemented": true,
+      "assertionRefs": [
+        {
+          "file": "script/tests/zed-10x-product-identity.test.mjs",
+          "testName": "private Zed 10x installs bundle remote servers and avoid release lookup for SSH bootstrap",
+          "asserts": [
+            "bundle owns matching remote server"
+          ]
+        },
+        {
+          "file": "script/zed-remote-environment-live-canary.py",
+          "testName": "verify_capabilities",
+          "asserts": [
+            "installed remote binary advertises both exact capabilities"
+          ]
+        }
+      ],
+      "runCommand": "node --test script/tests/zed-10x-product-identity.test.mjs && installed bundle capability/live SSH canary"
+    }
+  ]
+}

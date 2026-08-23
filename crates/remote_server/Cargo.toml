@@ -104,6 +104,7 @@ pretty_assertions.workspace = true
 project = { workspace = true, features = ["test-support"] }
 remote = { workspace = true, features = ["test-support"] }
 serde_json.workspace = true
+sha2.workspace = true
 tempfile.workspace = true
 theme = { workspace = true, features = ["test-support"] }
 theme_settings.workspace = true

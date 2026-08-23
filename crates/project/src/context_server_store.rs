@@ -20,7 +20,7 @@ use http_client::HttpClient;
 use itertools::Itertools;
 use rand::Rng as _;
 use registry::ContextServerDescriptorRegistry;
-use remote::{Interactive, RemoteClient};
+use remote::RemoteClient;
 use rpc::{AnyProtoClient, TypedEnvelope, proto};
 use settings::{Settings as _, SettingsLocation, SettingsStore, WorktreeId};
 use util::{ResultExt as _, rel_path::RelPath};
@@ -161,11 +161,13 @@ pub enum ContextServerConfiguration {
     Custom {
         command: ContextServerCommand,
         remote: bool,
+        stdin_prelude: PrivateStdinPrelude,
     },
     Extension {
         command: ContextServerCommand,
         settings: serde_json::Value,
         remote: bool,
+        stdin_prelude: PrivateStdinPrelude,
     },
     Http {
         url: url::Url,
@@ -173,6 +175,30 @@ pub enum ContextServerConfiguration {
         timeout: Option<u64>,
         oauth: Option<OAuthClientSettings>,
     },
+}
+
+#[derive(Clone, Default, PartialEq, Eq)]
+pub struct PrivateStdinPrelude(Vec<u8>);
+
+impl std::fmt::Debug for PrivateStdinPrelude {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("PrivateStdinPrelude")
+            .field("byte_count", &self.0.len())
+            .finish()
+    }
+}
+
+impl PrivateStdinPrelude {
+    fn as_bytes(&self) -> &[u8] {
+        &self.0
+    }
+}
+
+impl From<Vec<u8>> for PrivateStdinPrelude {
+    fn from(value: Vec<u8>) -> Self {
+        Self(value)
+    }
 }
 
 impl ContextServerConfiguration {
@@ -201,6 +227,16 @@ impl ContextServerConfiguration {
         }
     }
 
+    fn stdin_prelude(&self) -> &[u8] {
+        match self {
+            ContextServerConfiguration::Custom { stdin_prelude, .. }
+            | ContextServerConfiguration::Extension { stdin_prelude, .. } => {
+                stdin_prelude.as_bytes()
+            }
+            ContextServerConfiguration::Http { .. } => &[],
+        }
+    }
+
     pub async fn from_settings(
         settings: ContextServerSettings,
         id: ContextServerId,
@@ -215,7 +251,11 @@ impl ContextServerConfiguration {
                 enabled: _,
                 command,
                 remote,
-            } => Some(ContextServerConfiguration::Custom { command, remote }),
+            } => Some(ContextServerConfiguration::Custom {
+                command,
+                remote,
+                stdin_prelude: PrivateStdinPrelude::default(),
+            }),
             ContextServerSettings::Extension {
                 enabled: _,
                 settings,
@@ -232,6 +272,7 @@ impl ContextServerConfiguration {
                         command,
                         settings,
                         remote,
+                        stdin_prelude: PrivateStdinPrelude::default(),
                     }),
                     Either::Left((Err(e), _)) => {
                         log::error!(
@@ -446,6 +487,7 @@ impl ContextServerStore {
                 timeout: None,
             },
             remote: false,
+            stdin_prelude: PrivateStdinPrelude::default(),
         });
         self.run_server(server, configuration, cx);
     }
@@ -955,13 +997,12 @@ impl ContextServerStore {
                 .await?;
 
             let remote_command = upstream_client.update(cx, |client, _| {
-                client.build_command(
-                    Some(response.path),
+                client.build_command_with_stdin_environment(
+                    response.path,
                     &response.args,
                     &response.env.into_iter().collect(),
                     root_dir,
                     None,
-                    Interactive::Yes,
                 )
             })?;
 
@@ -972,7 +1013,11 @@ impl ContextServerStore {
                 timeout: None,
             };
 
-            Arc::new(ContextServerConfiguration::Custom { command, remote })
+            Arc::new(ContextServerConfiguration::Custom {
+                command,
+                remote,
+                stdin_prelude: remote_command.stdin_prelude.into(),
+            })
         } else {
             configuration
         };
@@ -1059,6 +1104,7 @@ impl ContextServerStore {
                         id,
                         command,
                         working_directory,
+                        configuration.stdin_prelude().to_vec(),
                     )))
                 }
             }

@@ -233,6 +233,11 @@ test("macOS bundling is transaction-safe in headless shells", () => {
     ),
     "remote-server compression must use the selected build directory",
   );
+  assert.match(
+    bundleScript,
+    /mv "\$app_path" "\$installed_app_path"[\s\S]*?xattr -cr "\$installed_app_path"[\s\S]*?codesign --verify --deep --strict "\$installed_app_path"[\s\S]*?Installed application bundle/,
+    "the installed bundle must clear move-time metadata and pass strict signature verification before success",
+  );
 });
 
 test("the development app bundle owns the canary launcher assembly", () => {

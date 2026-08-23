@@ -459,6 +459,10 @@ impl RemoteConnection for WslRemoteConnection {
         port_forward: Option<(u16, String, u16)>,
         _interactive: Interactive,
     ) -> Result<CommandTemplate> {
+        anyhow::ensure!(
+            env.is_empty(),
+            "secure stdin environment transport is not supported by WSL"
+        );
         if port_forward.is_some() {
             bail!("WSL shares the network interface with the host system");
         }
@@ -468,13 +472,7 @@ impl RemoteConnection for WslRemoteConnection {
             .map(|working_dir| RemotePathBuf::new(working_dir, PathStyle::Unix).to_string())
             .unwrap_or("~".to_string());
 
-        let mut exec = String::from("exec env ");
-
-        for (key, value) in env.iter() {
-            let assignment = format!("{key}={value}");
-            let assignment = shell_kind.try_quote(&assignment).context("shell quoting")?;
-            write!(exec, "{assignment} ")?;
-        }
+        let mut exec = String::from("exec ");
 
         if let Some(program) = program {
             write!(
@@ -522,6 +520,8 @@ impl RemoteConnection for WslRemoteConnection {
             args: wsl_args,
             env: HashMap::default(),
             stdin_prelude: Vec::new(),
+            stdin_ready_marker: None,
+            stdin_complete_marker: None,
         })
     }
 
@@ -681,4 +681,63 @@ fn wsl_command_impl(
 
     log::debug!("wsl {:?}", command);
     command
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn connection() -> WslRemoteConnection {
+        WslRemoteConnection {
+            remote_binary_path: None,
+            platform: RemotePlatform {
+                os: RemoteOs::Linux,
+                arch: RemoteArch::X86_64,
+            },
+            os_version: None,
+            shell: "/bin/sh".to_string(),
+            shell_kind: ShellKind::Posix,
+            default_system_shell: "/bin/sh".to_string(),
+            has_wsl_interop: false,
+            connection_options: WslConnectionOptions {
+                distro_name: "Ubuntu".to_string(),
+                user: None,
+            },
+        }
+    }
+
+    #[test]
+    fn caller_environment_fails_closed_without_exposing_values() {
+        let secret = "wsl-secret-sentinel";
+        let environment = [("TOKEN".to_string(), secret.to_string())]
+            .into_iter()
+            .collect();
+        let error = connection()
+            .build_command(
+                Some("/usr/bin/true".to_string()),
+                &[],
+                &environment,
+                None,
+                None,
+                Interactive::No,
+            )
+            .unwrap_err()
+            .to_string();
+
+        assert!(error.contains("not supported by WSL"));
+        assert!(!error.contains(secret));
+        assert!(
+            connection()
+                .build_command_with_stdin_environment(
+                    "/usr/bin/true".to_string(),
+                    &[],
+                    &environment,
+                    None,
+                    None,
+                )
+                .unwrap_err()
+                .to_string()
+                .contains("not supported")
+        );
+    }
 }

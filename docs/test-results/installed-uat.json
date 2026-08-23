@@ -1,0 +1,135 @@
+{
+  "schemaVersion": 1,
+  "observedAt": "2026-08-24T05:35:50+10:00",
+  "status": "passed",
+  "application": {
+    "path": "/Applications/Zed 10x.app",
+    "bundleIdentifier": "ai.10xlabs.Zed10x",
+    "buildVersion": "20260823.192812",
+    "gitCommit": "658ad7c73805733d584c19cc063ef36d2ef612c4",
+    "runtimeSha256": "cbdaa0cc97f384dece0434e36b8c81489316ac56276215832312aa1d379c59b3",
+    "signatureVerified": true,
+    "candidateHarnessCommit": "5aeae9f3fb8ad57cfe84eca7cb8663d58ca94d82",
+    "candidateHarnessOnlyDelta": true
+  },
+  "remoteServer": {
+    "path": "/home/keeva/.zed-10x-server/zed-remote-server-dev-1.14.0+dev.658ad7c73805733d584c19cc063ef36d2ef612c4",
+    "sha256": "d6c6a3f79c1c6ca87f6fc05696c24f098dbdc5d3b4ba2463408eb42dd137ece2",
+    "capabilities": ["env-exec-pty-v1", "env-exec-v1"]
+  },
+  "journeys": {
+    "remoteProjectOpen": {
+      "status": "passed",
+      "host": "intrepid",
+      "cwd": "/home/keeva/uat/zed-secure-remote-env-658ad7c7-premerge",
+      "populatedProjectTreeObserved": true
+    },
+    "remoteTerminal": {
+      "status": "passed",
+      "cwdExact": true,
+      "directoryEnvironmentExact": true,
+      "surfaceEnvironmentExact": true,
+      "applicationInputExact": true,
+      "stdinIsTty": true,
+      "resizeObserved": true,
+      "ctrlCObserved": true,
+      "orphanedPromptCommandWarningObserved": false,
+      "observedColumns": [162, 109],
+      "receiptSha256": "7f2040c27bd288f5e152592783ca82b5f9131ec85a5a945432509289fc3d899e"
+    },
+    "remoteTask": {
+      "status": "passed",
+      "cwdExact": true,
+      "directoryEnvironmentExact": true,
+      "surfaceEnvironmentExact": true,
+      "stdinIsTty": true,
+      "cancelObserved": true,
+      "receiptSha256": "4f392557bfb08ecd13834d4bec813317d0b5fe50840aab67fd6dfe41f001e9e4"
+    },
+    "remoteVimShellFilter": {
+      "status": "passed",
+      "cwdExact": true,
+      "directoryEnvironmentExact": true,
+      "surfaceEnvironmentExact": true,
+      "selectionTransformed": true,
+      "receiptSha256": "5bd9afeab89a84d2d7218e97aef41ce207ce17a7dc633cd6dcd44c86c7608ebb"
+    },
+    "remoteContextServer": {
+      "status": "passed",
+      "cwdExact": true,
+      "surfaceEnvironmentExact": true,
+      "events": ["initialize", "notifications/initialized", "tools/list"],
+      "receiptSha256": "6f775a2cbdd93a5053c8175889062a63a97d529b553aecabc24bbb1a46f41253"
+    },
+    "remoteDapStdio": {
+      "status": "passed",
+      "cwdExact": true,
+      "surfaceEnvironmentExact": true,
+      "events": ["initialize", "launch", "configurationDone", "terminate"],
+      "receiptSha256": "cbd17f6a824b64855a61937f7dd25232fafa2bc5d20779e4933f17eaaa431ea9"
+    },
+    "remoteDapTcp": {
+      "status": "passed",
+      "cwdExact": true,
+      "surfaceEnvironmentExact": true,
+      "events": ["initialize", "launch", "configurationDone", "threads", "terminate"],
+      "tcpConnectionCount": 2,
+      "resetInitializeCount": 1,
+      "resetDelayMs": 150,
+      "adapterProcessResidue": false,
+      "receiptSha256": "70d94bb4f78a4b499a9e11257db326ceed79e04098147c212fe950a0275b1384"
+    },
+    "remoteEnvironmentTransport": {
+      "status": "passed",
+      "receipt": "docs/test-results/remote-environment-live-canary.json",
+      "receiptSha256": "5825ba482b403e26b06e9d5a57c5cbcdbc62541da9a6871f9107b75109a28054"
+    },
+    "macLocalAcp": {
+      "status": "passed",
+      "endpoint": "Codex Mac (primary)",
+      "elapsedMs": 22824,
+      "receipt": "docs/test-results/acp-route-codex-mac-primary.json",
+      "receiptSha256": "9e9565379851698d500e066d6f33661b13a0987d802ec455aaa6997b95f3dd8d"
+    },
+    "intrepidAcp": {
+      "status": "passed",
+      "endpoint": "GLM (VPS)",
+      "elapsedMs": 16230,
+      "revalidatedThroughRebuiltInstalledApp": true,
+      "toolCallObserved": true,
+      "withheldOracleProjectReadExact": true,
+      "receipt": "docs/test-results/acp-route-intrepid-glm.json",
+      "receiptSha256": "9b43bd4a0ad5d19fd76ac354feb8694b997da069481cf27c0ffd3cd03b48b0d2"
+    },
+    "permissionSafetyNegative": {
+      "status": "passed",
+      "endpoint": "Claude Mac (primary)",
+      "observedFailure": "permission_requested",
+      "permissionRequestsApproved": 0,
+      "processGroupGone": true,
+      "receipt": "docs/test-results/acp-route-claude-mac-primary-negative.json",
+      "receiptSha256": "f2a576929f122d92ac23f7a1a60f187497fe1a14a9798f0ba836a64462b2d255"
+    }
+  },
+  "privacy": {
+    "environmentValueInLocalArgv": false,
+    "environmentValueInPtyOutput": false,
+    "environmentValueInZedLog": false,
+    "installedSurfaceValuesCheckedInLog": 6,
+    "installedSurfaceValueMatchesInLog": 0,
+    "promptOrResponseContentRetained": false
+  },
+  "cleanup": {
+    "installedRuntimeProcesses": 0,
+    "terminalProcesses": 0,
+    "taskProcesses": 0,
+    "contextServerProcesses": 0,
+    "dapProcesses": 0,
+    "vimFilterProcesses": 0,
+    "transportOwnedProcessResidue": false,
+    "macAcpProcessGroupGone": true,
+    "intrepidAcpProcessGroupGone": true,
+    "verificationReceipt": ".vibe/uat/premerge-658ad7c7-verify.json",
+    "verificationReceiptSha256": "9b1b8a966f459dfc5446a573673de6bb7fbc4cdd612063e691c247e9a7f7e7fa"
+  }
+}

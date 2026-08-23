@@ -399,6 +399,7 @@ impl DebugAdapter for CodeLldbDebugAdapter {
         }
 
         Ok(DebugAdapterBinary {
+            stdin_prelude: Default::default(),
             command: Some(command.unwrap()),
             cwd: Some(delegate.worktree_root_path().to_path_buf()),
             arguments: user_args.unwrap_or_else(|| {

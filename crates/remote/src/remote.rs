@@ -9,10 +9,11 @@ pub use proxy::ProxyMode;
 #[cfg(target_os = "windows")]
 pub use remote_client::OpenWslPath;
 pub use remote_client::{
-    CommandTemplate, ConnectionIdentifier, ConnectionState, Interactive, RemoteArch, RemoteClient,
-    RemoteClientDelegate, RemoteClientEvent, RemoteConnection, RemoteConnectionOptions, RemoteOs,
-    RemotePlatform, STDIN_ENVIRONMENT_CAPABILITY, connect, encode_stdin_environment,
-    has_active_connection, read_stdin_environment,
+    CommandTemplate, ConnectionIdentifier, ConnectionState, Interactive,
+    PTY_STDIN_ENVIRONMENT_CAPABILITY, RemoteArch, RemoteClient, RemoteClientDelegate,
+    RemoteClientEvent, RemoteConnection, RemoteConnectionOptions, RemoteOs, RemotePlatform,
+    STDIN_ENVIRONMENT_CAPABILITY, connect, encode_stdin_environment, has_active_connection,
+    read_stdin_environment,
 };
 pub use remote_identity::{
     RemoteConnectionIdentity, remote_connection_identity, same_remote_connection_identity,

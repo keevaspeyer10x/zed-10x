@@ -1569,6 +1569,7 @@ async fn test_context_server_stdio_timeout(cx: &mut TestAppContext) {
                 timeout: Some(180000),
             },
             remote: false,
+            stdin_prelude: Default::default(),
         }),
         &mut async_cx,
     )

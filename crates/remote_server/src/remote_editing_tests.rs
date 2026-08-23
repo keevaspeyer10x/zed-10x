@@ -3827,6 +3827,189 @@ async fn test_remote_external_agent_server(
             ]))
         }
     );
+
+    server_cx.update_global::<SettingsStore, _>(|settings_store, cx| {
+        settings_store
+            .set_server_settings(
+                &json!({
+                    "agent_servers": {
+                        "bar": {
+                            "type": "custom",
+                            "command": "bar-cli"
+                        }
+                    }
+                })
+                .to_string(),
+                cx,
+            )
+            .unwrap();
+    });
+    server_cx.run_until_parked();
+    cx.run_until_parked();
+    let names = project.update(cx, |project, cx| {
+        project
+            .agent_server_store()
+            .read(cx)
+            .external_agents()
+            .map(|name| name.to_string())
+            .collect::<Vec<_>>()
+    });
+    pretty_assertions::assert_eq!(names, ["bar"]);
+
+    server_cx.update_global::<SettingsStore, _>(|settings_store, cx| {
+        settings_store
+            .set_server_settings(
+                &json!({
+                    "agent_servers": {
+                        "bar": {
+                            "type": "custom",
+                            "command": "bar-cli"
+                        }
+                    }
+                })
+                .to_string(),
+                cx,
+            )
+            .unwrap();
+    });
+    server_cx.run_until_parked();
+    cx.run_until_parked();
+    let names = project.update(cx, |project, cx| {
+        project
+            .agent_server_store()
+            .read(cx)
+            .external_agents()
+            .map(|name| name.to_string())
+            .collect::<Vec<_>>()
+    });
+    pretty_assertions::assert_eq!(names, ["bar"]);
+}
+
+#[gpui::test]
+async fn test_remote_external_agent_server_recovers_inventory_published_before_client_ready(
+    cx: &mut TestAppContext,
+    server_cx: &mut TestAppContext,
+) {
+    let fs = FakeFs::new(server_cx.executor());
+    fs.insert_tree(path!("/project"), json!({})).await;
+
+    let (project, _headless_project) = init_test_with_server_settings_before_client(
+        &fs,
+        cx,
+        server_cx,
+        &json!({
+            "agent_servers": {
+                "foo": {
+                    "type": "custom",
+                    "command": "foo-cli"
+                }
+            }
+        })
+        .to_string(),
+    )
+    .await;
+    server_cx.run_until_parked();
+    cx.run_until_parked();
+
+    let names = project.update(cx, |project, cx| {
+        project
+            .agent_server_store()
+            .read(cx)
+            .external_agents()
+            .map(|name| name.to_string())
+            .collect::<Vec<_>>()
+    });
+    pretty_assertions::assert_eq!(names, ["foo"]);
+}
+
+#[gpui::test(iterations = 20)]
+async fn test_remote_external_agent_server_reconnects_to_latest_inventory(
+    cx: &mut TestAppContext,
+    server_cx: &mut TestAppContext,
+) {
+    let fs = FakeFs::new(server_cx.executor());
+    fs.insert_tree(
+        path!("/project"),
+        json!({
+            "README.md": "before reconnect"
+        }),
+    )
+    .await;
+
+    let (project, _headless_project) = init_test_with_server_settings_before_client(
+        &fs,
+        cx,
+        server_cx,
+        &json!({
+            "agent_servers": {
+                "before": {
+                    "type": "custom",
+                    "command": "before-cli"
+                }
+            }
+        })
+        .to_string(),
+    )
+    .await;
+
+    let (worktree, _) = project
+        .update(cx, |project, cx| {
+            project.find_or_create_worktree(path!("/project"), true, cx)
+        })
+        .await
+        .unwrap();
+    let worktree_id = worktree.read_with(cx, |worktree, _| worktree.id());
+    let buffer = project
+        .update(cx, |project, cx| {
+            project.open_buffer((worktree_id, rel_path("README.md")), cx)
+        })
+        .await
+        .unwrap();
+
+    let client = cx.read(|cx| project.read(cx).remote_client().unwrap());
+    client
+        .update(cx, |client, cx| client.simulate_disconnect(cx))
+        .await;
+
+    // This push is emitted while the client transport is disconnected, so the
+    // rejoined project must request a fresh authoritative snapshot.
+    server_cx.update_global::<SettingsStore, _>(|settings_store, cx| {
+        settings_store
+            .set_server_settings(
+                &json!({
+                    "agent_servers": {
+                        "after": {
+                            "type": "custom",
+                            "command": "after-cli"
+                        }
+                    }
+                })
+                .to_string(),
+                cx,
+            )
+            .unwrap();
+    });
+    server_cx.run_until_parked();
+
+    buffer.update(cx, |buffer, cx| {
+        buffer.edit([(0.."before".len(), "after")], None, cx);
+    });
+    project
+        .update(cx, |project, cx| project.save_buffer(buffer, cx))
+        .await
+        .unwrap();
+    server_cx.run_until_parked();
+    cx.run_until_parked();
+
+    let names = project.update(cx, |project, cx| {
+        project
+            .agent_server_store()
+            .read(cx)
+            .external_agents()
+            .map(|name| name.to_string())
+            .collect::<Vec<_>>()
+    });
+    pretty_assertions::assert_eq!(names, ["after"]);
 }
 
 #[gpui::test]
@@ -4235,6 +4418,24 @@ pub async fn init_test(
     cx: &mut TestAppContext,
     server_cx: &mut TestAppContext,
 ) -> (Entity<Project>, Entity<HeadlessProject>) {
+    init_test_with_optional_server_settings(server_fs, cx, server_cx, None).await
+}
+
+async fn init_test_with_server_settings_before_client(
+    server_fs: &Arc<FakeFs>,
+    cx: &mut TestAppContext,
+    server_cx: &mut TestAppContext,
+    server_settings: &str,
+) -> (Entity<Project>, Entity<HeadlessProject>) {
+    init_test_with_optional_server_settings(server_fs, cx, server_cx, Some(server_settings)).await
+}
+
+async fn init_test_with_optional_server_settings(
+    server_fs: &Arc<FakeFs>,
+    cx: &mut TestAppContext,
+    server_cx: &mut TestAppContext,
+    server_settings: Option<&str>,
+) -> (Entity<Project>, Entity<HeadlessProject>) {
     let server_fs = server_fs.clone();
     cx.update(|cx| {
         release_channel::init(semver::Version::new(0, 0, 0), cx);
@@ -4265,6 +4466,19 @@ pub async fn init_test(
             cx,
         )
     });
+
+    if let Some(server_settings) = server_settings {
+        server_cx.update_global::<SettingsStore, _>(|settings_store, cx| {
+            settings_store
+                .set_server_settings(server_settings, cx)
+                .unwrap();
+        });
+        server_cx.run_until_parked();
+        server_cx
+            .executor()
+            .advance_clock(std::time::Duration::from_secs(2));
+        server_cx.run_until_parked();
+    }
 
     let ssh = RemoteClient::connect_mock(opts, cx).await;
     let project = build_project(ssh, cx);
