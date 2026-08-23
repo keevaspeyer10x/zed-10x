@@ -56,8 +56,8 @@
       "id": "HARNESS-CLEANUP-CENSUS-ANCESTRY",
       "category": "test_bug",
       "symptom": "The remote cleanup census matched its own Python/SSH ancestor command lines because they contained fixture paths and script names.",
-      "fix": "Exclude the observer's reuse-safe ancestor identities while continuing to report matching sibling and descendant processes.",
-      "regression": "Linux procfs fixture excludes observer ancestry but detects live non-ancestor residue",
+      "fix": "Exclude only exact ancestor (PID,start-time) identities, recheck every scanned identity around cmdline access, and continue to report matching sibling and descendant processes.",
+      "regression": "Linux procfs fixture excludes observer ancestry, reports the exact live matching sibling PID, then cleans that sibling up",
       "status": "fixed"
     }
   ],

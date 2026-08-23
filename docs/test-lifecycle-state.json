@@ -76,7 +76,7 @@
         "docs/test-results/acp-route-intrepid-glm.json",
         "docs/test-results/acp-route-claude-mac-primary-negative.json"
       ],
-      "summary": "All 18 mapped rows passed. The assembled private app at product commit 658ad7c7 opened the populated Intrepid checkout; terminal resize/input/Ctrl-C, task cancellation, Vim filtering, MCP initialize/tools-list, and stdio/TCP DAP request sequences proved exact project cwd, surface environment, actual behavior, and cleanup. The TCP adapter endured a delayed real RST and replayed initialize exactly once. The installed remote server passed noninteractive, PTY, and TCP secure-environment journeys; Mac-local Codex and Intrepid GLM each completed a withheld-oracle project read. The later 668b2ab4 commit changes only the tracked cleanup census, and exact-merge installation remains the final delivery gate."
+      "summary": "All 18 mapped rows passed. The assembled private app at product commit 658ad7c7 opened the populated Intrepid checkout; terminal resize/input/Ctrl-C, task cancellation, Vim filtering, MCP initialize/tools-list, and stdio/TCP DAP request sequences proved exact project cwd, surface environment, actual behavior, and cleanup. The TCP adapter endured a delayed real RST and replayed initialize exactly once. The installed remote server passed noninteractive, PTY, and TCP secure-environment journeys; Mac-local Codex and Intrepid GLM each completed a withheld-oracle project read. Later candidate commits through 5aeae9f3 change only the tracked cleanup census and its tests; exact-merge installation remains the final delivery gate."
     },
     "5-analysis": {
       "status": "complete",

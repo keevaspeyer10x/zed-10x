@@ -6,7 +6,7 @@
 
 ## Executive Summary
 
-The full lifecycle did what the earlier release testing had not: it exercised every changed assembled-product surface through the installed app. It found seven harness defects and four product defects after the first component-level green. The product's last TCP correction now classifies real disconnect I/O in DAP header and body reads and replays initialize exactly once only for SSH/TCP, within the existing timeout; stdio and non-SSH behavior is unchanged. The final harness corrections made the fake adapter protocol-valid, made resize observation semantic rather than sample-position-dependent, authorized the fixture directory environment before project open, and prevented the cleanup observer from reporting its own ancestors. All findings were corrected and re-run. The installed app at product commit `658ad7c7` then completed terminal resize/input/Ctrl-C, task cancellation, Vim filtering, MCP initialization, stdio/TCP DAP request sequences, and real Mac-local and Intrepid ACP project reads without exposing private environment values or leaving owned processes. Commit `668b2ab4` changes only the tracked cleanup census; the exact merged commit must still be rebuilt and canaried after protected merge.
+The full lifecycle did what the earlier release testing had not: it exercised every changed assembled-product surface through the installed app. It found seven harness defects and four product defects after the first component-level green. The product's last TCP correction now classifies real disconnect I/O in DAP header and body reads and replays initialize exactly once only for SSH/TCP, within the existing timeout; stdio and non-SSH behavior is unchanged. The final harness corrections made the fake adapter protocol-valid, made resize observation semantic rather than sample-position-dependent, authorized the fixture directory environment before project open, and made cleanup ancestry reuse-safe without hiding a matching non-ancestor. All findings were corrected and re-run. The installed app at product commit `658ad7c7` then completed terminal resize/input/Ctrl-C, task cancellation, Vim filtering, MCP initialization, stdio/TCP DAP request sequences, and real Mac-local and Intrepid ACP project reads without exposing private environment values or leaving owned processes. Later candidate commits through `5aeae9f3` change only the tracked UAT cleanup census and its tests; the exact merged commit must still be rebuilt and canaried after protected merge.
 
 ## Defect Discovery Value
 
@@ -149,8 +149,8 @@ Evidence is sealed in:
 - **Severity:** high false-positive risk
 - **Symptom:** the remote Python/SSH observer's ancestor argv contained the fixture path and script names, so the census reported the observer itself as leftover product work.
 - **Generator:** string matching was not paired with reuse-safe observer ownership exclusion.
-- **Fix:** exclude only the observer's PID/start-time ancestor chain; continue reporting any matching sibling or descendant identity.
-- **Verification:** the Linux procfs regression distinguishes ancestors from true residue, and the final installed verification reports an empty process-residue set.
+- **Fix:** exclude only the observer's exact `(PID, start-time)` ancestor identities, and re-read each scanned process identity around its command line to reject PID reuse; continue reporting any matching sibling or descendant identity.
+- **Verification:** the Linux procfs regression keeps a matching sibling process alive, reports that exact sibling PID while excluding the observer ancestry, terminates the sibling, and exits green. The final installed verification reports an empty process-residue set.
 
 ## Product Root Cause Disposition
 

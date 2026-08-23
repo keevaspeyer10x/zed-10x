@@ -9,7 +9,7 @@
     "gitCommit": "658ad7c73805733d584c19cc063ef36d2ef612c4",
     "runtimeSha256": "cbdaa0cc97f384dece0434e36b8c81489316ac56276215832312aa1d379c59b3",
     "signatureVerified": true,
-    "candidateHarnessCommit": "668b2ab43cf23933d1c66858f86b608d48f0107b",
+    "candidateHarnessCommit": "5aeae9f3fb8ad57cfe84eca7cb8663d58ca94d82",
     "candidateHarnessOnlyDelta": true
   },
   "remoteServer": {

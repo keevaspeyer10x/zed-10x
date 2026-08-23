@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "status": "passed",
-  "sourceCommit": "668b2ab43cf23933d1c66858f86b608d48f0107b",
-  "sourceTree": "cd39f5cf843aebd5ff716edb1d05c0e5bfb166a5",
+  "sourceCommit": "5aeae9f3fb8ad57cfe84eca7cb8663d58ca94d82",
+  "sourceTree": "787d58af5d35c474d0256e67bfa69aba20f9c0d0",
   "installedProductCommit": "658ad7c73805733d584c19cc063ef36d2ef612c4",
-  "installedCandidateDifference": "The only later commit hardens the tracked UAT cleanup census; it does not change product runtime behavior. The exact merged commit remains subject to a fresh post-merge install and canary.",
+  "installedCandidateDifference": "The later candidate commits harden the tracked UAT cleanup census, its tests, and evidence; they do not change product runtime behavior. The exact merged commit remains subject to a fresh post-merge install and canary.",
   "testedWorkingTree": false,
   "testedWorkingTreeChanges": [],
   "suites": [
@@ -46,6 +46,8 @@
       "failed": 0,
       "skipped": 1,
       "skipReason": "The Linux procfs ancestry regression is exercised by Linux CI; macOS has no /proc.",
+      "linuxProcfsFocusedCommand": "python3 -m unittest script.tests.zed_installed_surface_uat_test.InstalledSurfaceUatTests.test_remote_collection_script_excludes_ancestors_but_reports_matching_sibling",
+      "linuxProcfsFocusedStatus": "passed on Intrepid",
       "scope": "tracked production-shaped fixture rendering, strong journey oracles, delayed true TCP RST, valid DAP response shapes, resize observation, direnv authorization, and reuse-safe cleanup rejection"
     },
     {
