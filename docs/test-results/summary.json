@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-23T15:18:53Z",
+  "generatedAt": "2026-08-24T06:02:32+10:00",
   "decisionCandidate": "production_ready",
   "plannedRows": 18,
   "implementedRows": 18,
@@ -56,7 +56,7 @@
     "rerunCount": 2,
     "flakyTests": [],
     "criticalOrHighFlakes": 0,
-    "classification": "Three deterministic harness defects and three assembled-product defects were fixed before clean reruns; no product-path flake remained."
+    "classification": "Seven deterministic harness defects and four assembled-product defects were fixed before clean reruns; no product-path flake remained."
   },
   "testValidity": {
     "status": "passed",
@@ -104,7 +104,7 @@
     "highOrCriticalFindings": []
   },
   "defectDiscovery": {
-    "bugsFound": 8,
+    "bugsFound": 12,
     "productDefects": [
       "Remote external-agent inventory relied on a fixed startup delay instead of receiver-driven snapshot and reconnect ordering.",
       "Captured directory environments replayed PROMPT_COMMAND without its non-exported shell function, producing an immediate broken prompt.",
@@ -114,7 +114,11 @@
     "testHarnessDefects": [
       "Live TCP port allocation sent python -c source to SSH without one remote-shell quoting boundary.",
       "ACP project evidence was incorrectly required to coexist in one tool call instead of the union of completed calls.",
-      "The terminal UAT fixture returned from signal.pause after SIGWINCH instead of remaining alive for Ctrl-C."
+      "The terminal UAT fixture returned from signal.pause after SIGWINCH instead of remaining alive for Ctrl-C.",
+      "The fake TCP adapter emitted an invalid empty ThreadsResponse.",
+      "The terminal resize oracle compared only the first and last widths instead of requiring distinct observed widths.",
+      "The synthetic directory environment was authorized after project open, so Zed had already cached the pre-authorization environment.",
+      "The cleanup census matched its own remote observer ancestors because their argv contained the fixture path."
     ],
     "infraOrToolingDefects": [],
     "processDefects": [
@@ -127,13 +131,17 @@
       "Kept the terminal fixture alive across resize until the intended interrupt.",
       "Removed captured PROMPT_COMMAND before explicit terminal or task settings are applied.",
       "Anchored remote Vim shell execution to the opened project directory.",
-      "Rejected reset TCP-forward connections during a bounded stability probe and retried the adapter connection.",
+      "Tagged header/body disconnect I/O errors and replayed initialize once, within the existing SSH/TCP timeout; stdio and non-SSH DAP keep the ordinary request path.",
+      "Made the fake adapter return a protocol-valid empty threads list.",
+      "Required two distinct observed terminal widths rather than a brittle first-versus-last comparison.",
+      "Authorized the exact synthetic direnv before opening the installed app.",
+      "Excluded only the observer's reuse-safe ancestor identities from cleanup census while retaining sibling/descendant residue detection.",
       "Retained marker-only, prompt-echo, permission, timeout, and cleanup negatives."
     ],
     "confidenceOnlyRows": [],
     "weakRows": [],
     "newInformationSummary": [
-      "The installed e153 remote server advertises both secure environment capabilities and passes real noninteractive, PTY, and TCP journeys.",
+      "The installed 658ad7c7 remote server advertises both secure environment capabilities and passes real noninteractive, PTY, and TCP journeys.",
       "Zed 10x opens the populated Intrepid checkout and terminal/task processes inherit exact cwd, directory/surface environment, input, resize, interrupt, and cleanup behavior.",
       "Installed Vim, MCP, DAP stdio, and DAP TCP journeys run from the real project and complete their actual protocol or editor behavior.",
       "Real ACP agents may establish cwd and digest through different completed tool calls.",
@@ -314,7 +322,7 @@
     {
       "id": "ENV-DAP-TCP-013",
       "status": "passed",
-      "command": "installed Zed 10x remote TCP DAP launch/configuration/threads/terminate UAT plus reset and stable-connection regressions",
+      "command": "installed Zed 10x remote TCP DAP launch/configuration/threads/terminate UAT plus delayed true-RST initialize replay and stable-connection regressions",
       "evidencePath": "docs/test-results/installed-uat.json",
       "evidenceStrength": "direct",
       "resourceLocks": [
@@ -324,7 +332,7 @@
       "failureCategory": "product_and_test_bugs_fixed",
       "defectMateriality": "high assembled-product and test-validity defects fixed inline",
       "cleanupStatus": "passed",
-      "newInformation": "The installed TCP adapter rejects an early reset forward, reconnects to the real listener, completes the DAP sequence, and leaves no adapter process."
+      "newInformation": "The installed TCP adapter classifies a delayed real TCP reset, replays initialize exactly once on the next connection within the SSH/TCP timeout, completes the DAP sequence, and leaves no adapter process."
     },
     {
       "id": "ENV-CONSUMER-MATRIX-014",

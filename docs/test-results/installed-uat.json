@@ -1,27 +1,27 @@
 {
   "schemaVersion": 1,
-  "observedAt": "2026-08-23T14:44:21Z",
+  "observedAt": "2026-08-24T05:35:50+10:00",
   "status": "passed",
   "application": {
     "path": "/Applications/Zed 10x.app",
     "bundleIdentifier": "ai.10xlabs.Zed10x",
-    "buildVersion": "20260823.141526",
-    "gitCommit": "e1538795b39fd3e160da18e2fc617bef5d9940b6",
-    "runtimeSha256": "90c97e72d2728ebafe4be79fbdb04637924e14907d64632989f73c4125aaee86",
+    "buildVersion": "20260823.192812",
+    "gitCommit": "658ad7c73805733d584c19cc063ef36d2ef612c4",
+    "runtimeSha256": "cbdaa0cc97f384dece0434e36b8c81489316ac56276215832312aa1d379c59b3",
     "signatureVerified": true,
-    "rollbackBundle": "/Applications/.Zed 10x.f7919ac6.previous.app"
+    "candidateHarnessCommit": "668b2ab43cf23933d1c66858f86b608d48f0107b",
+    "candidateHarnessOnlyDelta": true
   },
   "remoteServer": {
-    "path": "/home/keeva/.zed-10x-server/zed-remote-server-dev-1.14.0+dev.e1538795b39fd3e160da18e2fc617bef5d9940b6",
-    "sha256": "4a778e823b8bf65d207494fb4bea36e343d755bca93539e9f256dbf84a9acf56",
-    "bundledArchiveSha256": "56a79430b343ab455e103e4961f73bfd597f83024afea748c8e5a0fd0c604013",
+    "path": "/home/keeva/.zed-10x-server/zed-remote-server-dev-1.14.0+dev.658ad7c73805733d584c19cc063ef36d2ef612c4",
+    "sha256": "d6c6a3f79c1c6ca87f6fc05696c24f098dbdc5d3b4ba2463408eb42dd137ece2",
     "capabilities": ["env-exec-pty-v1", "env-exec-v1"]
   },
   "journeys": {
     "remoteProjectOpen": {
       "status": "passed",
       "host": "intrepid",
-      "cwd": "/home/keeva/uat/zed-remote-environment-production",
+      "cwd": "/home/keeva/uat/zed-secure-remote-env-658ad7c7-premerge",
       "populatedProjectTreeObserved": true
     },
     "remoteTerminal": {
@@ -34,7 +34,8 @@
       "resizeObserved": true,
       "ctrlCObserved": true,
       "orphanedPromptCommandWarningObserved": false,
-      "receiptSha256": "af5222751e77c928776edc0cb74d048848c368c02145e758233194d996651cb7"
+      "observedColumns": [162, 109],
+      "receiptSha256": "7f2040c27bd288f5e152592783ca82b5f9131ec85a5a945432509289fc3d899e"
     },
     "remoteTask": {
       "status": "passed",
@@ -43,7 +44,7 @@
       "surfaceEnvironmentExact": true,
       "stdinIsTty": true,
       "cancelObserved": true,
-      "receiptSha256": "d3ee08d78e76cadb80e57aa51497a4088f963ad2d26eae6e32e9b7b1b60202a7"
+      "receiptSha256": "4f392557bfb08ecd13834d4bec813317d0b5fe50840aab67fd6dfe41f001e9e4"
     },
     "remoteVimShellFilter": {
       "status": "passed",
@@ -51,49 +52,54 @@
       "directoryEnvironmentExact": true,
       "surfaceEnvironmentExact": true,
       "selectionTransformed": true,
-      "receiptSha256": "53968751a4a8b27732d2b1fb2bc3747080125be427c184fb0162cd8fd80db514"
+      "receiptSha256": "5bd9afeab89a84d2d7218e97aef41ce207ce17a7dc633cd6dcd44c86c7608ebb"
     },
     "remoteContextServer": {
       "status": "passed",
       "cwdExact": true,
       "surfaceEnvironmentExact": true,
       "events": ["initialize", "notifications/initialized", "tools/list"],
-      "receiptSha256": "eae5bf9798ba4aad50db12df764117e81b67fef600d51c6315575fede99085f6"
+      "receiptSha256": "6f775a2cbdd93a5053c8175889062a63a97d529b553aecabc24bbb1a46f41253"
     },
     "remoteDapStdio": {
       "status": "passed",
       "cwdExact": true,
       "surfaceEnvironmentExact": true,
       "events": ["initialize", "launch", "configurationDone", "terminate"],
-      "receiptSha256": "d9e965924e642bbba6465cf9aa52b4b8d24174539258e7f86612030324430d37"
+      "receiptSha256": "cbd17f6a824b64855a61937f7dd25232fafa2bc5d20779e4933f17eaaa431ea9"
     },
     "remoteDapTcp": {
       "status": "passed",
       "cwdExact": true,
       "surfaceEnvironmentExact": true,
       "events": ["initialize", "launch", "configurationDone", "threads", "terminate"],
+      "tcpConnectionCount": 2,
+      "resetInitializeCount": 1,
+      "resetDelayMs": 150,
       "adapterProcessResidue": false,
-      "receiptSha256": "0924780dbdd8592df82d2735be053ddba8ca00af5394f58c8762221569158871"
+      "receiptSha256": "70d94bb4f78a4b499a9e11257db326ceed79e04098147c212fe950a0275b1384"
     },
     "remoteEnvironmentTransport": {
       "status": "passed",
       "receipt": "docs/test-results/remote-environment-live-canary.json",
-      "receiptSha256": "2a113bcdeff6f19c8e694a124f68cf408ae39196225bb18c284b1b0b57966cc3"
+      "receiptSha256": "5825ba482b403e26b06e9d5a57c5cbcdbc62541da9a6871f9107b75109a28054"
     },
     "macLocalAcp": {
       "status": "passed",
       "endpoint": "Codex Mac (primary)",
+      "elapsedMs": 22824,
       "receipt": "docs/test-results/acp-route-codex-mac-primary.json",
-      "receiptSha256": "192104fe226b8d122e37a52269e8ea26da5628d71f98b39a029f24d06c210b2f"
+      "receiptSha256": "9e9565379851698d500e066d6f33661b13a0987d802ec455aaa6997b95f3dd8d"
     },
     "intrepidAcp": {
       "status": "passed",
       "endpoint": "GLM (VPS)",
+      "elapsedMs": 16230,
       "revalidatedThroughRebuiltInstalledApp": true,
       "toolCallObserved": true,
       "withheldOracleProjectReadExact": true,
       "receipt": "docs/test-results/acp-route-intrepid-glm.json",
-      "receiptSha256": "511e7d35b3cb74ebcdfafd18c9cc88017211fadd26700fb417219bc984c18a90"
+      "receiptSha256": "9b43bd4a0ad5d19fd76ac354feb8694b997da069481cf27c0ffd3cd03b48b0d2"
     },
     "permissionSafetyNegative": {
       "status": "passed",
@@ -122,6 +128,8 @@
     "vimFilterProcesses": 0,
     "transportOwnedProcessResidue": false,
     "macAcpProcessGroupGone": true,
-    "intrepidAcpProcessGroupGone": true
+    "intrepidAcpProcessGroupGone": true,
+    "verificationReceipt": ".vibe/uat/premerge-658ad7c7-verify.json",
+    "verificationReceiptSha256": "9b1b8a966f459dfc5446a573673de6bb7fbc4cdd612063e691c247e9a7f7e7fa"
   }
 }

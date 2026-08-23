@@ -1,30 +1,30 @@
 # Test Plan Analysis — Root Cause Report
 
-> **Date:** 2026-08-23
+> **Date:** 2026-08-24
 > **Test run:** 18 of 18 planned rows passed; 0 unresolved failures or skips
-> **Analysis method:** DACI-RP over three test-harness defects and three assembled-product defects discovered and fixed during live execution
+> **Analysis method:** DACI-RP over seven test-harness defects and four assembled-product defects discovered and fixed during deterministic and live execution
 
 ## Executive Summary
 
-The full lifecycle did what the earlier release testing had not: it exercised every changed assembled-product surface through the installed app. That run found three harness defects and three product defects after the first component-level green. The product replayed a stale shell hook in new terminals, ran Vim external commands from the remote home instead of the project, and accepted an SSH TCP forward before the remote adapter listener was stable. The harness crossed one SSH shell boundary incorrectly, overconstrained how ACP evidence could be distributed across tool calls, and accidentally let a resize signal end its terminal fixture. All six were corrected and re-run. The installed app then completed terminal resize/input/Ctrl-C, task cancellation, Vim filtering, MCP initialization, stdio/TCP DAP request sequences, and real Mac-local and Intrepid ACP project reads without exposing private environment values or leaving owned processes.
+The full lifecycle did what the earlier release testing had not: it exercised every changed assembled-product surface through the installed app. It found seven harness defects and four product defects after the first component-level green. The product's last TCP correction now classifies real disconnect I/O in DAP header and body reads and replays initialize exactly once only for SSH/TCP, within the existing timeout; stdio and non-SSH behavior is unchanged. The final harness corrections made the fake adapter protocol-valid, made resize observation semantic rather than sample-position-dependent, authorized the fixture directory environment before project open, and prevented the cleanup observer from reporting its own ancestors. All findings were corrected and re-run. The installed app at product commit `658ad7c7` then completed terminal resize/input/Ctrl-C, task cancellation, Vim filtering, MCP initialization, stdio/TCP DAP request sequences, and real Mac-local and Intrepid ACP project reads without exposing private environment values or leaving owned processes. Commit `668b2ab4` changes only the tracked cleanup census; the exact merged commit must still be rebuilt and canaried after protected merge.
 
 ## Defect Discovery Value
 
-- **Bugs found:** 6 during assembled-product execution
-- **Product defects:** 3, all fixed and re-run through the installed app
-- **Test harness defects:** 3, all fixed before accepting the UAT
+- **Bugs found:** 11 product or harness defects, plus one earlier process defect
+- **Product defects:** 4, all fixed and re-run through the installed app
+- **Test harness defects:** 7, all fixed before accepting the UAT
 - **Infra/tooling defects:** 0
 - **Process defects:** 0 unresolved; the full lifecycle was executed rather than inferred from generated rows
-- **Fixed during run:** SSH remote-command quoting; multi-tool project-evidence aggregation; resize-sensitive terminal fixture; captured shell-hook sanitization; remote Vim cwd; TCP-forward listener readiness
+- **Fixed during run:** SSH remote-command quoting; multi-tool project-evidence aggregation; resize-sensitive terminal fixture; captured shell-hook sanitization; remote Vim cwd; tagged SSH/TCP initialize replay; valid DAP response fixture; semantic resize oracle; pre-open direnv authorization; reuse-safe cleanup ancestry
 - **Confidence-only rows:** 0
 - **Weak rows:** 0
 - **Low-yield assessment:** `high_confidence`
 - **New information learned:**
-  - the bundled and uploaded `e1538795` remote server advertises and executes both secure environment capabilities;
+  - the bundled and uploaded `658ad7c7` remote server advertises and executes both secure environment capabilities;
   - the real SSH PTY consumes a no-echo frame before shell input and preserves cwd, directory/terminal/task environment, stdin, resize, Ctrl-C, and cancellation semantics;
   - the installed Vim filter runs in the real project cwd and transforms selected text;
   - the installed MCP context server completes initialize, initialized notification, and tools/list;
-  - the installed stdio and TCP debug adapters complete their real request sequences, and TCP forwarding rejects a reset connection before accepting the stable listener;
+  - the installed stdio and TCP debug adapters complete their real request sequences, and TCP classifies a delayed true reset, opens a second connection, and replays initialize exactly once;
   - real ACP agents may establish cwd and the sentinel digest in separate completed tool calls;
   - Codex Mac primary and Intrepid GLM can each read a withheld project sentinel and terminate cleanly with zero approved permissions.
 - **Residual risk:**
@@ -109,8 +109,48 @@ Evidence is sealed in:
 - **Severity:** high debug-session reliability defect
 - **Symptom:** Zed connected to the local SSH forward before the remote adapter bound the destination port; the forwarded connection reset, but Zed accepted it as the session transport and hung while a later adapter listener remained unused.
 - **Generator:** a successful local TCP connect was treated as proof that the remote adapter endpoint was stable.
-- **Fix:** secure remote TCP DAP connections now undergo a bounded stability probe; an EOF/reset is rejected and retried before any DAP bytes are attached to the session.
-- **Verification:** deterministic reset and stable-connection tests pass, clippy enforces the repository timer contract, and the installed TCP adapter completes initialize, launch, configurationDone, threads, and terminate with zero residue.
+- **Fix:** header and body read failures in the disconnect I/O class receive the existing connection-reset tag. The client replays `initialize` once only for SSH/TCP and uses the already documented SSH/TCP timeout as its overall deadline. Stdio and local TCP keep the ordinary request path.
+- **Verification:** deterministic clean-EOF, true-RST, body-reset, initial pre-enqueue death, stable semantic-error, and slow-stdio/non-SSH tests pass. The installed fake adapter performs a delayed `SO_LINGER` reset after the first initialize, accepts a second connection, and records exactly one replay before completing launch, configurationDone, threads, and terminate with zero residue.
+
+### Cluster 7: The fake adapter emitted an invalid ThreadsResponse
+
+- **Affected row:** `ENV-DAP-TCP-013`
+- **Category:** test bug
+- **Severity:** medium test-validity defect; no product defect
+- **Symptom:** returning `{}` to `threads` caused the installed client to report an invalid DAP response even though the transport journey otherwise completed.
+- **Generator:** the fixture asserted request sequencing but did not conform its response body to the protocol schema.
+- **Fix:** return `{"threads": []}`.
+- **Verification:** the tracked fixture regression and installed request sequence complete without an invalid-response error.
+
+### Cluster 8: The terminal resize oracle depended on sample position
+
+- **Affected row:** `ENV-TERMINAL-008`
+- **Category:** test bug
+- **Severity:** medium false-negative risk
+- **Symptom:** comparing only the initial and final widths could reject a genuine resize that later returned to its original width.
+- **Generator:** the oracle encoded one interaction trace rather than the semantic event.
+- **Fix:** persist all observed widths and require at least two distinct values, plus the explicit interrupt evidence.
+- **Verification:** the installed receipt records `observedColumns: [162, 109]`, `resizeCount: 1`, and `interrupted: true`.
+
+### Cluster 9: Directory-environment authorization occurred after project open
+
+- **Affected rows:** `ENV-TERMINAL-008`, `ENV-TASK-009`
+- **Category:** test bug
+- **Severity:** high false-negative risk
+- **Symptom:** Zed cached the remote directory environment before the synthetic `.envrc` was authorized, so the fixture values were legitimately absent.
+- **Generator:** fixture setup did not respect the product's directory-environment lifecycle.
+- **Fix:** run `direnv allow` for the exact synthetic directory before opening the installed app.
+- **Verification:** terminal and task receipts contain both the exact authorized directory-environment digest and their surface-specific digest.
+
+### Cluster 10: Cleanup observation counted its own ancestry as residue
+
+- **Affected rows:** all installed remote-surface cleanup checks
+- **Category:** test bug
+- **Severity:** high false-positive risk
+- **Symptom:** the remote Python/SSH observer's ancestor argv contained the fixture path and script names, so the census reported the observer itself as leftover product work.
+- **Generator:** string matching was not paired with reuse-safe observer ownership exclusion.
+- **Fix:** exclude only the observer's PID/start-time ancestor chain; continue reporting any matching sibling or descendant identity.
+- **Verification:** the Linux procfs regression distinguishes ancestors from true residue, and the final installed verification reports an empty process-residue set.
 
 ## Product Root Cause Disposition
 

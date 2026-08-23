@@ -1,13 +1,12 @@
 {
   "schemaVersion": 1,
   "status": "passed",
-  "sourceCommit": "e1538795b39fd3e160da18e2fc617bef5d9940b6",
-  "testedWorkingTree": true,
-  "testedWorkingTreeChanges": [
-    "sanitize inherited PROMPT_COMMAND while preserving explicit terminal and task overrides",
-    "anchor remote Vim shell execution to the opened project directory",
-    "reject and retry a reset SSH-forwarded TCP DAP connection"
-  ],
+  "sourceCommit": "668b2ab43cf23933d1c66858f86b608d48f0107b",
+  "sourceTree": "cd39f5cf843aebd5ff716edb1d05c0e5bfb166a5",
+  "installedProductCommit": "658ad7c73805733d584c19cc063ef36d2ef612c4",
+  "installedCandidateDifference": "The only later commit hardens the tracked UAT cleanup census; it does not change product runtime behavior. The exact merged commit remains subject to a fresh post-merge install and canary.",
+  "testedWorkingTree": false,
+  "testedWorkingTreeChanges": [],
   "suites": [
     {
       "name": "remote-consumer-rust-matrix",
@@ -43,16 +42,18 @@
       "name": "installed-surface-uat-runner",
       "command": "python3 -m unittest script.tests.zed_installed_surface_uat_test",
       "status": "passed",
-      "tests": 6,
+      "tests": 9,
       "failed": 0,
-      "scope": "tracked production-shaped fixture rendering, strong journey oracles, injected TCP initialize reset, and cleanup rejection"
+      "skipped": 1,
+      "skipReason": "The Linux procfs ancestry regression is exercised by Linux CI; macOS has no /proc.",
+      "scope": "tracked production-shaped fixture rendering, strong journey oracles, delayed true TCP RST, valid DAP response shapes, resize observation, direnv authorization, and reuse-safe cleanup rejection"
     },
     {
       "name": "mac-bundle",
       "command": "./script/bundle-mac -d -i",
       "status": "passed",
-      "installedCommit": "e1538795b39fd3e160da18e2fc617bef5d9940b6",
-      "installedWorkingTree": true,
+      "installedCommit": "658ad7c73805733d584c19cc063ef36d2ef612c4",
+      "installedWorkingTree": false,
       "signatureVerified": true
     }
   ]

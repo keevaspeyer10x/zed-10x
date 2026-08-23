@@ -22,7 +22,7 @@
     "stdinIsTty": true
   },
   "ptyOutputPrivate": true,
-  "remoteServerSha256": "c848b74aa6b41a358fce4e0e815adc861c25dab40c9246e6c52cf9e4b69c7177",
+  "remoteServerSha256": "d6c6a3f79c1c6ca87f6fc05696c24f098dbdc5d3b4ba2463408eb42dd137ece2",
   "schemaVersion": 1,
   "secretPersisted": false,
   "status": "passed",

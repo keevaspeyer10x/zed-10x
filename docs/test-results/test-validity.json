@@ -27,6 +27,38 @@
       "fix": "Keep the fixture in a signal wait loop until the explicit interrupt handler terminates it.",
       "regression": "installed terminal survives resize, observes changed columns, and then records the explicit interrupt",
       "status": "fixed"
+    },
+    {
+      "id": "HARNESS-DAP-THREADS-RESPONSE-SHAPE",
+      "category": "test_bug",
+      "symptom": "The fake adapter returned an empty object for threads, which is not a valid DAP ThreadsResponse and produced an avoidable client parse error.",
+      "fix": "Return the protocol-valid empty threads list and retain the full initialize/launch/configure/threads/terminate assertion.",
+      "regression": "installed TCP DAP fixture returns threads: [] and the assembled journey has no invalid-response error",
+      "status": "fixed"
+    },
+    {
+      "id": "HARNESS-TERMINAL-RESIZE-ORACLE",
+      "category": "test_bug",
+      "symptom": "The resize oracle required the first and last width to differ, even though legitimate intermediate resize activity can return to the original width.",
+      "fix": "Persist all observed widths and require at least two distinct values plus an explicit interrupt.",
+      "regression": "terminal receipt records observedColumns with at least two distinct widths",
+      "status": "fixed"
+    },
+    {
+      "id": "HARNESS-DIRENV-AUTHORIZATION-ORDER",
+      "category": "test_bug",
+      "symptom": "Authorizing the synthetic .envrc after Zed opened the project left the remote directory environment cached without the fixture values.",
+      "fix": "Authorize the exact fixture directory before opening the installed app and verify both directory and surface environment hashes.",
+      "regression": "prepare phase performs exact direnv allow before launch and task/terminal receipts match the authorized environment",
+      "status": "fixed"
+    },
+    {
+      "id": "HARNESS-CLEANUP-CENSUS-ANCESTRY",
+      "category": "test_bug",
+      "symptom": "The remote cleanup census matched its own Python/SSH ancestor command lines because they contained fixture paths and script names.",
+      "fix": "Exclude the observer's reuse-safe ancestor identities while continuing to report matching sibling and descendant processes.",
+      "regression": "Linux procfs fixture excludes observer ancestry but detects live non-ancestor residue",
+      "status": "fixed"
     }
   ],
   "negativeControl": {
@@ -39,6 +71,6 @@
   "reviewTooling": {
     "multimindsAudit": "invalid_zero_of_nine_after_outer_timeout",
     "usedAsAcceptanceEvidence": false,
-    "independentExactDiffReview": "pending_final_exact_candidate"
+    "independentExactDiffReview": "pending_final_exact_candidate_after_evidence_refresh"
   }
 }

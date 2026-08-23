@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "startedAt": "2026-08-23T01:21:50Z",
   "repo": "zed-10x",
-  "branch": "test/zed-surface-journey-closure",
+  "branch": "fix/secure-remote-environment-production",
   "scope": {
     "id": "zed-10x-remote-execution-release",
     "description": "Installed Zed 10x external-agent and environment-bearing remote execution journeys across Mac-local and Mac-to-Intrepid projects",
@@ -29,8 +29,8 @@
       "tooling": {
         "rustToolchain": "1.95.0-aarch64-apple-darwin",
         "node": "v22.22.3",
-        "mindsDoctorAudit": "all_9_reviewers_healthy",
-        "semanticVisualTesting": "authorized_pending_installed_candidate"
+        "mindsDoctorAudit": "all_six_review_classes_have_a_ready_route_optional_native_routes_degraded",
+        "semanticVisualTesting": "installed_candidate_executed"
       },
       "implementationTarget": "full_plan_implemented",
       "freshLifecycleRequired": true
@@ -76,7 +76,7 @@
         "docs/test-results/acp-route-intrepid-glm.json",
         "docs/test-results/acp-route-claude-mac-primary-negative.json"
       ],
-      "summary": "All 18 mapped rows passed. The assembled private app opened the populated Intrepid checkout; terminal resize/input/Ctrl-C, task cancellation, Vim filtering, MCP initialize/tools-list, and stdio/TCP DAP request sequences proved exact project cwd, surface environment, actual behavior, and cleanup; the installed remote server passed noninteractive, PTY, and TCP secure-environment journeys; Mac-local Codex and Intrepid GLM each completed a withheld-oracle project read; the Claude permission-request negative approved nothing and cleaned up."
+      "summary": "All 18 mapped rows passed. The assembled private app at product commit 658ad7c7 opened the populated Intrepid checkout; terminal resize/input/Ctrl-C, task cancellation, Vim filtering, MCP initialize/tools-list, and stdio/TCP DAP request sequences proved exact project cwd, surface environment, actual behavior, and cleanup. The TCP adapter endured a delayed real RST and replayed initialize exactly once. The installed remote server passed noninteractive, PTY, and TCP secure-environment journeys; Mac-local Codex and Intrepid GLM each completed a withheld-oracle project read. The later 668b2ab4 commit changes only the tracked cleanup census, and exact-merge installation remains the final delivery gate."
     },
     "5-analysis": {
       "status": "complete",
@@ -84,20 +84,20 @@
       "summaryArtifact": "docs/test-results/summary.json",
       "testValidityArtifact": "docs/test-results/test-validity.json",
       "decisionCandidate": "production_ready",
-      "rootCauseClusters": 6,
+      "rootCauseClusters": 10,
       "unresolvedFindings": 0,
-      "summary": "Three harness defects and three assembled-product defects were fixed and re-run cleanly. The product defects were stale PROMPT_COMMAND replay, missing project cwd for Vim shell execution, and premature acceptance of a reset TCP-forward connection; the harness defects were SSH command quoting, ACP evidence aggregation, and a resize-sensitive terminal fixture."
+      "summary": "Seven harness defects and four assembled-product defects were fixed and re-run cleanly. The final round corrected the DAP threads response shape, terminal resize oracle, direnv authorization order, and cleanup census ancestry, while the product's SSH/TCP path now tags real disconnect I/O and replays initialize only within the existing SSH timeout."
     },
     "6-tracking": {
       "status": "complete",
       "issuesCreated": 0,
-      "reason": "No unresolved product, test, infrastructure, or process finding remains. All three newly discovered harness defects were fixed in this candidate with executable regressions. The independent MultiMinds review outage is pre-existing tooling work and was not treated as product approval or duplicated here."
+      "reason": "No unresolved product, test, infrastructure, or process finding remains. All seven harness defects were fixed with executable regressions. Independent exact-candidate architecture review remains the release review; a duplicate reviewer panel is not required."
     }
   },
   "defectDiscovery": {
-    "bugsFound": 8,
+    "bugsFound": 12,
     "productDefects": 4,
-    "testHarnessDefects": 3,
+    "testHarnessDefects": 7,
     "infraOrToolingDefects": 0,
     "processDefects": 1,
     "fixedDuringRun": [
@@ -108,7 +108,11 @@
       "Kept the terminal UAT fixture alive across SIGWINCH until the intended Ctrl-C.",
       "Sanitized captured PROMPT_COMMAND while preserving explicit terminal and task overrides.",
       "Anchored remote Vim shell commands to the first opened project directory.",
-      "Added a bounded TCP connection-stability probe so an early SSH-forward reset is rejected and retried."
+      "Classified real header/body disconnect I/O and replayed initialize once only for SSH/TCP within the existing timeout.",
+      "Returned a protocol-valid empty DAP threads list from the fake adapter.",
+      "Required two distinct observed terminal widths instead of comparing only the first and last samples.",
+      "Authorized the exact synthetic direnv before project open.",
+      "Excluded the cleanup observer's reuse-safe ancestors without hiding matching sibling or descendant residue."
     ],
     "knownDefects": [
       "Initial ExternalAgentsUpdated can arrive before client handler registration and is not replayed",
@@ -118,7 +122,11 @@
       "Terminal UAT exited after resize because signal.pause was treated as a lifecycle loop",
       "Captured shell hook state was replayed without the corresponding function definition",
       "Remote Vim external commands did not carry the opened project cwd",
-      "SSH local forwarding became reachable before the remote TCP adapter listener"
+      "SSH local forwarding became reachable before the remote TCP adapter listener",
+      "The fake adapter returned an invalid empty ThreadsResponse",
+      "The terminal resize oracle compared only first and final widths",
+      "The fixture directory environment was authorized after Zed cached it",
+      "The remote cleanup census matched its own observer ancestry"
     ]
   }
 }
