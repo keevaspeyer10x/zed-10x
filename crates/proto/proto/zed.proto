@@ -505,7 +505,8 @@ message Envelope {
     RefreshDocumentColors refresh_document_colors = 474;
     RefreshDocumentLinks refresh_document_links = 475;
     RefreshFoldingRanges refresh_folding_ranges = 476;
-    RefreshDocumentSymbols refresh_document_symbols = 477; // current max
+    RefreshDocumentSymbols refresh_document_symbols = 477;
+    GetExternalAgents get_external_agents = 478; // current max
   }
 
   reserved 87 to 88;

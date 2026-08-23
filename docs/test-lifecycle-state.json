@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 2,
+  "startedAt": "2026-08-23T01:21:50Z",
+  "repo": "zed-10x",
+  "branch": "test/zed-surface-journey-closure",
+  "scope": {
+    "id": "zed-10x-remote-external-agents",
+    "description": "Installed Zed 10x desktop and remote external-agent discovery, launch, reconnect, and cleanup across Mac-local and Mac-to-Intrepid projects",
+    "excluded": [
+      "Unrelated upstream Zed editor features",
+      "Provider account repair",
+      "Public notarized distribution"
+    ]
+  },
+  "implementationTarget": "full_plan_implemented",
+  "freshLifecycleRequired": true,
+  "phases": {
+    "0-preflight": {
+      "status": "complete",
+      "nativeCommands": [
+        "rustup run 1.95.0-aarch64-apple-darwin cargo test -p project remote_external_agent",
+        "rustup run 1.95.0-aarch64-apple-darwin cargo test -p remote_server remote_external_agent",
+        "node --test script/tests/zed-10x-product-identity.test.mjs"
+      ],
+      "toolGaps": [
+        "cargo is not on the ambient PATH; rustup provides the pinned 1.95.0 toolchain",
+        "native installed-app UI control requires explicit per-action Mac permission"
+      ],
+      "tooling": {
+        "rustToolchain": "1.95.0-aarch64-apple-darwin",
+        "node": "v22.22.3",
+        "mindsDoctorAudit": "all_9_reviewers_healthy",
+        "semanticVisualTesting": "blocked_requires_explicit_mac_app_control"
+      },
+      "implementationTarget": "full_plan_implemented",
+      "freshLifecycleRequired": true
+    },
+    "1-discovery": {
+      "status": "complete",
+      "artifact": "docs/discovery-ir.json",
+      "productSurfaces": 2,
+      "criticalJourneys": 6,
+      "surfaceJourneyCells": 12,
+      "applicableCells": 12
+    },
+    "2-generation": {
+      "status": "complete",
+      "artifacts": ["docs/test-plan.json", "docs/TEST_PLAN.md"],
+      "plannedRows": 6,
+      "readyNowRows": 6
+    },
+    "3-implementation": {
+      "status": "in_progress",
+      "plannedRows": 6,
+      "readyNowRows": 6,
+      "implementedRows": 5,
+      "remainingRows": 1,
+      "redEvidence": "The server-first remote external-agent fixture returned an empty inventory before the protocol correction.",
+      "greenEvidence": "Server-first recovery, reconnect-after-disconnected-settings-change, request/push ordering, and post-handler settings refresh pass after the receiver-driven snapshot correction. The tracked ACP canary's ten deterministic tests prove a withheld filesystem oracle, prompt-echo and marker-only refusal, permission refusal, failure classification, JSONC settings loading, and timeout process-group cleanup. A live direct Codex Mac (primary) route then computed the withheld Cargo.toml digest through a completed ACP tool call and cleaned up, recorded at docs/test-results/acp-route-codex-mac-primary.json.",
+      "remainingEvidence": "Execute the installed Zed Mac-local and Mac-to-Intrepid project journeys with explicit per-action Mac app-control permission."
+    }
+  },
+  "defectDiscovery": {
+    "bugsFound": 2,
+    "productDefects": 1,
+    "testHarnessDefects": 1,
+    "infraOrToolingDefects": 0,
+    "processDefects": 1,
+    "fixedDuringRun": [
+      "Replaced the one-second initial inventory push guess with a receiver-driven request/response snapshot, re-request on rejoin, and stale-response suppression.",
+      "Promoted the project-aware ACP route oracle into tracked code with a withheld digest, fail-closed permissions, and deterministic false-green and cleanup tests."
+    ],
+    "knownDefects": [
+      "Initial ExternalAgentsUpdated can arrive before client handler registration and is not replayed",
+      "Prior ACP live canary launched host commands directly instead of exercising the installed Zed client-to-remote-server journey"
+    ]
+  }
+}

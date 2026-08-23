@@ -1,0 +1,132 @@
+{
+  "plannedRows": 6,
+  "readyNowRows": 6,
+  "implementedRows": 5,
+  "remainingRows": 1,
+  "unimplementedRows": ["ACP-JOURNEY-002"],
+  "blockedRows": [
+    {
+      "id": "ACP-JOURNEY-002",
+      "blocker": "The production-shaped installed-app UAT requires explicit per-action permission to control Zed on Keeva's Mac."
+    }
+  ],
+  "mappings": [
+    {
+      "id": "ACP-SMOKE-001",
+      "implemented": true,
+      "evidenceStrength": "direct",
+      "assertionRefs": [
+        {
+          "file": "crates/remote_server/src/remote_editing_tests.rs",
+          "testName": "test_remote_external_agent_server_recovers_inventory_published_before_client_ready",
+          "asserts": ["exact initial agent names arrive after the prior push was missed"]
+        }
+      ],
+      "runCommand": "cargo test -p remote_server --lib remote_editing_tests::test_remote_external_agent_server_recovers_inventory_published_before_client_ready -- --exact"
+    },
+    {
+      "id": "ACP-JOURNEY-002",
+      "implemented": false,
+      "evidenceStrength": "partial_direct",
+      "assertionRefs": [
+        {
+          "file": "script/tests/zed-acp-live-canary.test.mjs",
+          "testName": "project-aware ACP canary accepts a completed tool call with exact project evidence",
+          "asserts": ["completed tool output contains the exact project cwd and sentinel SHA", "terminal response contains the bound canary marker"]
+        },
+        {
+          "file": "script/tests/zed-acp-live-canary.test.mjs",
+          "testName": "marker-only output cannot impersonate a project-aware journey",
+          "asserts": ["assistant text without completed tool evidence is non-green"]
+        },
+        {
+          "file": "script/tests/zed-acp-live-canary.test.mjs",
+          "testName": "echoing every prompt-visible value cannot impersonate a project read",
+          "asserts": ["the expected sentinel digest is withheld from the prompt", "prompt echo cannot satisfy the project oracle"]
+        }
+      ],
+      "runCommand": "node --test script/tests/zed-acp-live-canary.test.mjs",
+      "observedEvidence": [
+        "docs/test-results/acp-route-codex-mac-primary.json: a live Codex Mac (primary) route computed the withheld Cargo.toml SHA-256 through a completed tool call, matched the exact checkout cwd, returned the bound terminal marker, requested no permissions, exited 0, and left its process group empty"
+      ],
+      "blocker": "the deterministic route oracle is implemented; the installed Zed client-to-remote-server journey still requires explicit per-action Mac app-control permission"
+    },
+    {
+      "id": "ACP-JOURNEY-003",
+      "implemented": true,
+      "evidenceStrength": "direct",
+      "assertionRefs": [
+        {
+          "file": "crates/remote_server/src/remote_editing_tests.rs",
+          "testName": "test_remote_external_agent_server",
+          "asserts": ["settings update adds the exact route", "remote command preserves args and environment"]
+        }
+      ],
+      "runCommand": "cargo test -p remote_server --lib remote_editing_tests::test_remote_external_agent_server -- --exact"
+    },
+    {
+      "id": "ACP-JOURNEY-004",
+      "implemented": true,
+      "evidenceStrength": "direct",
+      "assertionRefs": [
+        {
+          "file": "crates/remote_server/src/remote_editing_tests.rs",
+          "testName": "test_remote_external_agent_server_reconnects_to_latest_inventory",
+          "asserts": ["a settings push lost while disconnected is recovered by the rejoined project's fresh request", "stale pre-disconnect names are absent"]
+        },
+        {
+          "file": "crates/project/src/agent_server_store.rs",
+          "testName": "remote-agent snapshot ordering tests",
+          "asserts": ["a newer push invalidates an older response", "a newer reconnect request invalidates an older in-flight request"]
+        }
+      ],
+      "runCommand": "cargo test -p project remote_agent --lib && cargo test -p remote_server --lib remote_editing_tests::test_remote_external_agent_server_reconnects_to_latest_inventory -- --exact"
+    },
+    {
+      "id": "ACP-NEG-005",
+      "implemented": true,
+      "evidenceStrength": "direct",
+      "assertionRefs": [
+        {
+          "file": "script/tests/zed-acp-live-canary.test.mjs",
+          "testName": "authentication and capacity failures remain distinct",
+          "asserts": ["authentication expiry is non-green", "capacity exhaustion is a distinct non-green classification"]
+        },
+        {
+          "file": "script/tests/zed-acp-live-canary.test.mjs",
+          "testName": "missing executable is classified before a false-green session",
+          "asserts": ["missing executable is explicit and starts no ACP process"]
+        },
+        {
+          "file": "script/tests/zed-acp-live-canary.test.mjs",
+          "testName": "marker-only output cannot impersonate a project-aware journey",
+          "asserts": ["marker-only response cannot satisfy the journey oracle"]
+        },
+        {
+          "file": "script/tests/zed-acp-live-canary.test.mjs",
+          "testName": "read-only canary never grants route-requested permissions",
+          "asserts": ["write, shell, and unknown permission requests are non-green", "zero permissions are approved"]
+        }
+      ],
+      "runCommand": "node --test script/tests/zed-acp-live-canary.test.mjs"
+    },
+    {
+      "id": "ACP-OPS-006",
+      "implemented": true,
+      "evidenceStrength": "direct",
+      "assertionRefs": [
+        {
+          "file": "script/tests/zed-acp-live-canary.test.mjs",
+          "testName": "timeout kills the owned ACP process group",
+          "asserts": ["hung parent and child processes are gone after the bounded timeout", "cleanup is not inferred from wrapper exit"]
+        },
+        {
+          "file": "script/tests/zed-acp-live-canary.test.mjs",
+          "testName": "project-aware ACP canary accepts a completed tool call with exact project evidence",
+          "asserts": ["normal completion leaves the owned ACP process group gone"]
+        }
+      ],
+      "runCommand": "node --test script/tests/zed-acp-live-canary.test.mjs"
+    }
+  ]
+}
