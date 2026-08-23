@@ -1665,6 +1665,8 @@ impl Project {
             BreakpointStore::init(&remote_proto);
             GitStore::init(&remote_proto);
             AgentServerStore::init_remote(&remote_proto);
+            this.agent_server_store
+                .update(cx, |store, cx| store.request_remote_agents(cx));
 
             this
         })
@@ -2887,6 +2889,8 @@ impl Project {
         });
         self.enqueue_buffer_ordered_message(BufferOrderedMessage::Resync)
             .unwrap();
+        self.agent_server_store
+            .update(cx, |store, cx| store.request_remote_agents(cx));
         cx.emit(Event::Rejoined);
         Ok(())
     }

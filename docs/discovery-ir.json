@@ -1,0 +1,187 @@
+{
+  "schemaVersion": 2,
+  "freshLifecycle": true,
+  "generatedAt": "2026-08-23T01:40:00Z",
+  "repository": {
+    "name": "zed-10x",
+    "head": "0a67f0e55990e52791b28d90ccdd17cfff80a431",
+    "tree": "1d7500a3bc4b03ad5110431c0a8e4a530f63719a",
+    "branch": "test/zed-surface-journey-closure"
+  },
+  "scope": {
+    "id": "zed-10x-remote-external-agents",
+    "description": "Installed Zed 10x external-agent discovery, launch, reconnect, failure classification, and cleanup for Mac-local and Mac-to-Intrepid projects",
+    "excluded": [
+      "Unrelated upstream Zed editor features",
+      "Provider account repair",
+      "Public notarized distribution"
+    ]
+  },
+  "stack": {
+    "languages": ["Rust", "JavaScript", "Python"],
+    "framework": "GPUI desktop application with protobuf remote transport and ACP subprocesses",
+    "nativeTestRunner": "cargo test via rustup toolchain 1.95.0"
+  },
+  "architecture": {
+    "components": [
+      {
+        "id": "remote-agent-server-store",
+        "file": "crates/project/src/agent_server_store.rs",
+        "lines": "551-576",
+        "role": "Publishes the remote server's external-agent inventory"
+      },
+      {
+        "id": "remote-project-client-bootstrap",
+        "file": "crates/project/src/project.rs",
+        "lines": "1630-1671",
+        "role": "Registers remote entity handlers during project construction"
+      },
+      {
+        "id": "remote-external-agent-integration-test",
+        "file": "crates/remote_server/src/remote_editing_tests.rs",
+        "lines": "3749-3825",
+        "role": "Exercises a settings update after the remote handler is ready"
+      }
+    ],
+    "observedRace": "The server uses a one-second delay and a one-way ExternalAgentsUpdated message. If the client handler is registered later, the initial inventory is lost and is not requested or replayed."
+  },
+  "requirements": [
+    {
+      "id": "REQ-ACP-001",
+      "text": "Every supported installed-product surface exposes the host-valid external-agent inventory after a cold project open.",
+      "source": "prior_defect"
+    },
+    {
+      "id": "REQ-ACP-002",
+      "text": "A selected agent launches on the project execution host and can read exact project bytes through an ACP tool call.",
+      "source": "prior_defect"
+    },
+    {
+      "id": "REQ-ACP-003",
+      "text": "Reconnect and settings refresh converge idempotently without relying on startup timing.",
+      "source": "code"
+    },
+    {
+      "id": "REQ-ACP-004",
+      "text": "Missing executable, authentication, capacity, and timeout failures are classified without a false success.",
+      "source": "observation"
+    },
+    {
+      "id": "REQ-ACP-005",
+      "text": "Agent and transport processes terminate without residue when a session completes or times out.",
+      "source": "risk"
+    }
+  ],
+  "productSurfaces": [
+    {
+      "id": "SURFACE-MAC-LOCAL",
+      "name": "Installed Zed 10x with a Mac-local project",
+      "executionHost": "darwin-local",
+      "supportedInventory": "six Mac-local Claude/Codex routes",
+      "evidence": ["adapters/zed/agent-servers.json", "docs/decisions/adr-20260720-zed-native-acp-endpoint-projection.md"]
+    },
+    {
+      "id": "SURFACE-MAC-REMOTE-INTREPID",
+      "name": "Installed Zed 10x on Mac with an Intrepid remote project",
+      "executionHost": "linux-remote",
+      "supportedInventory": "two Linux-local plus seven persistent Intrepid routes",
+      "evidence": ["crates/remote_server/src/headless_project.rs", "docs/decisions/adr-20260720-zed-native-acp-endpoint-projection.md"]
+    }
+  ],
+  "criticalJourneys": [
+    {
+      "id": "JOURNEY-COLD-OPEN",
+      "name": "Cold open publishes the complete host-valid inventory",
+      "terminalObservable": "Agent inventory is present without waiting for an unrelated settings change"
+    },
+    {
+      "id": "JOURNEY-LAUNCH-READ-PROJECT",
+      "name": "Launch an agent and read exact project bytes with a tool",
+      "terminalObservable": "ACP completes a tool call from the real project cwd and returns the expected sentinel"
+    },
+    {
+      "id": "JOURNEY-SETTINGS-REFRESH",
+      "name": "Settings changes converge to one current inventory",
+      "terminalObservable": "Added and removed routes are reflected exactly once"
+    },
+    {
+      "id": "JOURNEY-RECONNECT",
+      "name": "Reconnect restores inventory and launchability",
+      "terminalObservable": "A new transport session receives a current snapshot and can launch a route"
+    },
+    {
+      "id": "JOURNEY-FAILURE-CLASSIFICATION",
+      "name": "Expected route failures remain explicit",
+      "terminalObservable": "Missing executable, authentication, capacity, and timeout outcomes are classified as failures"
+    },
+    {
+      "id": "JOURNEY-CLEANUP",
+      "name": "Completion and timeout leave no owned process residue",
+      "terminalObservable": "The agent process group and transport session are terminal"
+    }
+  ],
+  "surfaceJourneyMatrix": [
+    {"surfaceId": "SURFACE-MAC-LOCAL", "journeyId": "JOURNEY-COLD-OPEN", "applicability": "applicable"},
+    {"surfaceId": "SURFACE-MAC-LOCAL", "journeyId": "JOURNEY-LAUNCH-READ-PROJECT", "applicability": "applicable"},
+    {"surfaceId": "SURFACE-MAC-LOCAL", "journeyId": "JOURNEY-SETTINGS-REFRESH", "applicability": "applicable"},
+    {"surfaceId": "SURFACE-MAC-LOCAL", "journeyId": "JOURNEY-RECONNECT", "applicability": "applicable"},
+    {"surfaceId": "SURFACE-MAC-LOCAL", "journeyId": "JOURNEY-FAILURE-CLASSIFICATION", "applicability": "applicable"},
+    {"surfaceId": "SURFACE-MAC-LOCAL", "journeyId": "JOURNEY-CLEANUP", "applicability": "applicable"},
+    {"surfaceId": "SURFACE-MAC-REMOTE-INTREPID", "journeyId": "JOURNEY-COLD-OPEN", "applicability": "applicable"},
+    {"surfaceId": "SURFACE-MAC-REMOTE-INTREPID", "journeyId": "JOURNEY-LAUNCH-READ-PROJECT", "applicability": "applicable"},
+    {"surfaceId": "SURFACE-MAC-REMOTE-INTREPID", "journeyId": "JOURNEY-SETTINGS-REFRESH", "applicability": "applicable"},
+    {"surfaceId": "SURFACE-MAC-REMOTE-INTREPID", "journeyId": "JOURNEY-RECONNECT", "applicability": "applicable"},
+    {"surfaceId": "SURFACE-MAC-REMOTE-INTREPID", "journeyId": "JOURNEY-FAILURE-CLASSIFICATION", "applicability": "applicable"},
+    {"surfaceId": "SURFACE-MAC-REMOTE-INTREPID", "journeyId": "JOURNEY-CLEANUP", "applicability": "applicable"}
+  ],
+  "uiInventory": {
+    "screens": [
+      {
+        "id": "UI-AGENT-PANEL",
+        "name": "Agent Panel external-agent picker and thread",
+        "states": ["inventory-ready", "launching", "running", "failed", "terminal"]
+      }
+    ]
+  },
+  "existingCoverage": {
+    "direct": [
+      "Settings projection and host-affinity unit tests",
+      "Remote settings update after handler registration",
+      "Host-command ACP canary for selected routes"
+    ],
+    "gaps": [
+      "No production-shaped cold-open ordering where inventory exists before handler registration",
+      "No installed Zed client-to-remote-server journey in the prior live canary",
+      "No release-blocking assertion against an unhandled ExternalAgentsUpdated message"
+    ]
+  },
+  "knownDefects": [
+    {
+      "id": "DEFECT-ACP-INITIAL-INVENTORY-RACE",
+      "status": "fixed_in_candidate",
+      "classification": "product",
+      "evidence": "Zed-10x.log recorded client:unhandled remote message name:ExternalAgentsUpdated before the Linux process attempted a stale Mac launcher path"
+    },
+    {
+      "id": "DEFECT-ACP-CANARY-BYPASS",
+      "status": "fixed_in_candidate",
+      "classification": "test_harness",
+      "evidence": ".vibe/zed-acp-live-canary.py launches route commands directly and never starts Zed or crosses its remote transport"
+    }
+  ],
+  "toolAvailability": {
+    "rustupCargo": true,
+    "node": true,
+    "mindsDoctorAudit": true,
+    "installedAppControl": "blocked_requires_explicit_per_action_permission",
+    "semgrep": false,
+    "mutationRunner": false
+  },
+  "riskLevels": {
+    "startupOrdering": "critical",
+    "hostLocality": "critical",
+    "runtimeAvailability": "high",
+    "failureClassification": "high",
+    "cleanup": "high"
+  }
+}
