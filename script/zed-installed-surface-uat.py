@@ -43,21 +43,31 @@ root=pathlib.Path(sys.argv[1]); observed={}; uat=root/'.uat'
 for key,name in json.loads(sys.argv[2]).items():
  path=uat/name
  observed[key]={'bytes':path.read_text(encoding='utf-8'),'mode':path.stat().st_mode & 0o777}
+def proc_identity(pid):
+ stat=(pathlib.Path('/proc')/str(pid)/'stat').read_text()
+ fields=stat.rsplit(')',1)[1].split()
+ return (pid,int(fields[19]),int(fields[1]))
 self_and_ancestors=set(); pid=os.getpid()
-while pid > 1 and pid not in self_and_ancestors:
- self_and_ancestors.add(pid)
- try:
-  stat=(pathlib.Path('/proc')/str(pid)/'stat').read_text()
-  pid=int(stat.rsplit(')',1)[1].split()[1])
- except (FileNotFoundError,PermissionError,ProcessLookupError,ValueError,IndexError):
-  break
+while pid > 1:
+ try: identity=proc_identity(pid)
+ except (FileNotFoundError,PermissionError,ProcessLookupError,ValueError,IndexError): break
+ process_key=identity[:2]
+ if process_key in self_and_ancestors: break
+ self_and_ancestors.add(process_key); pid=identity[2]
 residue=[]
 for proc in pathlib.Path('/proc').iterdir():
- if not proc.name.isdigit() or int(proc.name) in self_and_ancestors: continue
- try: argv=(proc/'cmdline').read_bytes().replace(b'\\0',b' ').decode(errors='replace')
- except (FileNotFoundError,PermissionError,ProcessLookupError): continue
+ if not proc.name.isdigit(): continue
+ pid=int(proc.name)
+ try: identity=proc_identity(pid)
+ except (FileNotFoundError,PermissionError,ProcessLookupError,ValueError,IndexError): continue
+ if identity[:2] in self_and_ancestors: continue
+ try:
+  argv=(proc/'cmdline').read_bytes().replace(b'\\0',b' ').decode(errors='replace')
+  stable_identity=proc_identity(pid)
+ except (FileNotFoundError,PermissionError,ProcessLookupError,ValueError,IndexError): continue
+ if stable_identity[:2] != identity[:2]: continue
  if str(root) in argv and any(name in argv for name in ('terminal_uat.py','task_uat.py','vim_filter.py','mcp_server.py','fake_dap.py')):
-  residue.append(int(proc.name))
+  residue.append(pid)
 print(json.dumps({'receipts':observed,'processResidue':sorted(residue)},sort_keys=True))
 """.strip()
 
