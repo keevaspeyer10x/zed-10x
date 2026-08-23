@@ -182,8 +182,7 @@ No additional unfixed blind spot warrants a new row in this release plan. These 
 
 ## Independent Critique
 
-The final exact-candidate architecture review is pending after the three defects
-found during installed UAT were corrected. The review is required to trace every
+The final exact-candidate architecture review is required before merge. It must trace every
 named consumer, capability and failure behavior, secret-absence invariant, PTY
 state machine, and cleanup path. The unavailable MultiMinds panel is recorded as
 tooling evidence only and is not acceptance evidence.

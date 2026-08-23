@@ -71,6 +71,6 @@
   "reviewTooling": {
     "multimindsAudit": "invalid_zero_of_nine_after_outer_timeout",
     "usedAsAcceptanceEvidence": false,
-    "independentExactDiffReview": "pending_final_exact_candidate_after_evidence_refresh"
+    "independentExactDiffReview": "required_on_the_final_exact_candidate_before_merge"
   }
 }
