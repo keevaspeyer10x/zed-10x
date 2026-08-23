@@ -108,6 +108,21 @@ class InstalledSurfaceUatTests(unittest.TestCase):
             self.assertTrue(result["directoryEnvironmentAuthorizedBeforeOpen"])
             self.assertEqual(json.loads(receipt.read_text()), result)
 
+    @unittest.skipUnless(pathlib.Path("/proc").is_dir(), "requires procfs")
+    def test_remote_collection_script_excludes_its_own_process_tree(self):
+        with tempfile.TemporaryDirectory(prefix="zed-installed-surface-uat-") as directory:
+            result = subprocess.run(
+                [sys.executable, "-c", uat.REMOTE_COLLECTION_SCRIPT, directory, "{}"],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+
+        self.assertEqual(
+            json.loads(result.stdout),
+            {"processResidue": [], "receipts": {}},
+        )
+
     def test_fixture_render_replaces_every_project_token(self):
         with tempfile.TemporaryDirectory() as directory:
             destination = pathlib.Path(directory) / "fixture"

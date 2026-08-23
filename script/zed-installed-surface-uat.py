@@ -37,6 +37,29 @@ RECEIPT_FILES = {
     "dapStdio": "dap-stdio.json",
     "dapTcp": "dap-tcp.json",
 }
+REMOTE_COLLECTION_SCRIPT = """
+import json,os,pathlib,sys
+root=pathlib.Path(sys.argv[1]); observed={}; uat=root/'.uat'
+for key,name in json.loads(sys.argv[2]).items():
+ path=uat/name
+ observed[key]={'bytes':path.read_text(encoding='utf-8'),'mode':path.stat().st_mode & 0o777}
+self_and_ancestors=set(); pid=os.getpid()
+while pid > 1 and pid not in self_and_ancestors:
+ self_and_ancestors.add(pid)
+ try:
+  stat=(pathlib.Path('/proc')/str(pid)/'stat').read_text()
+  pid=int(stat.rsplit(')',1)[1].split()[1])
+ except (FileNotFoundError,PermissionError,ProcessLookupError,ValueError,IndexError):
+  break
+residue=[]
+for proc in pathlib.Path('/proc').iterdir():
+ if not proc.name.isdigit() or int(proc.name) in self_and_ancestors: continue
+ try: argv=(proc/'cmdline').read_bytes().replace(b'\\0',b' ').decode(errors='replace')
+ except (FileNotFoundError,PermissionError,ProcessLookupError): continue
+ if str(root) in argv and any(name in argv for name in ('terminal_uat.py','task_uat.py','vim_filter.py','mcp_server.py','fake_dap.py')):
+  residue.append(int(proc.name))
+print(json.dumps({'receipts':observed,'processResidue':sorted(residue)},sort_keys=True))
+""".strip()
 
 
 class UatFailure(RuntimeError):
@@ -163,28 +186,13 @@ def prepare(host: str, remote_project: str, receipt_path: pathlib.Path) -> dict[
 
 def collect_remote(host: str, remote_project: str) -> dict[str, Any]:
     remote_project = validate_remote_project(remote_project)
-    script = """
-import json,os,pathlib,sys
-root=pathlib.Path(sys.argv[1]); observed={}; uat=root/'.uat'
-for key,name in json.loads(sys.argv[2]).items():
- path=uat/name
- observed[key]={'bytes':path.read_text(encoding='utf-8'),'mode':path.stat().st_mode & 0o777}
-residue=[]
-for proc in pathlib.Path('/proc').iterdir():
- if not proc.name.isdigit(): continue
- try: argv=(proc/'cmdline').read_bytes().replace(b'\\0',b' ').decode(errors='replace')
- except (FileNotFoundError,PermissionError,ProcessLookupError): continue
- if str(root) in argv and any(name in argv for name in ('terminal_uat.py','task_uat.py','vim_filter.py','mcp_server.py','fake_dap.py')):
-  residue.append(int(proc.name))
-print(json.dumps({'receipts':observed,'processResidue':sorted(residue)},sort_keys=True))
-""".strip()
     output = ssh_run(
         host,
         " ".join(
             [
                 "/usr/bin/python3",
                 "-c",
-                shlex.quote(script),
+                shlex.quote(REMOTE_COLLECTION_SCRIPT),
                 shlex.quote(remote_project),
                 shlex.quote(json.dumps(RECEIPT_FILES, separators=(",", ":"))),
             ]
