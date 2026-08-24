@@ -3942,9 +3942,9 @@ async fn test_remote_external_agent_server_reconnects_to_latest_inventory(
         server_cx,
         &json!({
             "agent_servers": {
-                "before": {
+                "kimi": {
                     "type": "custom",
-                    "command": "before-cli"
+                    "command": "old-kimi-cli"
                 }
             }
         })
@@ -3978,9 +3978,10 @@ async fn test_remote_external_agent_server_reconnects_to_latest_inventory(
             .set_server_settings(
                 &json!({
                     "agent_servers": {
-                        "after": {
+                        "Kimi Intrepid": {
                             "type": "custom",
-                            "command": "after-cli"
+                            "command": "new-kimi-cli",
+                            "aliases": ["Kimi (VPS)", "kimi", "Kimi (local)"]
                         }
                     }
                 })
@@ -4009,7 +4010,27 @@ async fn test_remote_external_agent_server_reconnects_to_latest_inventory(
             .map(|name| name.to_string())
             .collect::<Vec<_>>()
     });
-    pretty_assertions::assert_eq!(names, ["after"]);
+    pretty_assertions::assert_eq!(names, ["Kimi Intrepid"]);
+
+    // Persisted threads keep their original agent id across a disconnect. A
+    // declared alias must resolve to the one current endpoint without adding a
+    // duplicate picker entry or relying on name heuristics.
+    let command = project
+        .update(cx, |project, cx| {
+            project.agent_server_store().update(cx, |store, cx| {
+                assert_eq!(
+                    store.resolve_external_agent_id(&"kimi".into()),
+                    Some("Kimi Intrepid".into())
+                );
+                store
+                    .get_external_agent(&"kimi".into())
+                    .expect("persisted alias should resolve after reconnect")
+                    .get_command(vec![], HashMap::default(), &mut cx.to_async())
+            })
+        })
+        .await
+        .unwrap();
+    assert_eq!(command.path, PathBuf::from("new-kimi-cli"));
 }
 
 #[gpui::test]

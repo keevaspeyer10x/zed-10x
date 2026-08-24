@@ -701,7 +701,8 @@ fn fetch_sessions_for_agent(
             .read(cx)
             .remote_connection_options(cx);
         let agent = Agent::from(agent_id.clone());
-        let server = agent.server(<dyn Fs>::global(cx), ThreadStore::global(cx));
+        let project = store.read(cx).project().clone();
+        let server = agent.server(<dyn Fs>::global(cx), ThreadStore::global(cx), &project, cx);
         let entry = store.update(cx, |store, cx| store.request_connection(agent, server, cx));
 
         wait_for_connection_tasks.push(entry.read(cx).wait_for_connection().map({

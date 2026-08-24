@@ -11,7 +11,7 @@ use project::{
     agent_server_store::{AgentId, AllAgentServersSettings},
 };
 use settings::{AgentConfigOptionValue, SettingsStore, update_settings_file};
-use std::{rc::Rc, sync::Arc};
+use std::{cell::RefCell, rc::Rc, sync::Arc};
 use ui::IconName;
 
 pub const GEMINI_ID: &str = "gemini";
@@ -21,18 +21,20 @@ pub const CURSOR_ID: &str = "cursor";
 
 /// A generic agent server implementation for custom user-defined agents
 pub struct CustomAgentServer {
-    agent_id: AgentId,
+    agent_id: RefCell<AgentId>,
 }
 
 impl CustomAgentServer {
     pub fn new(agent_id: AgentId) -> Self {
-        Self { agent_id }
+        Self {
+            agent_id: RefCell::new(agent_id),
+        }
     }
 }
 
 impl AgentServer for CustomAgentServer {
     fn agent_id(&self) -> AgentId {
-        self.agent_id.clone()
+        self.agent_id.borrow().clone()
     }
 
     fn logo(&self) -> IconName {
@@ -196,13 +198,19 @@ impl AgentServer for CustomAgentServer {
         project: Entity<Project>,
         cx: &mut App,
     ) -> Task<Result<Rc<dyn AgentConnection>>> {
-        let agent_id = self.agent_id();
+        let requested_agent_id = self.agent_id();
+        let agent_id = delegate
+            .store
+            .read(cx)
+            .resolve_external_agent_id(&requested_agent_id)
+            .unwrap_or(requested_agent_id);
+        *self.agent_id.borrow_mut() = agent_id.clone();
         let default_mode = self.default_mode(cx);
         let is_registry_agent = is_registry_agent(agent_id.clone(), cx);
         let default_config_options = cx.read_global(|settings: &SettingsStore, _| {
             settings
                 .get::<AllAgentServersSettings>(None)
-                .get(self.agent_id().as_ref())
+                .get(agent_id.as_ref())
                 .map(|s| match s {
                     project::agent_server_store::CustomAgentServerSettings::Custom {
                         default_config_options,

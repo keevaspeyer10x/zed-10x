@@ -249,7 +249,8 @@ impl AcpTools {
                 )
             };
             let agent = Agent::from(agent_id);
-            let server = agent.server(fs, thread_store);
+            let project = workspace.project().clone();
+            let server = agent.server(fs, thread_store, &project, cx);
             connection_store.update(cx, |store, cx| {
                 store.restart_connection(agent, server, cx);
             });

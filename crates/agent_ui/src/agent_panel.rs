@@ -1441,7 +1441,7 @@ impl AgentPanel {
                             .or(global_fallback),
                     };
                     if let Some(agent) = initial_agent {
-                        panel.selected_agent = agent;
+                        panel.selected_agent = agent.canonicalized(&panel.project, cx);
                     }
 
                     if let Some(metadata) = terminal_to_restore {
@@ -1922,6 +1922,7 @@ impl AgentPanel {
     }
 
     fn set_selected_agent_and_persist(&mut self, agent: Agent, cx: &mut Context<Self>) {
+        let agent = agent.canonicalized(&self.project, cx);
         if self.selected_agent != agent {
             self.selected_agent = agent.clone();
             self.serialize(cx);
@@ -2934,7 +2935,7 @@ impl AgentPanel {
         self.connection_store.update(cx, |store, cx| {
             store.request_connection(
                 Agent::NativeAgent,
-                Agent::NativeAgent.server(fs, thread_store),
+                Agent::NativeAgent.server(fs, thread_store, &self.project, cx),
                 cx,
             );
         });
@@ -4533,14 +4534,21 @@ impl AgentPanel {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> AgentThread {
+        let agent = agent.canonicalized(&self.project, cx);
         let thread_id = resume_thread_id.unwrap_or_else(ThreadId::new);
         let workspace = self.workspace.clone();
         let project = self.project.clone();
 
         self.set_selected_agent_and_persist(agent.clone(), cx);
 
-        let server = server_override
-            .unwrap_or_else(|| agent.server(self.fs.clone(), self.thread_store.clone()));
+        let server = server_override.unwrap_or_else(|| {
+            agent.server(
+                self.fs.clone(),
+                self.thread_store.clone(),
+                &self.project,
+                cx,
+            )
+        });
         let thread_store = server
             .clone()
             .downcast::<agent::NativeAgentServer>()
@@ -5793,7 +5801,7 @@ impl AgentPanel {
         let new_thread_menu_builder: Rc<
             dyn Fn(&mut Window, &mut App) -> Option<Entity<ContextMenu>>,
         > = {
-            let selected_agent = self.selected_agent.clone();
+            let selected_agent = self.selected_agent.canonicalized(&self.project, cx);
             let is_agent_selected = move |agent: Agent| selected_agent == agent;
 
             let workspace = self.workspace.clone();

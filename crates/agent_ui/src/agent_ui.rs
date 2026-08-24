@@ -58,7 +58,7 @@ use language::{
 use language_model::{
     ConfiguredModel, LanguageModelId, LanguageModelProviderId, LanguageModelRegistry,
 };
-use project::{AgentId, DisableAiSettings};
+use project::{AgentId, DisableAiSettings, Project};
 use prompt_store::{self, PromptBuilder, rules_to_skills_migration};
 use rope::Point;
 use schemars::JsonSchema;
@@ -449,6 +449,21 @@ impl From<AgentId> for Agent {
 }
 
 impl Agent {
+    pub fn canonical_id(&self, project: &Entity<Project>, cx: &App) -> AgentId {
+        let id = self.id();
+        let store = project.read(cx).agent_server_store().clone();
+        store.read(cx).resolve_external_agent_id(&id).unwrap_or(id)
+    }
+
+    pub fn canonicalized(&self, project: &Entity<Project>, cx: &App) -> Self {
+        match self {
+            Self::Custom { .. } => Self::Custom {
+                id: self.canonical_id(project, cx),
+            },
+            _ => self.clone(),
+        }
+    }
+
     pub fn id(&self) -> AgentId {
         match self {
             Self::NativeAgent => agent::ZED_AGENT_ID.clone(),
@@ -484,12 +499,14 @@ impl Agent {
         &self,
         fs: Arc<dyn fs::Fs>,
         thread_store: Entity<agent::ThreadStore>,
+        project: &Entity<Project>,
+        cx: &App,
     ) -> Rc<dyn agent_servers::AgentServer> {
         match self {
             Self::NativeAgent => Rc::new(agent::NativeAgentServer::new(fs, thread_store)),
-            Self::Custom { id: name } => {
-                Rc::new(agent_servers::CustomAgentServer::new(name.clone()))
-            }
+            Self::Custom { .. } => Rc::new(agent_servers::CustomAgentServer::new(
+                self.canonical_id(project, cx),
+            )),
             #[cfg(any(test, feature = "test-support"))]
             Self::Stub => Rc::new(crate::test_support::StubAgentServer::default_response()),
         }

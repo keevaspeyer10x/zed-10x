@@ -38,6 +38,15 @@ jobs:
       - name: Verify formatting
         run: cargo fmt --all -- --check
 
+      - name: Test custom agent rename and reconnect compatibility
+        run: |
+          cargo test --locked -p project custom_agent_aliases_resolve_only_to_one_current_agent --lib
+          cargo test --locked -p project remote_agent_ --lib
+          cargo test --locked -p remote_server test_remote_external_agent_server_reconnects_to_latest_inventory --lib
+          cargo test --locked -p agent_ui equivalent_cache_key_prefers_canonical_and_recognizes_legacy_aliases --lib
+          cargo test --locked -p settings_ui rename_preserves_original_name_as_alias --lib
+          cargo test --locked -p settings_ui rename_back_drops_the_new_canonical_name_from_aliases --lib
+
       - name: Test the Zed 10x updater and release channel
         run: |
           cargo test --locked -p auto_update zed_10x

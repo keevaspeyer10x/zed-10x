@@ -13,6 +13,23 @@ use watch::Receiver;
 
 use crate::Agent;
 
+fn find_equivalent_entry_key<'a>(
+    keys: impl Iterator<Item = &'a Agent>,
+    canonical_key: &Agent,
+    canonicalize: impl Fn(&Agent) -> Agent,
+) -> Option<Agent> {
+    let mut equivalent = None;
+    for candidate in keys {
+        if candidate == canonical_key {
+            return Some(candidate.clone());
+        }
+        if canonicalize(candidate) == *canonical_key {
+            equivalent = Some(candidate.clone());
+        }
+    }
+    equivalent
+}
+
 pub enum AgentConnectionEntry {
     Connecting {
         connect_task: Shared<Task<Result<AgentConnectedState, LoadError>>>,
@@ -91,15 +108,37 @@ impl AgentConnectionStore {
         self.entries.get(key)
     }
 
+    fn canonical_agent_key(&self, key: &Agent, cx: &App) -> Agent {
+        match key {
+            Agent::Custom { id } => {
+                let agent_server_store = self.project.read(cx).agent_server_store().clone();
+                let id = agent_server_store
+                    .read(cx)
+                    .resolve_external_agent_id(id)
+                    .unwrap_or_else(|| id.clone());
+                Agent::Custom { id }
+            }
+            _ => key.clone(),
+        }
+    }
+
+    fn equivalent_entry_key(&self, key: &Agent, cx: &App) -> Option<Agent> {
+        let canonical_key = self.canonical_agent_key(key, cx);
+        find_equivalent_entry_key(self.entries.keys(), &canonical_key, |candidate| {
+            self.canonical_agent_key(candidate, cx)
+        })
+    }
+
     pub fn connection_status(&self, key: &Agent, cx: &App) -> AgentConnectionStatus {
-        self.entries
-            .get(key)
+        self.equivalent_entry_key(key, cx)
+            .and_then(|key| self.entries.get(&key))
             .map(|entry| entry.read(cx).status())
             .unwrap_or(AgentConnectionStatus::Disconnected)
     }
 
     pub fn agent_version(&self, key: &Agent, cx: &App) -> Option<SharedString> {
-        match self.entries.get(key)?.read(cx) {
+        let key = self.equivalent_entry_key(key, cx)?;
+        match self.entries.get(&key)?.read(cx) {
             AgentConnectionEntry::Connected(state) => state.connection.agent_version(),
             AgentConnectionEntry::Connecting { .. } | AgentConnectionEntry::Error { .. } => None,
         }
@@ -130,13 +169,20 @@ impl AgentConnectionStore {
         server: Rc<dyn AgentServer>,
         cx: &mut Context<Self>,
     ) -> Entity<AgentConnectionEntry> {
-        if let Some(entry) = self.entries.get(&key) {
+        let key = self.canonical_agent_key(&key, cx);
+        let existing_key = self.equivalent_entry_key(&key, cx);
+        if let Some(entry) = existing_key
+            .as_ref()
+            .and_then(|existing_key| self.entries.get(existing_key))
+        {
             if matches!(entry.read(cx), AgentConnectionEntry::Connecting { .. }) {
                 return entry.clone();
             }
         }
 
-        self.entries.remove(&key);
+        if let Some(existing_key) = existing_key {
+            self.entries.remove(&existing_key);
+        }
         self.request_connection(key, server, cx)
     }
 
@@ -146,7 +192,11 @@ impl AgentConnectionStore {
         server: Rc<dyn AgentServer>,
         cx: &mut Context<Self>,
     ) -> Entity<AgentConnectionEntry> {
-        if let Some(entry) = self.entries.get(&key) {
+        let key = self.canonical_agent_key(&key, cx);
+        if let Some(entry) = self
+            .equivalent_entry_key(&key, cx)
+            .and_then(|existing_key| self.entries.get(&existing_key))
+        {
             return entry.clone();
         }
 
@@ -274,7 +324,9 @@ impl AgentConnectionStore {
         let store = store.read(cx);
         self.entries.retain(|key, _| match key {
             Agent::NativeAgent => true,
-            Agent::Custom { id } => store.external_agents.contains_key(id),
+            Agent::Custom { id } => store
+                .resolve_external_agent_id(id)
+                .is_some_and(|canonical_id| canonical_id == *id),
             #[cfg(any(test, feature = "test-support"))]
             Agent::Stub => true,
         });
@@ -309,5 +361,37 @@ impl AgentConnectionStore {
             },
         });
         (new_version_rx, loading_status_rx, connect_task)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn equivalent_cache_key_prefers_canonical_and_recognizes_legacy_aliases() {
+        let legacy = Agent::Custom { id: "kimi".into() };
+        let canonical = Agent::Custom {
+            id: "Kimi Intrepid".into(),
+        };
+        let other = Agent::Custom {
+            id: "GLM Intrepid".into(),
+        };
+        let canonicalize = |agent: &Agent| {
+            if agent == &legacy {
+                canonical.clone()
+            } else {
+                agent.clone()
+            }
+        };
+
+        assert_eq!(
+            find_equivalent_entry_key([&legacy, &other].into_iter(), &canonical, &canonicalize),
+            Some(legacy.clone())
+        );
+        assert_eq!(
+            find_equivalent_entry_key([&legacy, &canonical].into_iter(), &canonical, &canonicalize),
+            Some(canonical)
+        );
     }
 }
