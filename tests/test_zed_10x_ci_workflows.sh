@@ -42,6 +42,18 @@ not_contains() {
     return "$rc"
 }
 
+not_matches() {
+    local rc
+    [[ -r "$1" && ! -L "$1" ]] || return 2
+    if grep -Eq -- "$2" "$1"; then
+        return 1
+    else
+        rc=$?
+    fi
+    [[ "$rc" -eq 1 ]] && return 0
+    return "$rc"
+}
+
 check "unresolvable private reusable CI caller is absent" test ! -e "$CI"
 
 check "focused Rust CI exists" test -f "$RUST_CI"
@@ -72,6 +84,18 @@ if [[ -f "$RUST_CI" ]]; then
         contains "$RUST_CI" "./script/linux"
     check "format command is exact" \
         contains "$RUST_CI" "cargo fmt --all -- --check"
+    check "focused CI runs custom agent alias resolution tests" \
+        contains "$RUST_CI" "cargo test --locked -p project custom_agent_aliases_resolve_only_to_one_current_agent --lib"
+    check "focused CI runs remote agent ordering tests" \
+        contains "$RUST_CI" "cargo test --locked -p project remote_agent_ --lib"
+    check "focused CI runs remote reconnect inventory tests" \
+        contains "$RUST_CI" "cargo test --locked -p remote_server test_remote_external_agent_server_reconnects_to_latest_inventory --lib"
+    check "focused CI runs custom agent cache compatibility tests" \
+        contains "$RUST_CI" "cargo test --locked -p agent_ui equivalent_cache_key_prefers_canonical_and_recognizes_legacy_aliases --lib"
+    check "focused CI runs custom agent rename tests" \
+        contains "$RUST_CI" "cargo test --locked -p settings_ui rename_preserves_original_name_as_alias --lib"
+    check "focused CI runs custom agent rename-back tests" \
+        contains "$RUST_CI" "cargo test --locked -p settings_ui rename_back_drops_the_new_canonical_name_from_aliases --lib"
     check "focused CI tests the fork updater" \
         contains "$RUST_CI" "cargo test --locked -p auto_update zed_10x"
     check "focused CI tests release-channel behavior" \
@@ -83,7 +107,7 @@ if [[ -f "$RUST_CI" ]]; then
     check "focused Zed tests are not filtered to an absent module" \
         not_contains "$RUST_CI" "reliability::hang_detection::liveness::tests"
     check "focused Rust CI has no cache action" \
-        not_contains "$RUST_CI" "cache"
+        not_matches "$RUST_CI" '^[[:space:]]*-?[[:space:]]*uses:[[:space:]]*[^#]*[Cc]ache@'
     check "focused Rust CI has no secret interpolation" \
         not_contains "$RUST_CI" 'secrets.'
     check "focused Rust CI has no custom runner" \
