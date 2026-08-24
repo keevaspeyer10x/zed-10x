@@ -725,6 +725,12 @@ pub enum CustomAgentServerSettings {
         path: PathBuf,
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         args: Vec<String>,
+        /// Previous names that should resolve to this agent without appearing
+        /// as duplicate entries in the agent picker.
+        ///
+        /// Default: []
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        aliases: Vec<String>,
         /// Default: {}
         #[serde(default, skip_serializing_if = "HashMap::is_empty")]
         env: HashMap<String, String>,

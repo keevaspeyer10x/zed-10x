@@ -33,6 +33,12 @@ message AgentServerCommand {
 message ExternalAgentsUpdated {
   uint64 project_id = 1;
   repeated string names = 2;
+  repeated ExternalAgentAlias aliases = 3;
+}
+
+message ExternalAgentAlias {
+  string alias = 1;
+  string name = 2;
 }
 
 message GetExternalAgents {

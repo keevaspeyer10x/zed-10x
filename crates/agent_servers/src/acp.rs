@@ -3509,6 +3509,7 @@ mod tests {
                     settings::CustomAgentServerSettings::Custom {
                         path: PathBuf::from("test-agent"),
                         args: Vec::new(),
+                        aliases: Vec::new(),
                         env: HashMap::default(),
                         default_mode: Some("manual".to_string()),
                         default_config_options: HashMap::from_iter([(

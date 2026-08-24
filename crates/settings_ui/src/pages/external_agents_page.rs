@@ -338,6 +338,7 @@ pub(crate) struct CustomAgentForm {
     env: Vec<KeyValueRow>,
     /// Advanced fields not surfaced by the form. They're preserved verbatim so
     /// editing the basic settings doesn't drop a user's hand-written config.
+    aliases: Vec<String>,
     default_mode: Option<String>,
     default_config_options: HashMap<String, AgentConfigOptionValue>,
     favorite_config_option_values: HashMap<String, Vec<String>>,
@@ -361,6 +362,7 @@ impl CustomAgentForm {
         let mut command_initial = None;
         let mut args_initial = None;
         let mut env = Vec::new();
+        let mut aliases = Vec::new();
         let mut default_mode = None;
         let mut default_config_options = HashMap::default();
         let mut favorite_config_option_values = HashMap::default();
@@ -372,6 +374,7 @@ impl CustomAgentForm {
                 CustomAgentServerSettings::Custom {
                     path,
                     args,
+                    aliases: configured_aliases,
                     env: env_map,
                     default_mode: mode,
                     default_config_options: config_options,
@@ -387,6 +390,7 @@ impl CustomAgentForm {
                     default_mode = mode.clone();
                     default_config_options = config_options.clone();
                     favorite_config_option_values = favorites.clone();
+                    aliases = configured_aliases.clone();
                 }
                 CustomAgentServerSettings::Registry {
                     env: env_map,
@@ -410,6 +414,7 @@ impl CustomAgentForm {
             command: new_input("/path/to/agent", command_initial.as_deref(), window, cx),
             args: new_input("--flag value", args_initial.as_deref(), window, cx),
             env,
+            aliases,
             default_mode,
             default_config_options,
             favorite_config_option_values,
@@ -744,18 +749,20 @@ fn save_custom_agent_form(
 
     // Reject names that would collide with a *different* existing agent. This
     // covers both adding a new agent and renaming an existing one.
-    let collides_with_other_agent =
-        get_agent_server_store(settings_window, cx).is_some_and(|store| {
-            let existing_ids = store
-                .read(cx)
-                .external_agents()
-                .cloned()
-                .collect::<Vec<_>>();
-            name_collides_with_other_agent(&id, original_id.as_ref(), &existing_ids)
-        });
-    if collides_with_other_agent {
+    let existing_agent = get_agent_server_store(settings_window, cx)
+        .and_then(|store| store.read(cx).resolve_external_agent_id(&id));
+    if name_collides_with_other_agent(original_id.as_ref(), existing_agent.as_ref()) {
         if let Some(form) = settings_window.custom_agent_form.as_mut() {
-            form.error = Some(format!("An agent named \"{}\" already exists.", id.0).into());
+            form.error = Some(
+                match existing_agent {
+                    Some(existing) if existing != id => format!(
+                        "\"{}\" is a compatibility alias for \"{}\". Choose another name or remove that alias in settings.json.",
+                        id.0, existing.0
+                    ),
+                    _ => format!("An agent named \"{}\" already exists.", id.0),
+                }
+                .into(),
+            );
         }
         cx.notify();
         return;
@@ -784,6 +791,7 @@ struct CustomAgentFormValues {
     command: String,
     args: String,
     env: Vec<(String, String)>,
+    aliases: Vec<String>,
     default_mode: Option<String>,
     default_config_options: HashMap<String, AgentConfigOptionValue>,
     favorite_config_option_values: HashMap<String, Vec<String>>,
@@ -799,6 +807,7 @@ fn build_settings_from_form(
         command: form.command.read(cx).text(cx),
         args: form.args.read(cx).text(cx),
         env: read_kv(&form.env, cx),
+        aliases: form.aliases.clone(),
         default_mode: form.default_mode.clone(),
         default_config_options: form.default_config_options.clone(),
         favorite_config_option_values: form.favorite_config_option_values.clone(),
@@ -832,9 +841,19 @@ fn build_settings_from_values(
         .collect::<Vec<_>>();
     let env = collect_kv(&values.env, "environment variable")?;
 
+    let mut aliases = values.aliases;
+    if let Some(original_id) = values.original_id.as_ref()
+        && original_id.0.as_ref() != name.as_str()
+        && !aliases.iter().any(|alias| alias == original_id.0.as_ref())
+    {
+        aliases.push(original_id.to_string());
+    }
+    aliases.retain(|alias| alias != &name);
+
     let content = CustomAgentServerSettings::Custom {
         path: command.into(),
         args,
+        aliases,
         env,
         default_mode: values.default_mode,
         default_config_options: values.default_config_options,
@@ -844,15 +863,15 @@ fn build_settings_from_values(
     Ok((AgentId(name.into()), values.original_id, content))
 }
 
-/// Returns whether saving under `id` would overwrite a *different* existing
-/// agent. Editing an agent in place (`id == original_id`) is allowed.
+/// Returns whether the requested name resolves to a *different* existing
+/// agent or alias. Editing in place, including renaming back to an owned alias,
+/// is allowed.
 fn name_collides_with_other_agent(
-    id: &AgentId,
     original_id: Option<&AgentId>,
-    existing_ids: &[AgentId],
+    existing_agent: Option<&AgentId>,
 ) -> bool {
-    original_id.is_none_or(|original| original.0 != id.0)
-        && existing_ids.iter().any(|existing| existing.0 == id.0)
+    existing_agent
+        .is_some_and(|existing| original_id.is_none_or(|original| existing.0 != original.0))
 }
 
 fn collect_kv(
@@ -953,6 +972,7 @@ async fn add_custom_agent_settings_entry(
                             CustomAgentServerSettings::Custom {
                                 path: "path_to_executable".into(),
                                 args: vec![],
+                                aliases: vec![],
                                 env: HashMap::default(),
                                 default_mode: None,
                                 default_config_options: Default::default(),
@@ -1051,6 +1071,7 @@ mod tests {
             command: "/usr/bin/agent".into(),
             args: String::new(),
             env: Vec::new(),
+            aliases: Vec::new(),
             default_mode: None,
             default_config_options: HashMap::default(),
             favorite_config_option_values: HashMap::default(),
@@ -1117,6 +1138,7 @@ mod tests {
             CustomAgentServerSettings::Custom {
                 path: "/usr/bin/agent".into(),
                 args: vec!["--flag".into(), "value".into()],
+                aliases: vec![],
                 env: expected_env,
                 default_mode: None,
                 default_config_options: HashMap::default(),
@@ -1128,6 +1150,7 @@ mod tests {
     #[test]
     fn preserves_advanced_fields() {
         let mut values = values();
+        values.aliases = vec!["old-agent-name".into()];
         values.default_mode = Some("ask".into());
         values.default_config_options =
             HashMap::from_iter([("opt".to_string(), AgentConfigOptionValue::from("val"))]);
@@ -1135,10 +1158,12 @@ mod tests {
         let (_, _, content) = build_settings_from_values(values).unwrap();
         match content {
             CustomAgentServerSettings::Custom {
+                aliases,
                 default_mode,
                 default_config_options,
                 ..
             } => {
+                assert_eq!(aliases, ["old-agent-name"]);
                 assert_eq!(default_mode.as_deref(), Some("ask"));
                 assert_eq!(
                     default_config_options
@@ -1152,24 +1177,52 @@ mod tests {
     }
 
     #[test]
-    fn name_collision_covers_new_and_rename() {
-        let existing = vec![id("foo"), id("bar")];
+    fn rename_preserves_original_name_as_alias() {
+        let mut values = values();
+        values.original_id = Some(id("old-agent-name"));
+        values.name = "new-agent-name".into();
+        values.aliases = vec!["older-agent-name".into()];
 
+        let (_, _, content) = build_settings_from_values(values).unwrap();
+        match content {
+            CustomAgentServerSettings::Custom { aliases, .. } => {
+                assert_eq!(aliases, ["older-agent-name", "old-agent-name"]);
+            }
+            _ => panic!("expected a custom agent"),
+        }
+    }
+
+    #[test]
+    fn rename_back_drops_the_new_canonical_name_from_aliases() {
+        let mut values = values();
+        values.original_id = Some(id("new-agent-name"));
+        values.name = "old-agent-name".into();
+        values.aliases = vec!["old-agent-name".into(), "older-agent-name".into()];
+
+        let (_, _, content) = build_settings_from_values(values).unwrap();
+        match content {
+            CustomAgentServerSettings::Custom { aliases, .. } => {
+                assert_eq!(aliases, ["older-agent-name", "new-agent-name"]);
+            }
+            _ => panic!("expected a custom agent"),
+        }
+    }
+
+    #[test]
+    fn name_collision_covers_new_and_rename() {
         // New agent taking an existing name collides.
-        assert!(name_collides_with_other_agent(&id("foo"), None, &existing));
+        assert!(name_collides_with_other_agent(None, Some(&id("foo"))));
         // New agent with a free name is fine.
-        assert!(!name_collides_with_other_agent(&id("baz"), None, &existing));
+        assert!(!name_collides_with_other_agent(None, None));
         // Editing an agent in place is allowed even though the name "exists".
         assert!(!name_collides_with_other_agent(
-            &id("foo"),
             Some(&id("foo")),
-            &existing
+            Some(&id("foo")),
         ));
-        // Renaming onto a different agent's name collides.
+        // Renaming onto a different agent's canonical name or alias collides.
         assert!(name_collides_with_other_agent(
-            &id("bar"),
             Some(&id("foo")),
-            &existing
+            Some(&id("bar")),
         ));
     }
 }

@@ -147,6 +147,24 @@ Open [Agent Settings](./agent-settings.md), go to the **External Agents** page, 
 
 Registry-installed agents can also have per-agent settings under `agent_servers.<agent-id>`.
 
+When you rename a custom agent in the External Agents settings UI, Zed retains
+its previous name as an alias automatically. If you rename the configuration
+manually, add every previous configuration name to `aliases` on the new entry.
+Aliases are used only to resume saved threads; they do not create duplicate
+entries in the agent picker.
+
+```json [settings]
+{
+  "agent_servers": {
+    "My Agent (Remote)": {
+      "type": "custom",
+      "command": "my-agent",
+      "aliases": ["my-agent", "My Agent (Old Name)"]
+    }
+  }
+}
+```
+
 ## Extension-Provided Agents {#extension-agents}
 
 Extension-provided agents are deprecated. The [ACP Registry](#registry) is now the way to install agents, and previously installed extension agents are automatically migrated to their registry equivalents.

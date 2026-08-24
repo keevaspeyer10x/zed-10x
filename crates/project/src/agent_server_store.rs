@@ -5,7 +5,7 @@ use std::{
 };
 
 use anyhow::{Context as _, Result, bail};
-use collections::HashMap;
+use collections::{HashMap, HashSet};
 use fs::{Fs, RemoveOptions};
 use futures::StreamExt;
 use gpui::{
@@ -86,6 +86,71 @@ impl From<&'static str> for AgentId {
     fn from(value: &'static str) -> Self {
         AgentId(value.into())
     }
+}
+
+fn validated_external_agent_aliases(
+    canonical_ids: impl IntoIterator<Item = AgentId>,
+    declared_aliases: impl IntoIterator<Item = (AgentId, AgentId)>,
+) -> HashMap<AgentId, AgentId> {
+    let canonical_ids = canonical_ids.into_iter().collect::<HashSet<_>>();
+    let mut candidates: HashMap<AgentId, Option<AgentId>> = HashMap::default();
+
+    for (alias, target) in declared_aliases {
+        if alias.0.is_empty() {
+            log::warn!("ignoring empty custom agent alias for `{target}`");
+            continue;
+        }
+        if canonical_ids.contains(&alias) {
+            log::warn!(
+                "ignoring custom agent alias `{alias}` for `{target}` because it shadows a current agent"
+            );
+            continue;
+        }
+        if !canonical_ids.contains(&target) {
+            log::warn!(
+                "ignoring custom agent alias `{alias}` because its target `{target}` is unavailable"
+            );
+            continue;
+        }
+
+        if let Some(existing_target) = candidates.get_mut(&alias) {
+            if existing_target.as_ref() != Some(&target) {
+                log::warn!(
+                    "ignoring ambiguous custom agent alias `{alias}` declared for both `{}` and `{target}`",
+                    existing_target
+                        .as_ref()
+                        .map(ToString::to_string)
+                        .unwrap_or_else(|| "another agent".into())
+                );
+                *existing_target = None;
+            }
+        } else {
+            candidates.insert(alias, Some(target));
+        }
+    }
+
+    candidates
+        .into_iter()
+        .filter_map(|(alias, target)| target.map(|target| (alias, target)))
+        .collect()
+}
+
+fn proto_external_agent_aliases(
+    aliases: &HashMap<AgentId, AgentId>,
+) -> Vec<proto::ExternalAgentAlias> {
+    let mut aliases = aliases
+        .iter()
+        .map(|(alias, name)| proto::ExternalAgentAlias {
+            alias: alias.to_string(),
+            name: name.to_string(),
+        })
+        .collect::<Vec<_>>();
+    aliases.sort_unstable_by(|left, right| {
+        left.alias
+            .cmp(&right.alias)
+            .then_with(|| left.name.cmp(&right.name))
+    });
+    aliases
 }
 
 impl From<AgentId> for SharedString {
@@ -224,6 +289,7 @@ impl ExternalAgentEntry {
 pub struct AgentServerStore {
     state: AgentServerStoreState,
     pub external_agents: HashMap<AgentId, ExternalAgentEntry>,
+    external_agent_aliases: HashMap<AgentId, AgentId>,
 }
 
 pub struct AgentServersUpdated;
@@ -279,21 +345,25 @@ impl AgentServerStore {
     }
 
     pub fn agent_icon(&self, id: &AgentId) -> Option<SharedString> {
+        let id = self.resolve_external_agent_id(id)?;
         self.external_agents
-            .get(id)
+            .get(&id)
             .and_then(|entry| entry.icon.clone())
     }
 
     pub fn agent_source(&self, name: &AgentId) -> Option<ExternalAgentSource> {
-        self.external_agents.get(name).map(|entry| entry.source)
+        let name = self.resolve_external_agent_id(name)?;
+        self.external_agents.get(&name).map(|entry| entry.source)
     }
 }
 
 impl AgentServerStore {
     pub fn agent_display_name(&self, name: &AgentId) -> Option<SharedString> {
+        let resolved_name = self.resolve_external_agent_id(name)?;
         self.external_agents
-            .get(name)
+            .get(&resolved_name)
             .and_then(|entry| entry.display_name.clone())
+            .or_else(|| (resolved_name != *name).then(|| resolved_name.0))
     }
 
     pub fn init_remote(session: &AnyProtoClient) {
@@ -336,7 +406,7 @@ impl AgentServerStore {
                 if !snapshot_ordering.accepts_response(snapshot_request) {
                     return Ok(());
                 }
-                this.replace_remote_external_agents(snapshot.names, cx)
+                this.replace_remote_external_agents(snapshot.names, snapshot.aliases, cx)
             })
         })
         .detach_and_log_err(cx);
@@ -519,6 +589,18 @@ impl AgentServerStore {
             }
         }
 
+        self.external_agent_aliases = validated_external_agent_aliases(
+            self.external_agents.keys().cloned(),
+            new_settings.iter().flat_map(|(name, settings)| {
+                let name = AgentId::new(name.clone());
+                settings
+                    .aliases()
+                    .iter()
+                    .cloned()
+                    .map(move |alias| (AgentId::new(alias), name.clone()))
+            }),
+        );
+
         // For each rebuilt versioned agent, compare the version. If it
         // changed, notify the active connection to reconnect. Otherwise,
         // transfer the channel to the new entry so future updates can use it.
@@ -557,6 +639,7 @@ impl AgentServerStore {
                         .keys()
                         .map(|name| name.to_string())
                         .collect(),
+                    aliases: proto_external_agent_aliases(&self.external_agent_aliases),
                 })
                 .log_err();
         }
@@ -597,6 +680,7 @@ impl AgentServerStore {
                 _subscriptions: subscriptions,
             },
             external_agents: HashMap::default(),
+            external_agent_aliases: HashMap::default(),
         };
         this.agent_servers_settings_changed(cx);
         this
@@ -615,6 +699,7 @@ impl AgentServerStore {
                 snapshot_ordering: RemoteAgentSnapshotOrdering::default(),
             },
             external_agents: HashMap::default(),
+            external_agent_aliases: HashMap::default(),
         }
     }
 
@@ -622,6 +707,7 @@ impl AgentServerStore {
         Self {
             state: AgentServerStoreState::Collab,
             external_agents: HashMap::default(),
+            external_agent_aliases: HashMap::default(),
         }
     }
 
@@ -649,12 +735,21 @@ impl AgentServerStore {
         }
     }
 
+    pub fn resolve_external_agent_id(&self, name: &AgentId) -> Option<AgentId> {
+        if self.external_agents.contains_key(name) {
+            Some(name.clone())
+        } else {
+            self.external_agent_aliases.get(name).cloned()
+        }
+    }
+
     pub fn get_external_agent(
         &mut self,
         name: &AgentId,
     ) -> Option<&mut (dyn ExternalAgentServer + 'static)> {
+        let name = self.resolve_external_agent_id(name)?;
         self.external_agents
-            .get_mut(name)
+            .get_mut(&name)
             .map(|entry| entry.server.as_mut())
     }
 
@@ -803,6 +898,7 @@ impl AgentServerStore {
                     .external_agents()
                     .map(|name| name.to_string())
                     .collect(),
+                aliases: proto_external_agent_aliases(&this.external_agent_aliases),
             })
         })
     }
@@ -810,6 +906,7 @@ impl AgentServerStore {
     fn replace_remote_external_agents(
         &mut self,
         names: Vec<String>,
+        aliases: Vec<proto::ExternalAgentAlias>,
         cx: &mut Context<Self>,
     ) -> Result<()> {
         let AgentServerStoreState::Remote {
@@ -876,6 +973,12 @@ impl AgentServerStore {
                 )
             })
             .collect();
+        self.external_agent_aliases = validated_external_agent_aliases(
+            self.external_agents.keys().cloned(),
+            aliases
+                .into_iter()
+                .map(|alias| (AgentId::new(alias.alias), AgentId::new(alias.name))),
+        );
         cx.emit(AgentServersUpdated);
         Ok(())
     }
@@ -901,7 +1004,7 @@ impl AgentServerStore {
             // A push observed after a request was sent is newer than that
             // request's response, even if the response arrives later.
             snapshot_ordering.observe_push();
-            this.replace_remote_external_agents(snapshot.names, cx)
+            this.replace_remote_external_agents(snapshot.names, snapshot.aliases, cx)
         })?;
         Ok(())
     }
@@ -1646,6 +1749,8 @@ impl AllAgentServersSettings {
 pub enum CustomAgentServerSettings {
     Custom {
         command: AgentServerCommand,
+        /// Previous names that resolve to this agent for persisted threads.
+        aliases: Vec<String>,
         /// The default mode to use for this agent.
         ///
         /// Note: Not only all agents support modes.
@@ -1699,6 +1804,13 @@ impl CustomAgentServerSettings {
         }
     }
 
+    pub fn aliases(&self) -> &[String] {
+        match self {
+            CustomAgentServerSettings::Custom { aliases, .. } => aliases,
+            CustomAgentServerSettings::Registry { .. } => &[],
+        }
+    }
+
     pub fn default_mode(&self) -> Option<&str> {
         match self {
             CustomAgentServerSettings::Custom { default_mode, .. }
@@ -1741,6 +1853,7 @@ impl From<settings::CustomAgentServerSettings> for CustomAgentServerSettings {
             settings::CustomAgentServerSettings::Custom {
                 path,
                 args,
+                aliases,
                 env,
                 default_mode,
                 default_config_options,
@@ -1751,6 +1864,7 @@ impl From<settings::CustomAgentServerSettings> for CustomAgentServerSettings {
                     args,
                     env: Some(env),
                 },
+                aliases,
                 default_mode,
                 default_config_options,
                 favorite_config_option_values,
@@ -1833,6 +1947,40 @@ mod tests {
 
         assert!(!ordering.accepts_response(disconnected_request));
         assert!(ordering.accepts_response(reconnected_request));
+    }
+
+    #[test]
+    fn custom_agent_aliases_resolve_only_to_one_current_agent() {
+        let aliases = validated_external_agent_aliases(
+            [AgentId::new("Kimi Intrepid"), AgentId::new("Other")],
+            [
+                (AgentId::new("Kimi (VPS)"), AgentId::new("Kimi Intrepid")),
+                (AgentId::new("kimi"), AgentId::new("Kimi Intrepid")),
+                (AgentId::new("Kimi (local)"), AgentId::new("Kimi Intrepid")),
+                (AgentId::new("shared"), AgentId::new("Kimi Intrepid")),
+                (AgentId::new("shared"), AgentId::new("Other")),
+                (AgentId::new("Other"), AgentId::new("Kimi Intrepid")),
+                (AgentId::new("gone"), AgentId::new("Missing")),
+                (AgentId::new(""), AgentId::new("Kimi Intrepid")),
+            ],
+        );
+
+        assert_eq!(
+            aliases.get(&AgentId::new("Kimi (VPS)")),
+            Some(&AgentId::new("Kimi Intrepid"))
+        );
+        assert_eq!(
+            aliases.get(&AgentId::new("kimi")),
+            Some(&AgentId::new("Kimi Intrepid"))
+        );
+        assert_eq!(
+            aliases.get(&AgentId::new("Kimi (local)")),
+            Some(&AgentId::new("Kimi Intrepid"))
+        );
+        assert!(!aliases.contains_key(&AgentId::new("shared")));
+        assert!(!aliases.contains_key(&AgentId::new("Other")));
+        assert!(!aliases.contains_key(&AgentId::new("gone")));
+        assert!(!aliases.contains_key(&AgentId::new("")));
     }
 
     #[cfg(feature = "test-support")]
