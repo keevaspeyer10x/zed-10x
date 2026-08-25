@@ -83,6 +83,8 @@ test("Zed 10x updates use consumer-safe verification and commit-specific remote 
 test("private Zed 10x installs bundle remote servers and avoid release lookup for SSH bootstrap", () => {
   const updaterSource = read("crates/auto_update/src/auto_update.rs");
   const bundleScript = read("script/bundle-mac");
+  const settingsManifest = read("crates/settings/Cargo.toml");
+  const zedManifest = read("crates/zed/Cargo.toml");
 
   const localDownload = capture(
     updaterSource,
@@ -130,6 +132,26 @@ test("private Zed 10x installs bundle remote servers and avoid release lookup fo
     bundleScript,
     /cargo build \$\{build_flag\} --package remote_server --features debug-embed --target \$target_triple/,
     "the native remote server must embed runtime assets in private debug bundles",
+  );
+  assert.match(
+    settingsManifest,
+    /debug-embed = \["rust-embed\/debug-embed"\]/,
+    "the settings crate must expose rust-embed's packaged-debug asset mode",
+  );
+  assert.match(
+    zedManifest,
+    /debug-embed = \["settings\/debug-embed"\]/,
+    "the Zed binary must expose packaged-debug asset embedding",
+  );
+  assert.match(
+    bundleScript,
+    /cargo build \$\{build_flag\} --package zed --package cli --features zed\/debug-embed --target \$target_triple/,
+    "the packaged Zed debug binary must embed assets instead of reading them from the launch directory",
+  );
+  assert.match(
+    bundleScript,
+    /cargo bundle \$\{build_flag\} --features zed\/debug-embed --target \$target_triple/,
+    "cargo-bundle must preserve packaged-debug asset embedding",
   );
   assert.match(
     bundleRemoteServers,

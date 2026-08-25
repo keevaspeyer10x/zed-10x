@@ -131,7 +131,7 @@ script/generate-licenses
 rustup target add $target_triple
 
 echo "Compiling zed binaries"
-cargo build ${build_flag} --package zed --package cli --target $target_triple
+cargo build ${build_flag} --package zed --package cli --features zed/debug-embed --target $target_triple
 # Build remote_server in separate invocation to prevent feature unification from other crates
 # from influencing dynamic libraries required by it.
 # Private debug bundles run this binary outside the source tree, so force
@@ -157,7 +157,7 @@ sed \
     "s/package.metadata.bundle-${channel}/package.metadata.bundle/" \
     Cargo.toml
 
-app_path=$(TERM=xterm-256color cargo bundle ${build_flag} --target $target_triple --select-workspace-root | xargs)
+app_path=$(TERM=xterm-256color cargo bundle ${build_flag} --features zed/debug-embed --target $target_triple --select-workspace-root | xargs)
 
 restore_bundle_manifest
 trap - EXIT
