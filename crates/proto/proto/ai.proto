@@ -34,11 +34,19 @@ message ExternalAgentsUpdated {
   uint64 project_id = 1;
   repeated string names = 2;
   repeated ExternalAgentAlias aliases = 3;
+  repeated ExternalAgentMetadata agents = 4;
+  optional uint32 metadata_version = 5;
 }
 
 message ExternalAgentAlias {
   string alias = 1;
   string name = 2;
+}
+
+message ExternalAgentMetadata {
+  string name = 1;
+  optional string display_name = 2;
+  bool registry = 3;
 }
 
 message GetExternalAgents {

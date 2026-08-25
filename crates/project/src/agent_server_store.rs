@@ -9,8 +9,8 @@ use collections::{HashMap, HashSet};
 use fs::{Fs, RemoveOptions};
 use futures::StreamExt;
 use gpui::{
-    AppContext as _, AsyncApp, Context, Entity, EventEmitter, SharedString, Subscription, Task,
-    TaskExt,
+    App, AppContext as _, AsyncApp, Context, Entity, EventEmitter, SharedString, Subscription,
+    Task, TaskExt,
 };
 use http_client::{HttpClient, github::AssetKind};
 use node_runtime::NodeRuntime;
@@ -159,6 +159,94 @@ fn proto_external_agent_aliases(
     aliases
 }
 
+fn proto_external_agent_metadata(
+    external_agents: &HashMap<AgentId, ExternalAgentEntry>,
+    aliases: &HashMap<AgentId, AgentId>,
+    cx: &App,
+) -> Vec<proto::ExternalAgentMetadata> {
+    let registry_display_names = AgentRegistryStore::try_global(cx)
+        .map(|store| {
+            store
+                .read(cx)
+                .agents()
+                .iter()
+                .map(|agent| (agent.id().clone(), agent.name().to_string()))
+                .collect::<HashMap<_, _>>()
+        })
+        .unwrap_or_default();
+    let mut agents = external_agents
+        .iter()
+        .filter(|(name, _)| !aliases.contains_key(*name))
+        .map(|(name, entry)| proto::ExternalAgentMetadata {
+            name: name.to_string(),
+            display_name: match entry.source {
+                ExternalAgentSource::Custom => entry.display_name.as_ref().map(ToString::to_string),
+                ExternalAgentSource::Registry => registry_display_names.get(name).cloned(),
+            },
+            registry: entry.source == ExternalAgentSource::Registry,
+        })
+        .collect::<Vec<_>>();
+    agents.sort_unstable_by(|left, right| left.name.cmp(&right.name));
+    agents
+}
+
+const EXTERNAL_AGENT_METADATA_VERSION: u32 = 1;
+
+fn validated_remote_external_agent_metadata(
+    names: &[String],
+    metadata_version: Option<u32>,
+    agents: Vec<proto::ExternalAgentMetadata>,
+) -> Result<HashMap<AgentId, (Option<SharedString>, ExternalAgentSource)>> {
+    let name_ids = names
+        .iter()
+        .map(|name| AgentId::new(name.clone()))
+        .collect::<HashSet<_>>();
+    if name_ids.len() != names.len() {
+        bail!("external-agent snapshot contains duplicate names");
+    }
+
+    match metadata_version {
+        None => {
+            if !agents.is_empty() {
+                bail!("legacy external-agent snapshot unexpectedly contains metadata");
+            }
+            Ok(name_ids
+                .into_iter()
+                .map(|name| (name, (None, ExternalAgentSource::Custom)))
+                .collect())
+        }
+        Some(EXTERNAL_AGENT_METADATA_VERSION) => {
+            let mut metadata = HashMap::default();
+            for agent in agents {
+                let name = AgentId::new(agent.name);
+                if !name_ids.contains(&name) {
+                    bail!("external-agent metadata contains an unadvertised name");
+                }
+                let source = if agent.registry {
+                    ExternalAgentSource::Registry
+                } else {
+                    ExternalAgentSource::Custom
+                };
+                let display_name = agent
+                    .display_name
+                    .filter(|display_name| !display_name.is_empty())
+                    .map(SharedString::from);
+                if source == ExternalAgentSource::Registry && display_name.is_none() {
+                    bail!("registry external-agent metadata is missing its display name");
+                }
+                if metadata.insert(name, (display_name, source)).is_some() {
+                    bail!("external-agent metadata contains duplicate names");
+                }
+            }
+            if metadata.len() != name_ids.len() {
+                bail!("external-agent metadata does not cover the advertised names");
+            }
+            Ok(metadata)
+        }
+        Some(version) => bail!("unsupported external-agent metadata version {version}"),
+    }
+}
+
 impl From<AgentId> for SharedString {
     fn from(value: AgentId) -> Self {
         value.0
@@ -182,6 +270,19 @@ pub enum ExternalAgentSource {
     #[default]
     Custom,
     Registry,
+}
+
+fn local_execution_host_label() -> &'static str {
+    match std::env::consts::OS {
+        "macos" => "Mac",
+        "linux" => "Linux",
+        "windows" => "Windows",
+        _ => "local",
+    }
+}
+
+fn registry_agent_display_name(name: &str, execution_host: &str) -> SharedString {
+    format!("{name} ({execution_host})").into()
 }
 
 pub trait ExternalAgentServer {
@@ -266,6 +367,12 @@ impl RemoteAgentSnapshotOrdering {
             .push_generation
             .checked_add(1)
             .expect("external-agent push generation overflowed");
+    }
+
+    fn observe_applied_push(&mut self, result: Result<()>) -> Result<()> {
+        result?;
+        self.observe_push();
+        Ok(())
     }
 }
 
@@ -412,7 +519,13 @@ impl AgentServerStore {
                 if !snapshot_ordering.accepts_response(snapshot_request) {
                     return Ok(());
                 }
-                this.replace_remote_external_agents(snapshot.names, snapshot.aliases, cx)
+                this.replace_remote_external_agents(
+                    snapshot.names,
+                    snapshot.aliases,
+                    snapshot.agents,
+                    snapshot.metadata_version,
+                    cx,
+                )
             })
         })
         .detach_and_log_err(cx);
@@ -563,7 +676,10 @@ impl AgentServerStore {
                                         as Box<dyn ExternalAgentServer>,
                                     ExternalAgentSource::Registry,
                                     agent.metadata.icon_path.clone(),
-                                    Some(agent.metadata.name.clone()),
+                                    Some(registry_agent_display_name(
+                                        &agent.metadata.name,
+                                        local_execution_host_label(),
+                                    )),
                                 ),
                             );
                         }
@@ -586,7 +702,10 @@ impl AgentServerStore {
                                         as Box<dyn ExternalAgentServer>,
                                     ExternalAgentSource::Registry,
                                     agent.metadata.icon_path.clone(),
-                                    Some(agent.metadata.name.clone()),
+                                    Some(registry_agent_display_name(
+                                        &agent.metadata.name,
+                                        local_execution_host_label(),
+                                    )),
                                 ),
                             );
                         }
@@ -651,6 +770,12 @@ impl AgentServerStore {
                         .map(|name| name.to_string())
                         .collect(),
                     aliases: proto_external_agent_aliases(&self.external_agent_aliases),
+                    agents: proto_external_agent_metadata(
+                        &self.external_agents,
+                        &self.external_agent_aliases,
+                        cx,
+                    ),
+                    metadata_version: Some(EXTERNAL_AGENT_METADATA_VERSION),
                 })
                 .log_err();
         }
@@ -887,7 +1012,7 @@ impl AgentServerStore {
         envelope: TypedEnvelope<proto::GetExternalAgents>,
         mut cx: AsyncApp,
     ) -> Result<proto::ExternalAgentsUpdated> {
-        this.update(&mut cx, |this, _| {
+        this.update(&mut cx, |this, cx| {
             {
                 let AgentServerStoreState::Local {
                     downstream_client,
@@ -912,6 +1037,12 @@ impl AgentServerStore {
                     .map(|name| name.to_string())
                     .collect(),
                 aliases: proto_external_agent_aliases(&this.external_agent_aliases),
+                agents: proto_external_agent_metadata(
+                    &this.external_agents,
+                    &this.external_agent_aliases,
+                    cx,
+                ),
+                metadata_version: Some(EXTERNAL_AGENT_METADATA_VERSION),
             })
         })
     }
@@ -920,6 +1051,8 @@ impl AgentServerStore {
         &mut self,
         names: Vec<String>,
         aliases: Vec<proto::ExternalAgentAlias>,
+        agents: Vec<proto::ExternalAgentMetadata>,
+        metadata_version: Option<u32>,
         cx: &mut Context<Self>,
     ) -> Result<()> {
         let AgentServerStoreState::Remote {
@@ -933,10 +1066,25 @@ impl AgentServerStore {
             bail!("unexpected external-agent snapshot")
         };
 
+        let remote_host = upstream_client.read(cx).connection_options().display_name();
+        let local_registry_icons = AgentRegistryStore::try_global(cx)
+            .map(|store| {
+                store
+                    .read(cx)
+                    .agents()
+                    .iter()
+                    .map(|agent| (agent.id().clone(), agent.icon_path().cloned()))
+                    .collect::<HashMap<_, _>>()
+            })
+            .unwrap_or_default();
+
+        let authoritative_metadata =
+            validated_remote_external_agent_metadata(&names, metadata_version, agents)?;
+
         let mut previous_entries = std::mem::take(&mut self.external_agents);
         let mut new_version_available_txs = HashMap::default();
         let mut loading_status_txs = HashMap::default();
-        let mut metadata = HashMap::default();
+        let mut previous_metadata = HashMap::default();
 
         for (name, mut entry) in previous_entries.drain() {
             if let Some(tx) = entry.server.take_new_version_available_tx() {
@@ -946,46 +1094,49 @@ impl AgentServerStore {
                 loading_status_txs.insert(name.clone(), tx);
             }
 
-            metadata.insert(name, (entry.icon, entry.display_name, entry.source));
+            previous_metadata.insert(name, (entry.icon, entry.display_name, entry.source));
         }
 
-        self.external_agents = names
-            .into_iter()
-            .map(|name| {
-                let agent_id = AgentId(name.into());
-                let (icon, display_name, source) = metadata
-                    .remove(&agent_id)
-                    .or_else(|| {
-                        AgentRegistryStore::try_global(cx)
-                            .and_then(|store| store.read(cx).agent(&agent_id))
-                            .map(|s| {
-                                (
-                                    s.icon_path().cloned(),
-                                    Some(s.name().clone()),
-                                    ExternalAgentSource::Registry,
-                                )
-                            })
-                    })
-                    .unwrap_or((None, None, ExternalAgentSource::default()));
-                let agent = RemoteExternalAgentServer {
-                    project_id: *project_id,
-                    upstream_client: upstream_client.clone(),
-                    worktree_store: worktree_store.clone(),
-                    name: agent_id.clone(),
-                    new_version_available_tx: new_version_available_txs.remove(&agent_id),
-                    loading_status_tx: loading_status_txs.remove(&agent_id),
-                };
-                (
-                    agent_id,
-                    ExternalAgentEntry::new(
-                        Box::new(agent) as Box<dyn ExternalAgentServer>,
-                        source,
-                        icon,
-                        display_name,
-                    ),
-                )
-            })
-            .collect();
+        let mut external_agents = HashMap::default();
+        for name in names {
+            let agent_id = AgentId(name.into());
+            let Some((raw_display_name, source)) = authoritative_metadata.get(&agent_id).cloned()
+            else {
+                bail!("external-agent metadata does not cover the advertised names");
+            };
+            let previous = previous_metadata.remove(&agent_id);
+            let icon = if source == ExternalAgentSource::Registry {
+                local_registry_icons.get(&agent_id).cloned().flatten()
+            } else {
+                previous
+                    .filter(|previous| previous.2 == ExternalAgentSource::Custom)
+                    .and_then(|previous| previous.0)
+            };
+            let display_name = match source {
+                ExternalAgentSource::Custom => raw_display_name,
+                ExternalAgentSource::Registry => {
+                    raw_display_name.map(|name| registry_agent_display_name(&name, &remote_host))
+                }
+            };
+            let agent = RemoteExternalAgentServer {
+                project_id: *project_id,
+                upstream_client: upstream_client.clone(),
+                worktree_store: worktree_store.clone(),
+                name: agent_id.clone(),
+                new_version_available_tx: new_version_available_txs.remove(&agent_id),
+                loading_status_tx: loading_status_txs.remove(&agent_id),
+            };
+            external_agents.insert(
+                agent_id,
+                ExternalAgentEntry::new(
+                    Box::new(agent) as Box<dyn ExternalAgentServer>,
+                    source,
+                    icon,
+                    display_name,
+                ),
+            );
+        }
+        self.external_agents = external_agents;
         self.external_agent_aliases = validated_external_agent_aliases(
             self.external_agents.keys().cloned(),
             self.external_agents.keys().cloned(),
@@ -1004,21 +1155,29 @@ impl AgentServerStore {
     ) -> Result<()> {
         let snapshot = envelope.payload;
         this.update(&mut cx, |this, cx| {
-            let AgentServerStoreState::Remote {
-                project_id,
-                snapshot_ordering,
-                ..
-            } = &mut this.state
-            else {
+            let AgentServerStoreState::Remote { project_id, .. } = &this.state else {
                 bail!("unexpected ExternalAgentsUpdated message")
             };
             if *project_id != snapshot.project_id {
                 bail!("ExternalAgentsUpdated project does not match the remote project");
             }
-            // A push observed after a request was sent is newer than that
-            // request's response, even if the response arrives later.
-            snapshot_ordering.observe_push();
-            this.replace_remote_external_agents(snapshot.names, snapshot.aliases, cx)
+            let result = this.replace_remote_external_agents(
+                snapshot.names,
+                snapshot.aliases,
+                snapshot.agents,
+                snapshot.metadata_version,
+                cx,
+            );
+            let AgentServerStoreState::Remote {
+                snapshot_ordering, ..
+            } = &mut this.state
+            else {
+                unreachable!("remote external-agent update changed store state")
+            };
+            // Only an accepted push is newer than an in-flight request. A
+            // malformed push must not suppress the valid response that can
+            // repair it.
+            snapshot_ordering.observe_applied_push(result)
         })?;
         Ok(())
     }
@@ -1954,6 +2113,20 @@ mod tests {
     }
 
     #[test]
+    fn rejected_remote_agent_push_preserves_an_in_flight_snapshot_response() {
+        let mut ordering = RemoteAgentSnapshotOrdering::default();
+        let request = ordering.begin_request();
+
+        let result = ordering.observe_applied_push(Err(anyhow::anyhow!("malformed push")));
+
+        assert!(result.is_err());
+        assert!(ordering.accepts_response(request));
+
+        ordering.observe_applied_push(Ok(())).unwrap();
+        assert!(!ordering.accepts_response(request));
+    }
+
+    #[test]
     fn newest_remote_agent_snapshot_request_wins_after_reconnect() {
         let mut ordering = RemoteAgentSnapshotOrdering::default();
         let disconnected_request = ordering.begin_request();
@@ -1961,6 +2134,109 @@ mod tests {
 
         assert!(!ordering.accepts_response(disconnected_request));
         assert!(ordering.accepts_response(reconnected_request));
+    }
+
+    #[test]
+    fn remote_agent_metadata_version_distinguishes_legacy_and_current_snapshots() {
+        let legacy = validated_remote_external_agent_metadata(
+            &["legacy-custom".to_string()],
+            None,
+            Vec::new(),
+        )
+        .unwrap();
+        assert_eq!(
+            legacy.get(&AgentId::new("legacy-custom")),
+            Some(&(None, ExternalAgentSource::Custom))
+        );
+
+        let current = validated_remote_external_agent_metadata(
+            &["custom".to_string(), "registry".to_string()],
+            Some(EXTERNAL_AGENT_METADATA_VERSION),
+            vec![
+                proto::ExternalAgentMetadata {
+                    name: "custom".to_string(),
+                    display_name: None,
+                    registry: false,
+                },
+                proto::ExternalAgentMetadata {
+                    name: "registry".to_string(),
+                    display_name: Some("Registry Agent".to_string()),
+                    registry: true,
+                },
+            ],
+        )
+        .unwrap();
+        assert_eq!(
+            current.get(&AgentId::new("custom")),
+            Some(&(None, ExternalAgentSource::Custom))
+        );
+        assert_eq!(
+            current.get(&AgentId::new("registry")),
+            Some(&(
+                Some(SharedString::from("Registry Agent")),
+                ExternalAgentSource::Registry,
+            ))
+        );
+
+        assert!(
+            validated_remote_external_agent_metadata(
+                &Vec::new(),
+                Some(EXTERNAL_AGENT_METADATA_VERSION),
+                Vec::new(),
+            )
+            .unwrap()
+            .is_empty()
+        );
+    }
+
+    #[test]
+    fn current_remote_agent_metadata_fails_closed_when_incomplete_or_malformed() {
+        let metadata =
+            |name: &str, display_name: Option<&str>, registry: bool| proto::ExternalAgentMetadata {
+                name: name.to_string(),
+                display_name: display_name.map(ToString::to_string),
+                registry,
+            };
+
+        let cases = [
+            validated_remote_external_agent_metadata(
+                &["agent".to_string()],
+                Some(EXTERNAL_AGENT_METADATA_VERSION),
+                Vec::new(),
+            ),
+            validated_remote_external_agent_metadata(
+                &["agent".to_string()],
+                None,
+                vec![metadata("agent", None, false)],
+            ),
+            validated_remote_external_agent_metadata(
+                &["agent".to_string()],
+                Some(EXTERNAL_AGENT_METADATA_VERSION),
+                vec![metadata("other", None, false)],
+            ),
+            validated_remote_external_agent_metadata(
+                &["agent".to_string()],
+                Some(EXTERNAL_AGENT_METADATA_VERSION),
+                vec![
+                    metadata("agent", None, false),
+                    metadata("agent", None, false),
+                ],
+            ),
+            validated_remote_external_agent_metadata(
+                &["agent".to_string()],
+                Some(EXTERNAL_AGENT_METADATA_VERSION),
+                vec![metadata("agent", None, true)],
+            ),
+            validated_remote_external_agent_metadata(
+                &["agent".to_string()],
+                Some(EXTERNAL_AGENT_METADATA_VERSION + 1),
+                vec![metadata("agent", None, false)],
+            ),
+        ];
+
+        for result in cases {
+            assert!(result.is_err());
+        }
     }
 
     #[test]
@@ -2201,6 +2477,32 @@ mod tests {
                 store.external_agents().cloned().collect::<HashSet<_>>(),
                 [AgentId::new("Kimi Intrepid")].into_iter().collect(),
                 "the superseded registry entry must not remain selectable"
+            );
+        });
+    }
+
+    #[test]
+    fn registry_display_name_identifies_remote_execution_host() {
+        assert_eq!(
+            registry_agent_display_name("Google Antigravity", "intrepid"),
+            SharedString::from("Google Antigravity (intrepid)")
+        );
+    }
+
+    #[gpui::test]
+    fn local_registry_display_name_identifies_local_execution_host(cx: &mut TestAppContext) {
+        init_test_settings(cx);
+        init_registry(cx, vec![make_npx_agent("antigravity-acp", "1.0.0")]);
+        set_registry_settings(cx, &["antigravity-acp"]);
+        let store = create_agent_server_store(cx);
+
+        store.read_with(cx, |store, _| {
+            assert_eq!(
+                store.agent_display_name(&AgentId::new("antigravity-acp")),
+                Some(registry_agent_display_name(
+                    "antigravity-acp",
+                    local_execution_host_label(),
+                ))
             );
         });
     }
