@@ -4539,6 +4539,14 @@ impl AgentPanel {
         let workspace = self.workspace.clone();
         let project = self.project.clone();
 
+        if let Some(resume_thread_id) = resume_thread_id
+            && let Some(store) = ThreadMetadataStore::try_global(cx)
+        {
+            store.update(cx, |store, cx| {
+                store.update_agent_id(resume_thread_id, agent.id(), cx);
+            });
+        }
+
         self.set_selected_agent_and_persist(agent.clone(), cx);
 
         let server = server_override.unwrap_or_else(|| {
@@ -7775,13 +7783,14 @@ mod tests {
 
         // Simulate a previous run that persisted metadata for this session.
         let resume_session_id = acp::SessionId::new("persistent-session");
+        let restored_thread_id = ThreadId::new();
         cx.update(|_window, cx| {
             ThreadMetadataStore::global(cx).update(cx, |store, cx| {
                 store.save(
                     ThreadMetadata {
-                        thread_id: ThreadId::new(),
+                        thread_id: restored_thread_id,
                         session_id: Some(resume_session_id.clone()),
-                        agent_id: ProjectAgentId::new("Flaky"),
+                        agent_id: ProjectAgentId::new("Legacy Flaky"),
                         title: Some("Persistent chat".into()),
                         title_override: None,
                         updated_at: Utc::now(),
@@ -7811,6 +7820,18 @@ mod tests {
                 resume_session_id.clone(),
                 window,
                 cx,
+            );
+        });
+
+        cx.update(|_window, cx| {
+            let metadata = ThreadMetadataStore::global(cx)
+                .read(cx)
+                .entry(restored_thread_id)
+                .expect("restored thread metadata should remain available");
+            assert_eq!(
+                metadata.agent_id.as_ref(),
+                "Flaky",
+                "the stored agent id must be canonicalized even when session resume fails"
             );
         });
         cx.run_until_parked();

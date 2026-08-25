@@ -153,6 +153,10 @@ manually, add every previous configuration name to `aliases` on the new entry.
 Aliases are used only to resume saved threads; they do not create duplicate
 entries in the agent picker.
 
+An alias on a custom agent takes precedence over a registry agent with the same
+ID. Zed hides that registry entry while the custom alias is configured. An
+alias cannot replace another custom agent's current name.
+
 ```json [settings]
 {
   "agent_servers": {
