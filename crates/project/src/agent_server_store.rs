@@ -90,9 +90,11 @@ impl From<&'static str> for AgentId {
 
 fn validated_external_agent_aliases(
     canonical_ids: impl IntoIterator<Item = AgentId>,
+    custom_agent_ids: impl IntoIterator<Item = AgentId>,
     declared_aliases: impl IntoIterator<Item = (AgentId, AgentId)>,
 ) -> HashMap<AgentId, AgentId> {
     let canonical_ids = canonical_ids.into_iter().collect::<HashSet<_>>();
+    let custom_agent_ids = custom_agent_ids.into_iter().collect::<HashSet<_>>();
     let mut candidates: HashMap<AgentId, Option<AgentId>> = HashMap::default();
 
     for (alias, target) in declared_aliases {
@@ -100,9 +102,13 @@ fn validated_external_agent_aliases(
             log::warn!("ignoring empty custom agent alias for `{target}`");
             continue;
         }
-        if canonical_ids.contains(&alias) {
+        if alias == target {
+            log::warn!("ignoring self-referential custom agent alias `{alias}`");
+            continue;
+        }
+        if custom_agent_ids.contains(&alias) {
             log::warn!(
-                "ignoring custom agent alias `{alias}` for `{target}` because it shadows a current agent"
+                "ignoring custom agent alias `{alias}` for `{target}` because it shadows another custom agent"
             );
             continue;
         }
@@ -591,6 +597,10 @@ impl AgentServerStore {
 
         self.external_agent_aliases = validated_external_agent_aliases(
             self.external_agents.keys().cloned(),
+            new_settings.iter().filter_map(|(name, settings)| {
+                matches!(settings, CustomAgentServerSettings::Custom { .. })
+                    .then(|| AgentId::new(name.clone()))
+            }),
             new_settings.iter().flat_map(|(name, settings)| {
                 let name = AgentId::new(name.clone());
                 settings
@@ -637,6 +647,7 @@ impl AgentServerStore {
                     names: self
                         .external_agents
                         .keys()
+                        .filter(|name| !self.external_agent_aliases.contains_key(*name))
                         .map(|name| name.to_string())
                         .collect(),
                     aliases: proto_external_agent_aliases(&self.external_agent_aliases),
@@ -736,11 +747,11 @@ impl AgentServerStore {
     }
 
     pub fn resolve_external_agent_id(&self, name: &AgentId) -> Option<AgentId> {
-        if self.external_agents.contains_key(name) {
-            Some(name.clone())
-        } else {
-            self.external_agent_aliases.get(name).cloned()
-        }
+        self.external_agent_aliases.get(name).cloned().or_else(|| {
+            self.external_agents
+                .contains_key(name)
+                .then(|| name.clone())
+        })
     }
 
     pub fn get_external_agent(
@@ -765,11 +776,13 @@ impl AgentServerStore {
     }
 
     pub fn has_external_agents(&self) -> bool {
-        !self.external_agents.is_empty()
+        self.external_agents().next().is_some()
     }
 
     pub fn external_agents(&self) -> impl Iterator<Item = &AgentId> {
-        self.external_agents.keys()
+        self.external_agents
+            .keys()
+            .filter(|name| !self.external_agent_aliases.contains_key(*name))
     }
 
     async fn handle_get_agent_server_command(
@@ -974,6 +987,7 @@ impl AgentServerStore {
             })
             .collect();
         self.external_agent_aliases = validated_external_agent_aliases(
+            self.external_agents.keys().cloned(),
             self.external_agents.keys().cloned(),
             aliases
                 .into_iter()
@@ -1950,8 +1964,13 @@ mod tests {
     }
 
     #[test]
-    fn custom_agent_aliases_resolve_only_to_one_current_agent() {
+    fn custom_agent_aliases_override_colliding_registry_ids_when_unambiguous() {
         let aliases = validated_external_agent_aliases(
+            [
+                AgentId::new("Kimi Intrepid"),
+                AgentId::new("kimi"),
+                AgentId::new("Other"),
+            ],
             [AgentId::new("Kimi Intrepid"), AgentId::new("Other")],
             [
                 (AgentId::new("Kimi (VPS)"), AgentId::new("Kimi Intrepid")),
@@ -1960,6 +1979,7 @@ mod tests {
                 (AgentId::new("shared"), AgentId::new("Kimi Intrepid")),
                 (AgentId::new("shared"), AgentId::new("Other")),
                 (AgentId::new("Other"), AgentId::new("Kimi Intrepid")),
+                (AgentId::new("Kimi Intrepid"), AgentId::new("Kimi Intrepid")),
                 (AgentId::new("gone"), AgentId::new("Missing")),
                 (AgentId::new(""), AgentId::new("Kimi Intrepid")),
             ],
@@ -1979,6 +1999,7 @@ mod tests {
         );
         assert!(!aliases.contains_key(&AgentId::new("shared")));
         assert!(!aliases.contains_key(&AgentId::new("Other")));
+        assert!(!aliases.contains_key(&AgentId::new("Kimi Intrepid")));
         assert!(!aliases.contains_key(&AgentId::new("gone")));
         assert!(!aliases.contains_key(&AgentId::new("")));
     }
@@ -2101,6 +2122,43 @@ mod tests {
         });
     }
 
+    fn set_registry_and_custom_alias_settings(cx: &mut TestAppContext) {
+        cx.update(|cx| {
+            AllAgentServersSettings::override_global(
+                AllAgentServersSettings(
+                    [
+                        (
+                            "kimi".to_string(),
+                            CustomAgentServerSettings::Registry {
+                                env: HashMap::default(),
+                                default_mode: None,
+                                default_config_options: HashMap::default(),
+                                favorite_config_option_values: HashMap::default(),
+                            },
+                        ),
+                        (
+                            "Kimi Intrepid".to_string(),
+                            CustomAgentServerSettings::Custom {
+                                command: AgentServerCommand {
+                                    path: PathBuf::from("/usr/bin/kimi-intrepid"),
+                                    args: Vec::new(),
+                                    env: None,
+                                },
+                                aliases: vec!["kimi".to_string()],
+                                default_mode: None,
+                                default_config_options: HashMap::default(),
+                                favorite_config_option_values: HashMap::default(),
+                            },
+                        ),
+                    ]
+                    .into_iter()
+                    .collect(),
+                ),
+                cx,
+            );
+        });
+    }
+
     fn create_agent_server_store(cx: &mut TestAppContext) -> gpui::Entity<AgentServerStore> {
         cx.update(|cx| {
             let fs: Arc<dyn Fs> = fs::FakeFs::new(cx.background_executor().clone());
@@ -2121,6 +2179,30 @@ mod tests {
                 )
             })
         })
+    }
+
+    #[gpui::test]
+    fn explicit_custom_alias_supersedes_colliding_registry_agent(cx: &mut TestAppContext) {
+        init_test_settings(cx);
+        init_registry(cx, vec![make_npx_agent("kimi", "1.0.0")]);
+        set_registry_and_custom_alias_settings(cx);
+        let store = create_agent_server_store(cx);
+
+        store.read_with(cx, |store, _| {
+            assert!(
+                store.external_agents.contains_key(&AgentId::new("kimi")),
+                "the collision must be present in the underlying registry"
+            );
+            assert_eq!(
+                store.resolve_external_agent_id(&AgentId::new("kimi")),
+                Some(AgentId::new("Kimi Intrepid"))
+            );
+            assert_eq!(
+                store.external_agents().cloned().collect::<HashSet<_>>(),
+                [AgentId::new("Kimi Intrepid")].into_iter().collect(),
+                "the superseded registry entry must not remain selectable"
+            );
+        });
     }
 
     #[test]

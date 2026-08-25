@@ -738,6 +738,25 @@ impl ThreadMetadataStore {
         self.save(metadata, cx);
     }
 
+    pub fn update_agent_id(
+        &mut self,
+        thread_id: ThreadId,
+        agent_id: AgentId,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(existing) = self.entry(thread_id) else {
+            return;
+        };
+        if existing.agent_id == agent_id {
+            return;
+        }
+        let metadata = ThreadMetadata {
+            agent_id,
+            ..existing.clone()
+        };
+        self.save(metadata, cx);
+    }
+
     fn save_internal(&mut self, metadata: ThreadMetadata) {
         if let Some(thread) = self.threads.get(&metadata.thread_id) {
             if thread.folder_paths() != metadata.folder_paths() {
@@ -2002,6 +2021,46 @@ mod tests {
             assert_eq!(metadata.title.as_deref(), Some("Agent Generated Title"));
             assert_eq!(metadata.title_override.as_deref(), Some("User Title"));
             assert_eq!(metadata.display_title().as_ref(), "User Title");
+        });
+    }
+
+    #[gpui::test]
+    async fn test_store_update_agent_id_preserves_thread_identity(cx: &mut TestAppContext) {
+        init_test(cx);
+
+        let mut metadata = make_metadata(
+            "session-1",
+            "Existing thread",
+            Utc::now(),
+            PathList::new(&[Path::new("/project-a")]),
+        );
+        metadata.agent_id = AgentId::new("kimi");
+        let thread_id = metadata.thread_id;
+
+        cx.update(|cx| {
+            let store = ThreadMetadataStore::global(cx);
+            store.update(cx, |store, cx| {
+                store.save(metadata, cx);
+                store.update_agent_id(thread_id, AgentId::new("Kimi Intrepid"), cx);
+            });
+        });
+        cx.run_until_parked();
+
+        cx.update(|cx| {
+            let store = ThreadMetadataStore::global(cx);
+            let metadata = store
+                .read(cx)
+                .entry(thread_id)
+                .expect("thread metadata should remain cached");
+            assert_eq!(metadata.agent_id.as_ref(), "Kimi Intrepid");
+            assert_eq!(
+                metadata.session_id.as_ref().unwrap().0.as_ref(),
+                "session-1"
+            );
+            assert_eq!(
+                metadata.folder_paths(),
+                &PathList::new(&[Path::new("/project-a")])
+            );
         });
     }
 

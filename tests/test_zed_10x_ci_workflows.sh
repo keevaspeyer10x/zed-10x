@@ -85,13 +85,19 @@ if [[ -f "$RUST_CI" ]]; then
     check "format command is exact" \
         contains "$RUST_CI" "cargo fmt --all -- --check"
     check "focused CI runs custom agent alias resolution tests" \
-        contains "$RUST_CI" "cargo test --locked -p project custom_agent_aliases_resolve_only_to_one_current_agent --lib"
+        contains "$RUST_CI" "cargo test --locked -p project custom_agent_aliases_override_colliding_registry_ids_when_unambiguous --lib"
+    check "focused CI runs custom agent alias ownership tests" \
+        contains "$RUST_CI" "cargo test --locked -p project explicit_custom_alias_supersedes_colliding_registry_agent --lib"
     check "focused CI runs remote agent ordering tests" \
         contains "$RUST_CI" "cargo test --locked -p project remote_agent_ --lib"
     check "focused CI runs remote reconnect inventory tests" \
         contains "$RUST_CI" "cargo test --locked -p remote_server test_remote_external_agent_server_reconnects_to_latest_inventory --lib"
     check "focused CI runs custom agent cache compatibility tests" \
         contains "$RUST_CI" "cargo test --locked -p agent_ui equivalent_cache_key_prefers_canonical_and_recognizes_legacy_aliases --lib"
+    check "focused CI runs restored thread canonicalization tests" \
+        contains "$RUST_CI" "cargo test --locked -p agent_ui test_store_update_agent_id_preserves_thread_identity --lib"
+    check "focused CI runs restored thread load-error integration tests" \
+        contains "$RUST_CI" "cargo test --locked -p agent_ui test_serialize_preserves_session_id_in_load_error --lib"
     check "focused CI runs custom agent rename tests" \
         contains "$RUST_CI" "cargo test --locked -p settings_ui rename_preserves_original_name_as_alias --lib"
     check "focused CI runs custom agent rename-back tests" \
