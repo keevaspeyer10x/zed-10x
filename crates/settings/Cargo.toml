@@ -13,6 +13,7 @@ path = "src/settings.rs"
 doctest = false
 
 [features]
+debug-embed = ["rust-embed/debug-embed"]
 test-support = ["gpui/test-support", "fs/test-support"]
 
 [dependencies]
