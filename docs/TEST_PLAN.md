@@ -61,14 +61,15 @@ a sibling surface cannot satisfy an installed-product cell.
 | ENV-CAPABILITY-015 | critical | capability negotiation, version drift, no fallback |
 | ENV-PRIVACY-016 | critical | content-free installed argv/log audit with negative control |
 | ENV-PLATFORM-017 | high | Windows SSH, WSL, Docker fail closed |
-| ENV-PACKAGE-018 | critical | debug bundle, installed identity, remote capability, rollback |
+| ENV-PACKAGE-018 | critical | debug bundle, canonical user entry point/process identity, remote capability, rollback |
 
 ## Adversarial layer
 
 The run must exercise partial reads, Unicode, quotes, newlines, invalid names,
 NULs, malformed lengths, truncation, oversize input, missing capability, early
 child exit, PTY echo/canonical buffering, old remote server, cancellation,
-timeout, PID residue, and a known-leaking negative-control command. Secrets or
+timeout, PID residue, a stale same-identifier local app bundle, and a
+known-leaking negative-control command. Secrets or
 sentinel values are compared by hash/boolean only during live process and log
 inspection; the audit must never print them.
 

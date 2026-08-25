@@ -30,6 +30,73 @@ function appFixture(root, name = "Zed 10x.app") {
   return appPath;
 }
 
+function writeExecutable(filePath, source) {
+  fs.writeFileSync(filePath, source);
+  fs.chmodSync(filePath, 0o755);
+}
+
+function launchServicesRecord(appPath, bundleIdentifier) {
+  return { appPath, bundleIdentifier };
+}
+
+function launchServicesFixture(root, records, options = {}) {
+  const { failUnregister = "", retainUnregistered = "" } = options;
+  const commandLog = path.join(root, "launch-services.log");
+  const statePath = path.join(root, "launch-services.json");
+  const lsregisterPath = path.join(root, "lsregister");
+  const plistBuddyPath = path.join(root, "PlistBuddy");
+  fs.writeFileSync(statePath, JSON.stringify(records));
+  writeExecutable(
+    lsregisterPath,
+    `#!/usr/bin/env node
+const fs = require("node:fs");
+const [operation, appPath] = process.argv.slice(2);
+const statePath = process.env.ZED_TEST_LS_STATE;
+const logPath = process.env.ZED_TEST_LS_LOG;
+const records = JSON.parse(fs.readFileSync(statePath, "utf8"));
+if (operation === "-dump") {
+  for (const record of records) {
+    process.stdout.write("path:                       " + record.appPath + " (0x1234)\\n");
+    process.stdout.write("identifier:                 " + record.bundleIdentifier + "\\n");
+    process.stdout.write("--------------------------------------------------------------------------------\\n");
+  }
+} else if (operation === "-u") {
+  fs.appendFileSync(logPath, "unregister:" + appPath + "\\n");
+  if (appPath === ${JSON.stringify(failUnregister)}) process.exit(23);
+  if (appPath !== ${JSON.stringify(retainUnregistered)}) {
+    fs.writeFileSync(statePath, JSON.stringify(records.filter((record) => record.appPath !== appPath)));
+  }
+} else if (operation === "-f") {
+  fs.appendFileSync(logPath, "register:" + appPath + "\\n");
+  const retained = records.filter((record) => record.appPath !== appPath);
+  retained.push({ appPath, bundleIdentifier: "ai.10xlabs.Zed10x" });
+  fs.writeFileSync(statePath, JSON.stringify(retained));
+} else {
+  process.exit(64);
+}
+`,
+  );
+  writeExecutable(
+    plistBuddyPath,
+    `#!/bin/bash
+set -eu
+test "$1" = -c
+test "$2" = 'Print :CFBundleIdentifier'
+/bin/cat "$3"
+`,
+  );
+  return {
+    commandLog,
+    env: {
+      ...process.env,
+      ZED_10X_LSREGISTER: lsregisterPath,
+      ZED_10X_PLIST_BUDDY: plistBuddyPath,
+      ZED_TEST_LS_STATE: statePath,
+      ZED_TEST_LS_LOG: commandLog,
+    },
+  };
+}
+
 function remoteServerFixture(root) {
   const remoteServerPath = path.join(root, "zed-remote-server-macos-aarch64.gz");
   fs.writeFileSync(remoteServerPath, gzipSync("signed-remote-server-fixture"));
@@ -420,6 +487,116 @@ test("bundle-mac keeps fork release signing isolated from the login keychain", (
   assert.match(bundleScript, /f014b290f36d121bbc47b29b556044c4f6a2f6494cf78ed2eacfa501b77363b6/);
   assert.match(bundleScript, /02fb29a47a07e9a7f841888661f32ebc80a56930864dd19b674d80ffc429c96d/);
   assert.doesNotMatch(bundleScript, /curl[^\n]*\|\s*tar/);
+});
+
+test("local installation leaves only the canonical Zed 10x bundle registered", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "zed-10x-launch-services-"));
+  const canonicalApp = appFixture(root, "Canonical Zed 10x.app");
+  const staleApp = appFixture(root, "Stale Source Zed 10x.app");
+  const unrelatedApp = appFixture(root, "Unrelated.app");
+  fs.writeFileSync(path.join(canonicalApp, "Contents", "Info.plist"), "ai.10xlabs.Zed10x\n");
+  const fixture = launchServicesFixture(root, [
+    launchServicesRecord(canonicalApp, "ai.10xlabs.Zed10x"),
+    launchServicesRecord(staleApp, "ai.10xlabs.Zed10x"),
+    launchServicesRecord(unrelatedApp, "com.example.Unrelated"),
+  ]);
+  const repositoryRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../..");
+  const helper = path.join(repositoryRoot, "script", "zed-10x-register-installed-app");
+
+  const result = spawnSync(helper, [canonicalApp], {
+    encoding: "utf8",
+    env: fixture.env,
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(
+    fs.readFileSync(fixture.commandLog, "utf8").trim().split("\n"),
+    [`unregister:${staleApp}`, `register:${fs.realpathSync(canonicalApp)}`],
+  );
+});
+
+test("local installation fails closed when a stale registration cannot be removed", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "zed-10x-launch-services-failure-"));
+  const canonicalApp = appFixture(root, "Canonical Zed 10x.app");
+  const staleApp = appFixture(root, "Stale Source Zed 10x.app");
+  fs.writeFileSync(path.join(canonicalApp, "Contents", "Info.plist"), "ai.10xlabs.Zed10x\n");
+  const fixture = launchServicesFixture(
+    root,
+    [
+      launchServicesRecord(canonicalApp, "ai.10xlabs.Zed10x"),
+      launchServicesRecord(staleApp, "ai.10xlabs.Zed10x"),
+    ],
+    { failUnregister: staleApp },
+  );
+  const repositoryRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../..");
+  const helper = path.join(repositoryRoot, "script", "zed-10x-register-installed-app");
+
+  const result = spawnSync(helper, [canonicalApp], {
+    encoding: "utf8",
+    env: fixture.env,
+  });
+
+  assert.notEqual(result.status, 0);
+  assert.deepEqual(
+    fs.readFileSync(fixture.commandLog, "utf8").trim().split("\n"),
+    [`unregister:${staleApp}`],
+  );
+});
+
+test("local installation verifies that LaunchServices actually removed stale bundles", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "zed-10x-launch-services-postcondition-"));
+  const canonicalApp = appFixture(root, "Canonical Zed 10x.app");
+  const staleApp = appFixture(root, "Stale Source Zed 10x.app");
+  fs.writeFileSync(path.join(canonicalApp, "Contents", "Info.plist"), "ai.10xlabs.Zed10x\n");
+  const fixture = launchServicesFixture(
+    root,
+    [
+      launchServicesRecord(canonicalApp, "ai.10xlabs.Zed10x"),
+      launchServicesRecord(staleApp, "ai.10xlabs.Zed10x"),
+    ],
+    { retainUnregistered: staleApp },
+  );
+  const repositoryRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../..");
+  const helper = path.join(repositoryRoot, "script", "zed-10x-register-installed-app");
+
+  const result = spawnSync(helper, [canonicalApp], {
+    encoding: "utf8",
+    env: fixture.env,
+  });
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /stale Zed 10x bundle remains registered/);
+  assert.match(result.stderr, /did not converge to the canonical Zed 10x app/);
+});
+
+test("local installation refuses a canonical app with the wrong bundle identity", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "zed-10x-launch-services-identity-"));
+  const canonicalApp = appFixture(root, "Canonical Zed 10x.app");
+  fs.writeFileSync(path.join(canonicalApp, "Contents", "Info.plist"), "com.example.Wrong\n");
+  const fixture = launchServicesFixture(root, []);
+  const repositoryRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../..");
+  const helper = path.join(repositoryRoot, "script", "zed-10x-register-installed-app");
+
+  const result = spawnSync(helper, [canonicalApp], {
+    encoding: "utf8",
+    env: fixture.env,
+  });
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /bundle identifier mismatch/);
+  assert.equal(fs.existsSync(fixture.commandLog), false);
+});
+
+test("bundle-mac refreshes LaunchServices only after the installed bundle verifies", () => {
+  const repositoryRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../..");
+  const bundleScript = fs.readFileSync(path.join(repositoryRoot, "script", "bundle-mac"), "utf8");
+  const verificationOffset = bundleScript.indexOf('codesign --verify --deep --strict "$installed_app_path"');
+  const registrationOffset = bundleScript.indexOf('script/zed-10x-register-installed-app "$installed_app_path"');
+  const successOffset = bundleScript.indexOf('echo "Installed application bundle: $installed_app_path"');
+
+  assert.ok(verificationOffset > 0);
+  assert.ok(registrationOffset > verificationOffset);
+  assert.ok(successOffset > registrationOffset);
 });
 
 test("release credentials are visible only to the signing step", () => {

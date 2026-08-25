@@ -36,7 +36,7 @@
     {"id":"REQ-ENV-003","text":"A private environment frame is completely consumed before the first application stdin or protocol byte, without echoing through a PTY.","source":"risk"},
     {"id":"REQ-ENV-004","text":"Missing capability, malformed or incomplete frame, oversize input, timeout, replacement, or unsupported backend fails closed without command-line fallback.","source":"risk"},
     {"id":"REQ-ENV-005","text":"Completion, cancellation, and timeout leave no owned SSH, bootstrap, terminal, agent, context-server, or debug-adapter process residue.","source":"risk"},
-    {"id":"REQ-PACKAGE-001","text":"The installed app bundles a matching remote server that advertises both secure environment capabilities and launches from its home-anchored location after changing to the project directory.","source":"prior_defect"}
+    {"id":"REQ-PACKAGE-001","text":"The normal user entry point resolves to the canonical installed app, whose matching remote server advertises both secure environment capabilities and launches from its home-anchored location after changing to the project directory.","source":"prior_defect"}
   ],
   "architecture": {
     "components": [
@@ -104,7 +104,8 @@
     {"id":"DEFECT-ACP-INITIAL-INVENTORY-RACE","classification":"product_defect","status":"fixed_in_candidate","evidence":"Initial inventory could arrive before the client handler and was not replayed."},
     {"id":"DEFECT-ACP-CANARY-BYPASS","classification":"test_harness_defect","status":"fixed_in_candidate","evidence":"The original route canary did not cross the installed Zed client/server seam."},
     {"id":"DEFECT-SSH-ENV-ARGV-LEAK","classification":"product_defect","status":"fix_in_progress","evidence":"A live restored remote terminal exposed resolved project environment values in the local SSH process argv."},
-    {"id":"DEFECT-PLAN-SURFACE-OMISSION","classification":"process_defect","status":"fixed_in_plan","evidence":"The prior release plan covered ACP but omitted sibling terminal, task, shell, MCP, and DAP consumers and cited a nonexistent repository ADR path."}
+    {"id":"DEFECT-PLAN-SURFACE-OMISSION","classification":"process_defect","status":"fixed_in_plan","evidence":"The prior release plan covered ACP but omitted sibling terminal, task, shell, MCP, and DAP consumers and cited a nonexistent repository ADR path."},
+    {"id":"DEFECT-STALE-BUNDLE-LAUNCH","classification":"product_delivery_defect","status":"fixed_in_candidate","evidence":"A normal Zed 10x restart reopened a stale same-identifier source bundle even though the canonical installed app contained the remote bootstrap correction."}
   ],
   "existingCoverage": {
     "direct": [

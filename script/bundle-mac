@@ -390,6 +390,9 @@ function sign_app_binaries() {
         # bundle still satisfies the signature contract before reporting success.
         xattr -cr "$installed_app_path"
         codesign --verify --deep --strict "$installed_app_path"
+        if [[ "$channel" == "dev" ]]; then
+            script/zed-10x-register-installed-app "$installed_app_path"
+        fi
         echo "Installed application bundle: $installed_app_path"
         if [ "$open_result" = true ]; then
             echo "Opening $installed_app_path"
