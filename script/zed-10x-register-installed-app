@@ -1,0 +1,95 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+if [[ $# -ne 1 ]]; then
+    echo "usage: ${0##*/} /Applications/Zed\\ 10x.app" >&2
+    exit 2
+fi
+
+app_path=$1
+if [[ ! -d "$app_path" || -L "$app_path" ]]; then
+    echo "canonical Zed 10x app must be a real directory: $app_path" >&2
+    exit 2
+fi
+
+app_parent=$(CDPATH= cd -- "$(dirname -- "$app_path")" && pwd -P)
+app_path="${app_parent}/$(basename -- "$app_path")"
+plist_buddy=${ZED_10X_PLIST_BUDDY:-/usr/libexec/PlistBuddy}
+lsregister=${ZED_10X_LSREGISTER:-/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister}
+bundle_identifier=$(
+    "$plist_buddy" -c 'Print :CFBundleIdentifier' "$app_path/Contents/Info.plist"
+)
+if [[ "$bundle_identifier" != "ai.10xlabs.Zed10x" ]]; then
+    echo "canonical Zed 10x bundle identifier mismatch" >&2
+    exit 2
+fi
+if [[ ! -x "$lsregister" ]]; then
+    echo "LaunchServices registrar is not executable: $lsregister" >&2
+    exit 2
+fi
+
+dump_path=$(mktemp -t zed-10x-launchservices.XXXXXX)
+paths_path=$(mktemp -t zed-10x-launchservices-paths.XXXXXX)
+trap 'rm -f "$dump_path" "$paths_path"' EXIT
+
+collect_registered_paths() {
+    "$lsregister" -dump > "$dump_path"
+    /usr/bin/awk '
+        BEGIN { RS = "--------------------------------------------------------------------------------" }
+        $0 ~ /identifier:[[:space:]]+ai\.10xlabs\.Zed10x([[:space:]]|$)/ {
+            count = split($0, lines, "\n")
+            for (line_index = 1; line_index <= count; line_index += 1) {
+                if (lines[line_index] ~ /^path:[[:space:]]+/) {
+                    path = lines[line_index]
+                    sub(/^path:[[:space:]]+/, "", path)
+                    sub(/[[:space:]]+\(0x[0-9a-fA-F]+\)[[:space:]]*$/, "", path)
+                    if (path != "" && !seen[path]++) print path
+                }
+            }
+        }
+    ' "$dump_path" > "$paths_path"
+}
+
+registered_path_identity() {
+    local registered_path=$1
+    if [[ -d "$registered_path" && ! -L "$registered_path" ]]; then
+        local registered_parent
+        registered_parent=$(CDPATH= cd -- "$(dirname -- "$registered_path")" && pwd -P)
+        printf '%s/%s\n' "$registered_parent" "$(basename -- "$registered_path")"
+    else
+        printf '%s\n' "$registered_path"
+    fi
+}
+
+collect_registered_paths
+
+while IFS= read -r registered_path; do
+    [[ -n "$registered_path" ]] || continue
+    registered_identity=$(registered_path_identity "$registered_path")
+    if [[ "$registered_identity" == "$app_path" ]]; then
+        continue
+    fi
+    "$lsregister" -u "$registered_path"
+done < "$paths_path"
+
+"$lsregister" -f "$app_path"
+
+collect_registered_paths
+canonical_found=false
+unexpected_found=false
+while IFS= read -r registered_path; do
+    [[ -n "$registered_path" ]] || continue
+    registered_identity=$(registered_path_identity "$registered_path")
+    if [[ "$registered_identity" == "$app_path" ]]; then
+        canonical_found=true
+    else
+        echo "stale Zed 10x bundle remains registered: $registered_path" >&2
+        unexpected_found=true
+    fi
+done < "$paths_path"
+
+if [[ "$canonical_found" != true || "$unexpected_found" == true ]]; then
+    echo "LaunchServices did not converge to the canonical Zed 10x app" >&2
+    exit 1
+fi
