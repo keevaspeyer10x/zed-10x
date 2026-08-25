@@ -36,8 +36,11 @@ use lsp::{
 };
 use node_runtime::NodeRuntime;
 use project::{
-    ProgressToken, Project,
-    agent_server_store::AgentServerCommand,
+    AgentId, ProgressToken, Project,
+    agent_registry_store::{
+        AgentRegistryStore, RegistryAgent, RegistryAgentMetadata, RegistryNpxAgent,
+    },
+    agent_server_store::{AgentServerCommand, ExternalAgentSource},
     search::{SearchQuery, SearchResult},
 };
 use remote::RemoteClient;
@@ -4031,6 +4034,125 @@ async fn test_remote_external_agent_server_reconnects_to_latest_inventory(
         .await
         .unwrap();
     assert_eq!(command.path, PathBuf::from("new-kimi-cli"));
+}
+
+fn test_registry_agent(id: &str, display_name: &str) -> RegistryAgent {
+    RegistryAgent::Npx(RegistryNpxAgent {
+        metadata: RegistryAgentMetadata {
+            id: AgentId::new(id.to_string()),
+            name: display_name.to_string().into(),
+            description: "".into(),
+            version: "1.0.0".into(),
+            repository: None,
+            website: None,
+            icon_path: None,
+        },
+        package: id.to_string().into(),
+        args: Vec::new(),
+        env: HashMap::default(),
+    })
+}
+
+#[gpui::test]
+async fn test_remote_external_agent_metadata_comes_from_execution_host(
+    cx: &mut TestAppContext,
+    server_cx: &mut TestAppContext,
+) {
+    let fs = FakeFs::new(server_cx.executor());
+    fs.insert_tree(path!("/project"), json!({})).await;
+
+    cx.update(|cx| {
+        AgentRegistryStore::init_test_global(
+            cx,
+            vec![
+                test_registry_agent("custom-collision", "Wrong Client Registry Name"),
+                test_registry_agent("registry-agent", "Stale Client Registry Name"),
+            ],
+        )
+    });
+    let server_registry = server_cx.update(|cx| {
+        AgentRegistryStore::init_test_global(
+            cx,
+            vec![test_registry_agent(
+                "registry-agent",
+                "Authoritative Server Name",
+            )],
+        )
+    });
+
+    let (project, _headless_project) = init_test_with_server_settings_before_client(
+        &fs,
+        cx,
+        server_cx,
+        &json!({
+            "agent_servers": {
+                "custom-collision": {
+                    "type": "custom",
+                    "command": "custom-cli",
+                    "aliases": ["custom-alias"]
+                },
+                "registry-agent": {
+                    "type": "registry"
+                }
+            }
+        })
+        .to_string(),
+    )
+    .await;
+    server_cx.run_until_parked();
+    cx.run_until_parked();
+
+    project.update(cx, |project, cx| {
+        let store = project.agent_server_store().read(cx);
+        assert_eq!(
+            store.agent_source(&AgentId::new("custom-collision")),
+            Some(ExternalAgentSource::Custom)
+        );
+        assert_eq!(
+            store.agent_display_name(&AgentId::new("custom-collision")),
+            None,
+            "a client registry collision must not relabel a remote custom agent"
+        );
+        assert_eq!(
+            store.resolve_external_agent_id(&AgentId::new("custom-alias")),
+            Some(AgentId::new("custom-collision"))
+        );
+        assert_eq!(
+            store.agent_display_name(&AgentId::new("custom-alias")),
+            Some("custom-collision".into())
+        );
+
+        assert_eq!(
+            store.agent_source(&AgentId::new("registry-agent")),
+            Some(ExternalAgentSource::Registry)
+        );
+        let display_name = store
+            .agent_display_name(&AgentId::new("registry-agent"))
+            .expect("remote registry agents have an authoritative display name");
+        assert!(display_name.starts_with("Authoritative Server Name ("));
+        assert!(!display_name.contains("Stale Client Registry Name"));
+    });
+
+    server_registry.update(server_cx, |registry, cx| {
+        registry.set_agents(
+            vec![test_registry_agent(
+                "registry-agent",
+                "Refreshed Server Name",
+            )],
+            cx,
+        );
+    });
+    server_cx.run_until_parked();
+    cx.run_until_parked();
+
+    project.update(cx, |project, cx| {
+        let store = project.agent_server_store().read(cx);
+        let display_name = store
+            .agent_display_name(&AgentId::new("registry-agent"))
+            .expect("registry refreshes retain authoritative metadata");
+        assert!(display_name.starts_with("Refreshed Server Name ("));
+        assert!(!display_name.contains("Authoritative Server Name"));
+    });
 }
 
 #[gpui::test]

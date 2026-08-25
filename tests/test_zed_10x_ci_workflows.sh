@@ -88,8 +88,12 @@ if [[ -f "$RUST_CI" ]]; then
         contains "$RUST_CI" "cargo test --locked -p project custom_agent_aliases_override_colliding_registry_ids_when_unambiguous --lib"
     check "focused CI runs custom agent alias ownership tests" \
         contains "$RUST_CI" "cargo test --locked -p project explicit_custom_alias_supersedes_colliding_registry_agent --lib"
+    check "focused CI runs registry host display tests" \
+        contains "$RUST_CI" "cargo test --locked -p project registry_display_name --lib"
     check "focused CI runs remote agent ordering tests" \
         contains "$RUST_CI" "cargo test --locked -p project remote_agent_ --lib"
+    check "focused CI runs authoritative remote agent metadata tests" \
+        contains "$RUST_CI" "cargo test --locked -p remote_server test_remote_external_agent_metadata_comes_from_execution_host --lib"
     check "focused CI runs remote reconnect inventory tests" \
         contains "$RUST_CI" "cargo test --locked -p remote_server test_remote_external_agent_server_reconnects_to_latest_inventory --lib"
     check "focused CI runs custom agent cache compatibility tests" \
