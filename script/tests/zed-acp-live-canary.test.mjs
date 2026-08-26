@@ -1,5 +1,12 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
+import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
@@ -10,6 +17,10 @@ const canary = path.join(repositoryRoot, "script/zed-acp-live-canary.py");
 const fixture = path.join(
   repositoryRoot,
   "script/tests/fixtures/fake-zed-acp-project-agent.py",
+);
+const fakeNpm = path.join(
+  repositoryRoot,
+  "script/tests/fixtures/fake-npm-exec.py",
 );
 
 function runCanary(mode, extraArgs = []) {
@@ -85,6 +96,145 @@ function runSettingsCanary(settingsText) {
   return { process, receipt: JSON.parse(readFileSync(output, "utf8")) };
 }
 
+function runRegistryCanary() {
+  const project = mkdtempSync(path.join(tmpdir(), "zed-acp-registry-"));
+  writeFileSync(path.join(project, "sentinel.txt"), "assembled-product-evidence\n");
+  const settings = path.join(project, "settings.json");
+  const output = path.join(project, "receipt.json");
+  const registryCache = path.join(project, "registry");
+  mkdirSync(registryCache);
+  const version = "1.2.3";
+  const archive = "https://example.test/fixture.tar.gz";
+  const platform = process.platform === "darwin" ? "darwin-aarch64" : "linux-x86_64";
+  const versionHash = createHash("sha256").update(version).digest("hex").slice(0, 16);
+  const archiveHash = createHash("sha256").update(archive).digest("hex").slice(0, 16);
+  const install = path.join(
+    registryCache,
+    "Fixture Registry",
+    `v_${version}_${versionHash}_${archiveHash}`,
+  );
+  mkdirSync(install, { recursive: true });
+  const executable = path.join(install, "fixture-agent");
+  writeFileSync(
+    executable,
+    `#!/bin/sh\nexec /usr/bin/python3 ${JSON.stringify(fixture)} --mode pass\n`,
+  );
+  chmodSync(executable, 0o700);
+  writeFileSync(
+    path.join(registryCache, "registry.json"),
+    JSON.stringify({
+      agents: [
+        {
+          id: "Fixture Registry",
+          version,
+          distribution: {
+            binary: {
+              [platform]: { archive, cmd: "./fixture-agent" },
+            },
+          },
+        },
+      ],
+    }),
+  );
+  writeFileSync(
+    settings,
+    JSON.stringify({
+      agent_servers: { "Fixture Registry": { type: "registry" } },
+    }),
+  );
+  const processResult = spawnSync(
+    "/usr/bin/python3",
+    [
+      canary,
+      "--surface",
+      "fixture-registry",
+      "--cwd",
+      project,
+      "--sentinel",
+      "sentinel.txt",
+      "--output",
+      output,
+      "--timeout-seconds",
+      "5",
+      "--termination-grace-seconds",
+      "0.1",
+      "--settings",
+      settings,
+      "--endpoint",
+      "Fixture Registry",
+      "--registry-cache",
+      registryCache,
+    ],
+    { cwd: repositoryRoot, encoding: "utf8", timeout: 15_000 },
+  );
+  return {
+    process: processResult,
+    receipt: JSON.parse(readFileSync(output, "utf8")),
+  };
+}
+
+function runRegistryNpxCanary() {
+  const project = mkdtempSync(path.join(tmpdir(), "zed-acp-registry-npx-"));
+  writeFileSync(path.join(project, "sentinel.txt"), "assembled-product-evidence\n");
+  const settings = path.join(project, "settings.json");
+  const output = path.join(project, "receipt.json");
+  const registryCache = path.join(project, "registry");
+  mkdirSync(registryCache);
+  const npmCommand = path.join(project, "fake-npm");
+  writeFileSync(
+    npmCommand,
+    `#!/bin/sh\nFAKE_ACP_FIXTURE=${JSON.stringify(fixture)} exec /usr/bin/python3 ${JSON.stringify(fakeNpm)} "$@"\n`,
+  );
+  chmodSync(npmCommand, 0o700);
+  writeFileSync(
+    path.join(registryCache, "registry.json"),
+    JSON.stringify({
+      agents: [
+        {
+          id: "Fixture Npx",
+          version: "1.2.3",
+          distribution: { npx: { package: "fixture-acp@1.2.3" } },
+        },
+      ],
+    }),
+  );
+  writeFileSync(
+    settings,
+    JSON.stringify({ agent_servers: { "Fixture Npx": { type: "registry" } } }),
+  );
+  const processResult = spawnSync(
+    "/usr/bin/python3",
+    [
+      canary,
+      "--surface",
+      "fixture-registry-npx",
+      "--cwd",
+      project,
+      "--sentinel",
+      "sentinel.txt",
+      "--output",
+      output,
+      "--timeout-seconds",
+      "5",
+      "--termination-grace-seconds",
+      "0.1",
+      "--settings",
+      settings,
+      "--endpoint",
+      "Fixture Npx",
+      "--registry-cache",
+      registryCache,
+      "--npm-command",
+      npmCommand,
+    ],
+    { cwd: repositoryRoot, encoding: "utf8", timeout: 15_000 },
+  );
+  return {
+    process: processResult,
+    receipt: JSON.parse(readFileSync(output, "utf8")),
+  };
+}
+
 test("project-aware ACP canary accepts a completed tool call with exact project evidence", () => {
   const result = runCanary("pass");
   assert.equal(result.process.status, 0, result.process.stderr);
@@ -136,6 +286,22 @@ test("production JSONC settings resolve the configured endpoint", () => {
   assert.equal(result.receipt.endpoint, "Fixture");
 });
 
+test("installed registry artifact resolves through the same versioned cache identity", () => {
+  const result = runRegistryCanary();
+  assert.equal(result.process.status, 0, result.process.stderr);
+  assert.equal(result.receipt.status, "pass");
+  assert.equal(result.receipt.endpoint, "Fixture Registry");
+  assert.equal(result.receipt.processGroupGone, true);
+});
+
+test("registry npx route preserves the product npm-exec boundary", () => {
+  const result = runRegistryNpxCanary();
+  assert.equal(result.process.status, 0, result.process.stderr);
+  assert.equal(result.receipt.status, "pass");
+  assert.equal(result.receipt.endpoint, "Fixture Npx");
+  assert.equal(result.receipt.processGroupGone, true);
+});
+
 test("malformed JSONC settings fail closed", () => {
   const result = runSettingsCanary(`{
     "agent_servers": {}
@@ -179,6 +345,10 @@ test("authentication and capacity failures remain distinct", () => {
   const capacity = runCanary("capacity");
   assert.equal(capacity.process.status, 1);
   assert.equal(capacity.receipt.failureClass, "capacity_or_rate_limit");
+
+  const sessionLimit = runCanary("session-limit");
+  assert.equal(sessionLimit.process.status, 1);
+  assert.equal(sessionLimit.receipt.failureClass, "capacity_or_rate_limit");
 });
 
 test("read-only canary never grants route-requested permissions", () => {

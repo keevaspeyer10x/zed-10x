@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 import os
+import platform
 import queue
 import re
 import signal
@@ -48,6 +49,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--termination-grace-seconds", type=float, default=5)
     parser.add_argument("--settings", type=Path)
     parser.add_argument("--endpoint")
+    parser.add_argument("--registry-cache", type=Path)
+    parser.add_argument("--npm-command", type=Path)
     parser.add_argument("--command")
     parser.add_argument("--arg", action="append", default=[])
     return parser.parse_args()
@@ -197,13 +200,154 @@ def strip_jsonc(source: str) -> str:
     return "".join(output)
 
 
-def load_command(args: argparse.Namespace) -> tuple[str, list[str], str]:
+def platform_key() -> str:
+    os_name = {"darwin": "darwin", "linux": "linux", "win32": "windows"}.get(
+        sys.platform
+    )
+    architecture = {
+        "arm64": "aarch64",
+        "aarch64": "aarch64",
+        "x86_64": "x86_64",
+        "amd64": "x86_64",
+    }.get(platform.machine().casefold())
+    if os_name is None or architecture is None:
+        raise CanaryFailure("unsupported_registry_platform")
+    return f"{os_name}-{architecture}"
+
+
+def sanitize_path_component(value: str) -> str:
+    sanitized = "".join(
+        character if character.isascii() and (character.isalnum() or character in "._-") else "-"
+        for character in value
+    )
+    return sanitized or "unknown"
+
+
+def bounded_npm_package_spec(package: str) -> str:
+    package_name, separator, version = package.rpartition("@")
+    if not separator or not package_name or not re.fullmatch(r"\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?", version):
+        return package
+    return f"{package_name}@0.0.0 - {version}"
+
+
+def versioned_archive_cache_dir(
+    base_dir: Path, version: str, archive_url: str, expected_sha256: str | None
+) -> Path:
+    sanitized_version = sanitize_path_component(version)
+    version_hash = sha256_text(version)[:16]
+    archive_digest = hashlib.sha256(archive_url.encode())
+    if expected_sha256:
+        archive_digest.update(b"\0sha256:")
+        archive_digest.update(expected_sha256.casefold().encode())
+    return base_dir / f"v_{sanitized_version}_{version_hash}_{archive_digest.hexdigest()[:16]}"
+
+
+def load_registry_command(
+    args: argparse.Namespace, endpoint: str, entry: dict[str, Any]
+) -> tuple[str, list[str], dict[str, str]]:
+    if args.registry_cache is None:
+        raise CanaryFailure("registry_cache_required")
+    registry_file = args.registry_cache / "registry.json"
+    try:
+        registry = json.loads(registry_file.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise CanaryFailure("invalid_registry_cache") from exc
+    agents = registry.get("agents") if isinstance(registry, dict) else None
+    if not isinstance(agents, list):
+        raise CanaryFailure("invalid_registry_cache")
+    matches = [agent for agent in agents if isinstance(agent, dict) and agent.get("id") == endpoint]
+    if len(matches) != 1:
+        raise CanaryFailure("registry_agent_not_found")
+    agent = matches[0]
+    version = agent.get("version")
+    distribution = agent.get("distribution")
+    if not isinstance(version, str) or not isinstance(distribution, dict):
+        raise CanaryFailure("invalid_registry_agent")
+    settings_env = entry.get("env", {})
+    if not isinstance(settings_env, dict) or not all(
+        isinstance(key, str) and isinstance(value, str)
+        for key, value in settings_env.items()
+    ):
+        raise CanaryFailure("invalid_endpoint_environment")
+
+    binary = distribution.get("binary")
+    npx = distribution.get("npx")
+    if isinstance(binary, dict) and npx is None:
+        target = binary.get(platform_key())
+        if not isinstance(target, dict):
+            raise CanaryFailure("unsupported_registry_platform")
+        archive = target.get("archive")
+        relative_command = target.get("cmd")
+        target_args = target.get("args", [])
+        expected_sha256 = target.get("sha256")
+        distribution_env = target.get("env", {})
+        if (
+            not isinstance(archive, str)
+            or not isinstance(relative_command, str)
+            or not relative_command.startswith(("./", ".\\"))
+            or ".." in Path(relative_command[2:]).parts
+            or not isinstance(target_args, list)
+            or not all(isinstance(item, str) for item in target_args)
+            or (expected_sha256 is not None and not isinstance(expected_sha256, str))
+            or not isinstance(distribution_env, dict)
+            or not all(
+                isinstance(key, str) and isinstance(value, str)
+                for key, value in distribution_env.items()
+            )
+        ):
+            raise CanaryFailure("invalid_registry_agent")
+        version_dir = versioned_archive_cache_dir(
+            args.registry_cache / endpoint, version, archive, expected_sha256
+        )
+        command_path = version_dir / relative_command[2:]
+        if not command_path.is_file():
+            raise CanaryFailure("registry_artifact_not_installed")
+        environment = {**distribution_env, **settings_env}
+        return str(command_path), target_args, environment
+
+    if isinstance(npx, dict) and binary is None:
+        package = npx.get("package")
+        npx_args = npx.get("args", [])
+        distribution_env = npx.get("env", {})
+        if (
+            args.npm_command is None
+            or not args.npm_command.is_absolute()
+            or not args.npm_command.is_file()
+            or not isinstance(package, str)
+            or not isinstance(npx_args, list)
+            or not all(isinstance(item, str) for item in npx_args)
+            or not isinstance(distribution_env, dict)
+            or not all(
+                isinstance(key, str) and isinstance(value, str)
+                for key, value in distribution_env.items()
+            )
+        ):
+            raise CanaryFailure("invalid_registry_agent")
+        prefix = args.registry_cache / "npx" / sanitize_path_component(endpoint)
+        prefix.mkdir(mode=0o700, parents=True, exist_ok=True)
+        command_args = [
+            "--prefix",
+            str(prefix),
+            "exec",
+            "--yes",
+            "--",
+            bounded_npm_package_spec(package),
+            *npx_args,
+        ]
+        environment = {**distribution_env, **settings_env}
+        return str(args.npm_command), command_args, environment
+
+    raise CanaryFailure("invalid_registry_agent")
+
+
+def load_command(args: argparse.Namespace) -> tuple[str, list[str], str, dict[str, str]]:
     if args.command is not None:
         if args.settings is not None or args.endpoint is not None:
             raise CanaryFailure("ambiguous_command_source")
         command = args.command
         argv = list(args.arg)
         endpoint = "direct"
+        environment: dict[str, str] = {}
     else:
         if args.settings is None or not args.endpoint or args.arg:
             raise CanaryFailure("invalid_command_source")
@@ -212,18 +356,27 @@ def load_command(args: argparse.Namespace) -> tuple[str, list[str], str]:
         except (OSError, UnicodeError, json.JSONDecodeError) as exc:
             raise CanaryFailure("invalid_settings_jsonc") from exc
         entry = settings.get("agent_servers", {}).get(args.endpoint)
-        if not isinstance(entry, dict) or entry.get("type") != "custom":
+        if not isinstance(entry, dict) or entry.get("type") not in {"custom", "registry"}:
             raise CanaryFailure("endpoint_not_configured")
+        if entry.get("type") == "registry":
+            command, argv, environment = load_registry_command(args, args.endpoint, entry)
+            return command, argv, args.endpoint, environment
         command = entry.get("command")
         argv = entry.get("args")
         if not isinstance(command, str) or not isinstance(argv, list):
             raise CanaryFailure("invalid_endpoint_command")
         if not all(isinstance(item, str) for item in argv):
             raise CanaryFailure("invalid_endpoint_command")
+        environment = entry.get("env", {})
+        if not isinstance(environment, dict) or not all(
+            isinstance(key, str) and isinstance(value, str)
+            for key, value in environment.items()
+        ):
+            raise CanaryFailure("invalid_endpoint_environment")
         endpoint = args.endpoint
     if not Path(command).is_absolute():
         raise CanaryFailure("command_not_absolute")
-    return command, argv, endpoint
+    return command, argv, endpoint, environment
 
 
 def classify_error(message: str) -> str:
@@ -233,7 +386,10 @@ def classify_error(message: str) -> str:
         ("missing_executable", r"no such file|not found|exit (status: )?127"),
         ("authentication_expired", r"expired|token[^\n]*invalid"),
         ("authentication_required", r"auth|login|credential|unauthor"),
-        ("capacity_or_rate_limit", r"capacity|rate.?limit|quota|overloaded|spend"),
+        (
+            "capacity_or_rate_limit",
+            r"capacity|rate.?limit|quota|overloaded|spend|session limit",
+        ),
         ("permission_denied", r"permission|forbidden|denied"),
         ("timeout", r"timed? ?out|timeout|deadline"),
     )
@@ -244,7 +400,9 @@ def classify_error(message: str) -> str:
 
 
 class Transport:
-    def __init__(self, command: str, argv: list[str], cwd: Path) -> None:
+    def __init__(
+        self, command: str, argv: list[str], cwd: Path, environment: dict[str, str]
+    ) -> None:
         self.messages: queue.Queue[dict[str, Any] | None] = queue.Queue()
         self.stderr_sha256 = hashlib.sha256()
         self.stderr_bytes = 0
@@ -256,6 +414,7 @@ class Transport:
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
+                env={**os.environ, **environment},
                 start_new_session=True,
                 bufsize=0,
             )
@@ -540,6 +699,7 @@ def main() -> int:
     journey_evidence: dict[str, Any] = {}
     command = ""
     argv: list[str] = []
+    environment: dict[str, str] = {}
     endpoint = args.endpoint or "direct"
     cwd: Path | None = None
     sentinel: Path | None = None
@@ -556,8 +716,8 @@ def main() -> int:
         if not cwd.is_dir():
             raise CanaryFailure("invalid_project_directory")
         sentinel, sentinel_sha256 = read_sentinel(cwd, args.sentinel)
-        command, argv, endpoint = load_command(args)
-        transport = Transport(command, argv, cwd)
+        command, argv, endpoint, environment = load_command(args)
+        transport = Transport(command, argv, cwd, environment)
         journey = Journey(
             transport,
             cwd,
@@ -596,6 +756,11 @@ def main() -> int:
         "commandArgvSha256": (
             sha256_bytes(b"\0".join(item.encode() for item in [command, *argv]))
             if command
+            else None
+        ),
+        "environmentKeyNamesSha256": (
+            sha256_bytes(b"\0".join(key.encode() for key in sorted(environment)))
+            if environment
             else None
         ),
         "processStarted": transport is not None,

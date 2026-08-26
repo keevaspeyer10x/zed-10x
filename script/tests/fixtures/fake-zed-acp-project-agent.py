@@ -49,6 +49,7 @@ def main() -> int:
             "wrong-cwd",
             "authentication",
             "capacity",
+            "session-limit",
             "permission-write",
             "permission-shell",
             "permission-unknown",
@@ -112,6 +113,18 @@ def main() -> int:
                         "jsonrpc": "2.0",
                         "id": request_id,
                         "error": {"code": -32002, "message": "provider capacity exhausted"},
+                    }
+                )
+                continue
+            if args.mode == "session-limit":
+                emit(
+                    {
+                        "jsonrpc": "2.0",
+                        "id": request_id,
+                        "error": {
+                            "code": -32603,
+                            "message": "Internal error: You've hit your session limit",
+                        },
                     }
                 )
                 continue

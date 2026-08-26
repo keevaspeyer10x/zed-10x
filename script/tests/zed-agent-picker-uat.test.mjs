@@ -1,0 +1,237 @@
+import assert from "node:assert/strict";
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { spawnSync } from "node:child_process";
+import test from "node:test";
+
+const repositoryRoot = path.resolve(import.meta.dirname, "../..");
+const matrix = path.join(repositoryRoot, "script/zed-agent-picker-uat.py");
+const fakeCanary = path.join(
+  repositoryRoot,
+  "script/tests/fixtures/fake-zed-picker-canary.py",
+);
+
+function runMatrix({
+  expected,
+  configured = expected,
+  existingSummary = false,
+  driftSource = false,
+}) {
+  const root = mkdtempSync(path.join(tmpdir(), "zed-picker-matrix-"));
+  const project = path.join(root, "project");
+  const outputDir = path.join(root, "receipts");
+  const registry = path.join(root, "registry");
+  mkdirSync(project);
+  mkdirSync(outputDir, { mode: 0o700 });
+  chmodSync(outputDir, 0o700);
+  mkdirSync(registry);
+  writeFileSync(path.join(project, "sentinel.txt"), "picker-matrix\n");
+  writeFileSync(path.join(registry, "registry.json"), JSON.stringify({ agents: [] }));
+  const managed = [...new Set([...expected, ...configured, "Other Surface"] )];
+  const inventory = path.join(root, "inventory.json");
+  writeFileSync(
+    inventory,
+    JSON.stringify({
+      schema: "zed-agent-picker-inventory-v1",
+      managedEntries: managed,
+      surfaces: { "mac-local": expected, intrepid: [] },
+      executionClasses: {
+        "mac-custom": {
+          surface: "mac-local",
+          representative: expected[0],
+          members: expected,
+        },
+        "mac-registry": { surface: "mac-local", representative: null, members: [] },
+        "intrepid-local": { surface: "intrepid", representative: null, members: [] },
+        "intrepid-persistent": { surface: "intrepid", representative: null, members: [] },
+        "intrepid-registry": { surface: "intrepid", representative: null, members: [] },
+      },
+    }),
+  );
+  const sourceManifest = path.join(root, "agent-servers.json");
+  writeFileSync(
+    sourceManifest,
+    JSON.stringify({
+      schemaVersion: 2,
+      managedNames: driftSource ? [...managed, "Source Drift"] : managed,
+      macLanes: expected,
+      linuxLocalLanes: [],
+      persistentLanes: {},
+      projectHostRegistryLanes: [],
+      agentServers: Object.fromEntries(
+        (driftSource ? [...managed, "Source Drift"] : managed).map((name) => [name, {}]),
+      ),
+    }),
+  );
+  const settings = path.join(root, "settings.json");
+  writeFileSync(
+    settings,
+    JSON.stringify({
+      agent_servers: Object.fromEntries(
+        configured.map((name) => [name, { type: "custom", command: "/bin/true", args: [] }]),
+      ),
+    }),
+  );
+  const summary = path.join(root, "summary.json");
+  if (existingSummary) writeFileSync(summary, "{}\n");
+  const log = path.join(root, "calls.log");
+  const processResult = spawnSync(
+    "/usr/bin/python3",
+    [
+      matrix,
+      "--surface",
+      "mac-local",
+      "--inventory",
+      inventory,
+      "--source-manifest",
+      sourceManifest,
+      "--settings",
+      settings,
+      "--registry-cache",
+      registry,
+      "--npm-command",
+      "/usr/bin/python3",
+      "--cwd",
+      project,
+      "--sentinel",
+      "sentinel.txt",
+      "--output-dir",
+      outputDir,
+      "--summary",
+      summary,
+      "--canary",
+      fakeCanary,
+      "--timeout-seconds",
+      "5",
+      "--termination-grace-seconds",
+      "0.1",
+    ],
+    {
+      cwd: repositoryRoot,
+      encoding: "utf8",
+      env: { ...process.env, FAKE_CANARY_LOG: log },
+      timeout: 15_000,
+    },
+  );
+  return {
+    process: processResult,
+    calls: existsSync(log)
+      ? readFileSync(log, "utf8").trim().split("\n").filter(Boolean)
+      : [],
+    summary: existingSummary ? null : JSON.parse(readFileSync(summary, "utf8")),
+  };
+}
+
+test("picker matrix invokes every advertised entry exactly once in declared order", () => {
+  const result = runMatrix({ expected: ["Alpha", "Beta", "Gamma"] });
+  assert.equal(result.process.status, 0, result.process.stderr);
+  assert.deepEqual(result.calls, ["Alpha", "Beta", "Gamma"]);
+  assert.equal(result.summary.status, "pass");
+  assert.equal(result.summary.passedCount, 3);
+  assert.equal(result.summary.productFailureCount, 0);
+});
+
+test("explicit external readiness failures degrade without hiding complete coverage", () => {
+  const result = runMatrix({ expected: ["Alpha", "Auth Route"] });
+  assert.equal(result.process.status, 0, result.process.stderr);
+  assert.deepEqual(result.calls, ["Alpha", "Auth Route"]);
+  assert.equal(result.summary.status, "pass");
+  assert.equal(result.summary.externalUnavailableCount, 1);
+  assert.equal(result.summary.results[1].classification, "external_unavailable");
+});
+
+test("an unapproved interactive permission prompt is explicit rather than a product failure", () => {
+  const result = runMatrix({ expected: ["Alpha", "Permission Route"] });
+  assert.equal(result.process.status, 0, result.process.stderr);
+  assert.deepEqual(result.calls, ["Alpha", "Permission Route"]);
+  assert.equal(result.summary.status, "pass");
+  assert.equal(result.summary.interactionRequiredCount, 1);
+  assert.equal(result.summary.productFailureCount, 0);
+  assert.equal(result.summary.results[1].classification, "interaction_required");
+});
+
+test("a product-origin route failure blocks the matrix", () => {
+  const result = runMatrix({ expected: ["Alpha", "Product Route"] });
+  assert.equal(result.process.status, 1);
+  assert.deepEqual(result.calls, ["Alpha", "Product Route"]);
+  assert.equal(result.summary.failureClass, "picker_product_failure");
+  assert.equal(result.summary.productFailureCount, 1);
+});
+
+test("omitted or stale managed picker entries fail before any route starts", () => {
+  const result = runMatrix({ expected: ["Alpha", "Beta"], configured: ["Alpha"] });
+  assert.equal(result.process.status, 1);
+  assert.deepEqual(result.calls, []);
+  assert.equal(result.summary.failureClass, "picker_inventory_mismatch");
+});
+
+test("source manifest drift fails before any route starts", () => {
+  const result = runMatrix({ expected: ["Alpha", "Beta"], driftSource: true });
+  assert.equal(result.process.status, 1);
+  assert.deepEqual(result.calls, []);
+  assert.equal(result.summary.failureClass, "source_inventory_mismatch");
+});
+
+test("an immutable existing summary prevents replay", () => {
+  const result = runMatrix({ expected: ["Alpha"], existingSummary: true });
+  assert.equal(result.process.status, 2);
+  assert.deepEqual(result.calls, []);
+});
+
+test("checked inventory binds the complete 14-entry Mac and 18-entry Intrepid sets", () => {
+  const inventory = JSON.parse(
+    readFileSync(
+      path.join(repositoryRoot, "docs/test-plan-inputs/zed-agent-picker-inventory.json"),
+      "utf8",
+    ),
+  );
+  assert.equal(inventory.managedEntries.length, 24);
+  assert.equal(inventory.surfaces["mac-local"].length, 14);
+  assert.equal(inventory.surfaces.intrepid.length, 18);
+  assert.equal(new Set(inventory.managedEntries).size, 24);
+  assert.deepEqual(Object.keys(inventory.executionClasses), [
+    "mac-custom",
+    "mac-registry",
+    "intrepid-local",
+    "intrepid-persistent",
+    "intrepid-registry",
+  ]);
+  for (const executionClass of Object.values(inventory.executionClasses)) {
+    assert.ok(executionClass.members.includes(executionClass.representative));
+  }
+  assert.deepEqual(
+    Object.values(inventory.executionClasses)
+      .filter((executionClass) => executionClass.surface === "mac-local")
+      .flatMap((executionClass) => executionClass.members),
+    inventory.surfaces["mac-local"],
+  );
+  assert.deepEqual(
+    Object.values(inventory.executionClasses)
+      .filter((executionClass) => executionClass.surface === "intrepid")
+      .flatMap((executionClass) => executionClass.members),
+    inventory.surfaces.intrepid,
+  );
+  assert.deepEqual(
+    inventory.surfaces["mac-local"].filter((name) =>
+      inventory.surfaces.intrepid.includes(name),
+    ),
+    [
+      "antigravity-acp",
+      "claude-acp",
+      "codex-acp",
+      "cursor",
+      "devin",
+      "glm-acp-agent",
+      "grok-build",
+      "kimi",
+    ],
+  );
+});

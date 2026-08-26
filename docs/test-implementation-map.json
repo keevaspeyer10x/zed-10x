@@ -1,7 +1,7 @@
 {
-  "plannedRows": 18,
-  "readyNowRows": 18,
-  "implementedRows": 18,
+  "plannedRows": 19,
+  "readyNowRows": 19,
+  "implementedRows": 19,
   "executedRows": 18,
   "remainingRows": 0,
   "unimplementedRows": [],
@@ -64,7 +64,7 @@
       "readiness": "ready_now",
       "risk": "critical",
       "tier": 0,
-      "runner": "installed-zed-uat+zed-acp-live-canary",
+      "runner": "zed-agent-picker-uat+zed-acp-live-canary",
       "rowKind": "journey",
       "provenance": [
         {
@@ -73,6 +73,8 @@
         }
       ],
       "plannedEvidence": [
+        "exact 14-entry Mac and 18-entry Intrepid picker reconciliation",
+        "one terminal journey or explicit external-readiness classification per advertised entry",
         "completed ACP tool call from real cwd",
         "withheld sentinel digest",
         "terminal response",
@@ -80,12 +82,15 @@
       ],
       "decisionRule": "hard_fail",
       "specificOracles": [
+        "every advertised entry invoked exactly once",
+        "canonical managed-agent manifest exactly matches the checked inventory",
+        "product-origin failures block the matrix",
         "tool call completed",
         "cwd exact",
         "sentinel exact",
         "prompt echo cannot pass"
       ],
-      "negativeCase": "marker-only-or-prompt-echo",
+      "negativeCase": "omitted-entry-stale-entry-source-drift-marker-only-or-prompt-echo",
       "resourceLocks": [
         "ai-provider",
         "remote-intrepid"
@@ -114,9 +119,82 @@
           "asserts": [
             "prompt echo is non-green"
           ]
+        },
+        {
+          "file": "script/tests/zed-agent-picker-uat.test.mjs",
+          "testName": "picker matrix invokes every advertised entry exactly once in declared order",
+          "asserts": [
+            "complete ordered inventory is exercised without replay",
+            "product-origin failures block",
+            "external readiness remains explicit"
+          ]
+        },
+        {
+          "file": "script/tests/zed-agent-picker-uat.test.mjs",
+          "testName": "source manifest drift fails before any route starts",
+          "asserts": [
+            "checked inventory cannot drift from the canonical source manifest"
+          ]
         }
       ],
-      "runCommand": "node --test script/tests/zed-acp-live-canary.test.mjs && installed Zed 10x Mac-local/Intrepid ACP UAT"
+      "runCommand": "node --test script/tests/zed-acp-live-canary.test.mjs script/tests/zed-agent-picker-uat.test.mjs && script/zed-agent-picker-uat.py for Mac-local and Intrepid"
+    },
+    {
+      "id": "ACP-ASSEMBLED-019",
+      "readiness": "ready_now",
+      "risk": "critical",
+      "tier": 0,
+      "runner": "installed-zed-computer-use+log-census",
+      "rowKind": "journey",
+      "provenance": [
+        {
+          "source": "prior_defect",
+          "ref": "DEFECT-ASSEMBLED-PICKER-BYPASS"
+        }
+      ],
+      "plannedEvidence": [
+        "installed app picker selection and session/new for five execution-class representatives",
+        "product logs and UI terminal state",
+        "project-bound outcome and cleanup census"
+      ],
+      "decisionRule": "hard_fail",
+      "specificOracles": [
+        "exact picker label and canonical agent",
+        "no product-origin launch error",
+        "terminal project outcome or explicit external-readiness classification",
+        "owned processes gone"
+      ],
+      "negativeCase": "direct-route-green-but-installed-picker-or-launch-wrapper-fails",
+      "resourceLocks": [
+        "installed-zed-10x",
+        "ai-provider",
+        "remote-intrepid"
+      ],
+      "requirements": [
+        "REQ-ACP-002"
+      ],
+      "evidenceStrength": "direct",
+      "assertionType": "assembled_journey",
+      "confidenceOnly": false,
+      "weakRow": false,
+      "implemented": true,
+      "assertionRefs": [
+        {
+          "file": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
+          "testName": "five production execution classes",
+          "asserts": [
+            "one exact assembled representative per class"
+          ]
+        },
+        {
+          "file": "script/zed-installed-surface-uat.py",
+          "testName": "installed Zed journey",
+          "asserts": [
+            "exact installed application and remote project transport"
+          ]
+        }
+      ],
+      "runCommand": "computer-use the installed Zed 10x picker for the five declared representatives, then bind Zed logs and cleanup census"
     },
     {
       "id": "ACP-NEG-003",

@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "generatedAt": "2026-08-24T06:02:32+10:00",
-  "decisionCandidate": "production_ready",
-  "plannedRows": 18,
-  "implementedRows": 18,
-  "executedRows": 18,
+  "decisionCandidate": "uat_pending",
+  "plannedRows": 19,
+  "implementedRows": 19,
+  "executedRows": 17,
   "remainingPlannedRows": 0,
   "requirements": {
     "total": 8,
@@ -15,7 +15,7 @@
     "untested": 0
   },
   "uat": {
-    "status": "passed",
+    "status": "pending",
     "personas": [
       "Mac-local Zed 10x user",
       "Mac-to-Intrepid remote-project user"
@@ -29,7 +29,8 @@
       "launch, configure, and terminate remote stdio and TCP debug adapters",
       "read real project bytes through a Mac-local ACP route",
       "read real project bytes through an Intrepid ACP route",
-      "exercise noninteractive, PTY, and TCP secure environment transport"
+      "exercise noninteractive, PTY, and TCP secure environment transport",
+      "exercise every advertised ACP route directly and launch one installed-picker representative for each of five production execution classes"
     ],
     "unacceptableFriction": [],
     "evidencePath": "docs/test-results/installed-uat.json"
@@ -104,7 +105,7 @@
     "highOrCriticalFindings": []
   },
   "defectDiscovery": {
-    "bugsFound": 12,
+    "bugsFound": 13,
     "productDefects": [
       "Remote external-agent inventory relied on a fixed startup delay instead of receiver-driven snapshot and reconnect ordering.",
       "Captured directory environments replayed PROMPT_COMMAND without its non-exported shell function, producing an immediate broken prompt.",
@@ -122,7 +123,9 @@
     ],
     "infraOrToolingDefects": [],
     "processDefects": [
-      "Earlier release acceptance sampled components and marker responses without executing every changed assembled-product surface and user journey."
+      "Earlier release acceptance sampled components and marker responses without executing every changed assembled-product surface and user journey.",
+      "Representative Mac and Intrepid ACP routes were accepted as coverage for independently selectable picker entries.",
+      "Direct ACP protocol execution was allowed to impersonate the installed Zed picker and session launch boundary."
     ],
     "fixedDuringRun": [
       "Replaced fixed-delay external-agent inventory with request/response snapshots, rejoin refresh, and stale-response suppression.",
@@ -136,10 +139,14 @@
       "Required two distinct observed terminal widths rather than a brittle first-versus-last comparison.",
       "Authorized the exact synthetic direnv before opening the installed app.",
       "Excluded only the observer's reuse-safe ancestor identities from cleanup census while retaining sibling/descendant residue detection.",
-      "Retained marker-only, prompt-echo, permission, timeout, and cleanup negatives."
+      "Retained marker-only, prompt-echo, permission, timeout, and cleanup negatives.",
+      "Separated every-route protocol evidence from installed assembled-product picker evidence and required one direct representative per stable execution class."
     ],
     "confidenceOnlyRows": [],
-    "weakRows": [],
+    "weakRows": [
+      "ACP-JOURNEY-002",
+      "ACP-ASSEMBLED-019"
+    ],
     "newInformationSummary": [
       "The installed 658ad7c7 remote server advertises both secure environment capabilities and passes real noninteractive, PTY, and TCP journeys.",
       "Zed 10x opens the populated Intrepid checkout and terminal/task processes inherit exact cwd, directory/surface environment, input, resize, interrupt, and cleanup behavior.",
@@ -147,7 +154,7 @@
       "Real ACP agents may establish cwd and digest through different completed tool calls.",
       "Codex Mac primary and Intrepid GLM each complete a withheld-oracle project read with no approved permission request."
     ],
-    "lowYieldAssessment": "high_confidence",
+    "lowYieldAssessment": "readiness_withdrawn_pending_route_and_assembled_uat",
     "residualRisk": [
       "Public notarized distribution is intentionally out of scope; the installed private app uses a verified ad-hoc signature.",
       "The exact merged commit still requires a fresh post-merge bundle/install and focused repeat canary; the current installed binary identifies the pre-merge candidate."
@@ -169,19 +176,36 @@
     },
     {
       "id": "ACP-JOURNEY-002",
-      "status": "passed",
-      "command": "node --test script/tests/zed-acp-live-canary.test.mjs plus Mac-local and Intrepid live routes",
-      "evidencePath": "docs/test-results/installed-uat.json",
-      "evidenceStrength": "direct",
+      "status": "pending",
+      "command": "script/zed-agent-picker-uat.py for all 14 Mac-local and 18 Intrepid entries",
+      "evidencePath": null,
+      "evidenceStrength": "pending",
       "resourceLocks": [
         "ai-provider",
         "remote-intrepid"
       ],
-      "attempts": 3,
-      "failureCategory": "test_bug_fixed",
-      "defectMateriality": "high test-validity defect fixed inline",
-      "cleanupStatus": "passed",
-      "newInformation": "Withheld-oracle evidence may legitimately be split across completed tool calls."
+      "attempts": 0,
+      "failureCategory": "coverage_gap_reopened",
+      "defectMateriality": "representative routes did not cover independently selectable picker entries",
+      "cleanupStatus": "pending",
+      "newInformation": "The picker exposes independently failing package, runtime, authentication, host, and protocol variants; sibling success is not equivalent evidence."
+    },
+    {
+      "id": "ACP-ASSEMBLED-019",
+      "status": "pending",
+      "command": "installed Zed 10x picker/session journey for five production execution-class representatives",
+      "evidencePath": null,
+      "evidenceStrength": "pending",
+      "resourceLocks": [
+        "installed-zed-10x",
+        "ai-provider",
+        "remote-intrepid"
+      ],
+      "attempts": 0,
+      "failureCategory": "assembled_product_gap_reopened",
+      "defectMateriality": "direct ACP protocol execution did not traverse the installed picker, Zed launch wrapper or session/new boundary",
+      "cleanupStatus": "pending",
+      "newInformation": "The picker has five distinct production launch implementations; each needs direct installed-app evidence before siblings can rely on mechanical equivalence."
     },
     {
       "id": "ACP-NEG-003",

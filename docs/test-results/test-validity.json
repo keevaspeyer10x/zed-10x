@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "status": "passed",
+  "status": "pending_route_and_assembled_picker_matrix",
   "flakyCriticalTests": [],
   "invalidTestsRemaining": [],
   "testHarnessDefects": [
@@ -59,6 +59,24 @@
       "fix": "Exclude only exact ancestor (PID,start-time) identities, recheck every scanned identity around cmdline access, and continue to report matching sibling and descendant processes.",
       "regression": "Linux procfs fixture excludes observer ancestry, reports the exact live matching sibling PID, then cleans that sibling up",
       "status": "fixed"
+    }
+  ],
+  "coverageClosureDefects": [
+    {
+      "id": "PLAN-SELECTABLE-VARIANT-COLLAPSE",
+      "category": "process_bug",
+      "symptom": "One Mac route and one Intrepid route were treated as representative of 14 and 18 independently selectable picker entries.",
+      "fix": "Enumerate every selectable entry, bind the inventory to its canonical manifest, run each once, and require exact revision/input evidence before production readiness.",
+      "regression": "shared coverage validator plus the Zed every-entry matrix",
+      "status": "deterministic_green_installed_matrix_pending"
+    },
+    {
+      "id": "PLAN-DIRECT-PROVIDER-ASSEMBLED-IMPERSONATION",
+      "category": "process_bug",
+      "symptom": "A direct ACP client could pass while the installed Zed picker, launch wrapper or session/new boundary failed.",
+      "fix": "Require assembled_product evidence for direct variant cells, exercise one installed-app representative of each stable execution class, and retain exact route evidence for every advertised entry.",
+      "regression": "shared validator rejects provider-only direct cells; Zed plan separates exhaustive route matrix from five-class installed picker UAT",
+      "status": "deterministic_green_installed_uat_pending"
     }
   ],
   "negativeControl": {

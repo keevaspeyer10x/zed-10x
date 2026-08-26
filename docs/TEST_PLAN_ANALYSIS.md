@@ -1,12 +1,32 @@
 # Test Plan Analysis — Root Cause Report
 
 > **Date:** 2026-08-24
-> **Test run:** 18 of 18 planned rows passed; 0 unresolved failures or skips
+> **Test run:** reopened; 17 of 19 rows retain valid evidence and the exhaustive route plus assembled-picker rows are pending
 > **Analysis method:** DACI-RP over seven test-harness defects and four assembled-product defects discovered and fixed during deterministic and live execution
 
-## Executive Summary
+## Reopened readiness disposition
 
-The full lifecycle did what the earlier release testing had not: it exercised every changed assembled-product surface through the installed app. It found seven harness defects and four product defects after the first component-level green. The product's last TCP correction now classifies real disconnect I/O in DAP header and body reads and replays initialize exactly once only for SSH/TCP, within the existing timeout; stdio and non-SSH behavior is unchanged. The final harness corrections made the fake adapter protocol-valid, made resize observation semantic rather than sample-position-dependent, authorized the fixture directory environment before project open, and made cleanup ancestry reuse-safe without hiding a matching non-ancestor. All findings were corrected and re-run. The installed app at product commit `658ad7c7` then completed terminal resize/input/Ctrl-C, task cancellation, Vim filtering, MCP initialization, stdio/TCP DAP request sequences, and real Mac-local and Intrepid ACP project reads without exposing private environment values or leaving owned processes. Later candidate commits through `5aeae9f3` change only the tracked UAT cleanup census and its tests; the exact merged commit must still be rebuilt and canaried after protected merge.
+The earlier production-ready conclusion was too strong. `ACP-JOURNEY-002`
+sampled one successful Mac route and one successful Intrepid route even though
+the picker exposed 14 and 18 independently selectable entries. It also treated
+direct ACP protocol execution as if it exercised the installed Zed picker and
+launch wrapper. That proved the project-aware oracle and two routes, but it did
+not prove the advertised product inventory or assembled user journey. A sibling passing entry is not evidence for another entry
+whose executable, package, authentication, host runtime, or protocol path can
+fail independently.
+
+The correction adds an exact selectable-variant matrix, binds its inventory to
+the canonical managed-agent manifest, executes every advertised route once,
+and separates explicit external readiness from product-origin failure. It also
+requires the installed picker and `session/new` journey for one representative
+of each stable production launch class before mechanically equivalent siblings
+can count. The deterministic matrix and custom/registry resolver tests are green.
+Production readiness remains withdrawn until exact route and assembled-app
+evidence is sealed against the final revision and load-bearing inputs.
+
+## Historical analysis retained from the prior run
+
+The prior lifecycle exercised every changed assembled-product surface category through the installed app, but not every independently selectable picker variant. It found seven harness defects and four product defects after the first component-level green. The product's last TCP correction now classifies real disconnect I/O in DAP header and body reads and replays initialize exactly once only for SSH/TCP, within the existing timeout; stdio and non-SSH behavior is unchanged. The final harness corrections made the fake adapter protocol-valid, made resize observation semantic rather than sample-position-dependent, authorized the fixture directory environment before project open, and made cleanup ancestry reuse-safe without hiding a matching non-ancestor. All findings were corrected and re-run. The installed app at product commit `658ad7c7` then completed terminal resize/input/Ctrl-C, task cancellation, Vim filtering, MCP initialization, stdio/TCP DAP request sequences, and two real ACP project reads without exposing private environment values or leaving owned processes. Those two ACP reads remain valid route evidence, but no longer satisfy the full picker row.
 
 ## Defect Discovery Value
 
@@ -17,8 +37,8 @@ The full lifecycle did what the earlier release testing had not: it exercised ev
 - **Process defects:** 0 unresolved; the full lifecycle was executed rather than inferred from generated rows
 - **Fixed during run:** SSH remote-command quoting; multi-tool project-evidence aggregation; resize-sensitive terminal fixture; captured shell-hook sanitization; remote Vim cwd; tagged SSH/TCP initialize replay; valid DAP response fixture; semantic resize oracle; pre-open direnv authorization; reuse-safe cleanup ancestry
 - **Confidence-only rows:** 0
-- **Weak rows:** 0
-- **Low-yield assessment:** `high_confidence`
+- **Weak rows:** 2 reopened (`ACP-JOURNEY-002`, `ACP-ASSEMBLED-019`)
+- **Low-yield assessment:** `readiness_withdrawn_pending_exhaustive_picker_uat`
 - **New information learned:**
   - the bundled and uploaded `658ad7c7` remote server advertises and executes both secure environment capabilities;
   - the real SSH PTY consumes a no-echo frame before shell input and preserves cwd, directory/terminal/task environment, stdin, resize, Ctrl-C, and cancellation semantics;
@@ -171,7 +191,9 @@ The branch's product change addresses the original incident generator rather tha
 - **Other forwarded services:** local forward connectability is not remote service readiness. Callers that attach a protocol immediately after establishing a tunnel need a service-level readiness or stability oracle.
 - **Sibling environment consumers:** context, DAP, Vim shell, terminal, task, and exec-in-shell were all inventoried because repairing only ACP would leave the same privacy generator elsewhere.
 
-No additional unfixed blind spot warrants a new row in this release plan. These extrapolations now have executable regressions or installed-journey coverage in the existing rows.
+The newly identified selectable-variant blind spot is now represented inside
+`ACP-JOURNEY-002`; it does not need a second duplicate row. Other extrapolations
+retain executable regressions or installed-journey coverage in the existing rows.
 
 ## Process Recommendations
 
@@ -179,6 +201,7 @@ No additional unfixed blind spot warrants a new row in this release plan. These 
 2. For every security-sensitive cross-process channel, test both the product protocol and the test harness's real OS transport boundary.
 3. Treat semantic evidence as an invariant over completed observations, not a transcript-shape snapshot.
 4. Continue requiring assembled Mac-local and Mac→Intrepid journeys before private release acceptance; component and marker-only tests cannot substitute.
+5. Treat every independently selectable advertised variant as coverage debt until it has route evidence and direct assembled-product evidence or a mechanically proven equivalence to a directly exercised assembled variant; a provider command or representative sibling is never an implicit substitute.
 
 ## Independent Critique
 
