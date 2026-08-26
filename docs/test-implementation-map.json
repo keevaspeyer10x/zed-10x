@@ -2,7 +2,7 @@
   "plannedRows": 19,
   "readyNowRows": 19,
   "implementedRows": 19,
-  "executedRows": 18,
+  "executedRows": 19,
   "remainingRows": 0,
   "unimplementedRows": [],
   "blockedRows": [],
@@ -137,7 +137,9 @@
           ]
         }
       ],
-      "runCommand": "node --test script/tests/zed-acp-live-canary.test.mjs script/tests/zed-agent-picker-uat.test.mjs && script/zed-agent-picker-uat.py for Mac-local and Intrepid"
+      "runCommand": "node --test script/tests/zed-acp-live-canary.test.mjs script/tests/zed-agent-picker-uat.test.mjs && script/zed-agent-picker-uat.py for Mac-local and Intrepid",
+      "evidencePath": "docs/test-results/advertised-agent-matrix.json",
+      "evidenceSha256": "05f46c394f6a5caac919970468cd62796f4249b1190180e9e9deb4735a7bc36d"
     },
     {
       "id": "ACP-ASSEMBLED-019",
@@ -194,7 +196,10 @@
           ]
         }
       ],
-      "runCommand": "computer-use the installed Zed 10x picker for the five declared representatives, then bind Zed logs and cleanup census"
+      "runCommand": "computer-use the installed Zed 10x picker for the five declared representatives, then bind Zed logs and cleanup census",
+      "evidenceLayer": "assembled_product",
+      "evidencePath": "docs/test-results/installed-picker-uat.json",
+      "evidenceSha256": "fdbc937d1ae6bc02a0f9398b0c907620976c0a590cfc54d315aba568f7eef3b3"
     },
     {
       "id": "ACP-NEG-003",

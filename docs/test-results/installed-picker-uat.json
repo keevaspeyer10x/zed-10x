@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-26T23:08:04Z",
+  "status": "passed",
+  "command": "computer-use the installed Zed 10x picker for the five declared representatives, then bind Zed logs and cleanup census",
+  "exitCode": 0,
+  "attempts": 1,
+  "installedProduct": {
+    "path": "/Applications/Zed 10x.app",
+    "bundleIdentifier": "ai.10xlabs.Zed10x",
+    "bundleVersion": "20260826.220642",
+    "sourceRevision": "33f618c43476eff685f2a17bb13a1a29c10ccc61",
+    "sourceTree": "82c594be13b0bdbcd7f163929caadba08cb2d494",
+    "runtimeSha256": "a95420426be3d442558b0a1e34e4aa2cf2a5d28c26e99a073079d2f1d5724491",
+    "codeSignatureVerified": true,
+    "publicNotarization": "not_applicable_private_build"
+  },
+  "inventories": {
+    "mac": {"expected": 14, "observed": 14, "hostLabelsConsistent": true},
+    "intrepid": {"expected": 18, "observed": 18, "hostLabelsConsistent": true}
+  },
+  "sentinels": {
+    "macSha256": "d782b5c0b19f0336f5d0bdcf80e8d875b3894e4e4e2269736edaa1d9a78297b7",
+    "intrepidSha256": "fd6e191ca31259f9ef7b527a6007b23c0f3fe76857a7c32ff3939effa664eb66"
+  },
+  "executionClasses": [
+    {"class": "mac-custom", "selected": "Codex (Mac, primary)", "outcome": "passed_exact_project_read"},
+    {"class": "mac-registry", "selected": "Devin (Mac)", "outcome": "external_authentication_unavailable", "sameClassGreenControl": "Grok Build (Mac) passed exact project read"},
+    {"class": "intrepid-local", "selected": "GLM (Intrepid)", "outcome": "passed_exact_project_read"},
+    {"class": "intrepid-persistent", "selected": "Codex (Intrepid, secondary)", "outcome": "passed_exact_project_read"},
+    {"class": "intrepid-registry", "selected": "Devin (Intrepid)", "outcome": "passed_exact_project_read", "sameClassGreenControls": ["Grok Build (Intrepid)", "Codex (Intrepid)"]}
+  ],
+  "productErrorClassesObserved": {
+    "exit127": 0,
+    "exit0AsFailure": 0,
+    "incomingTransportClosed": 0,
+    "missingRegistration": 0,
+    "wrongProjectRead": 0
+  },
+  "cleanup": {
+    "appRuntimeGone": true,
+    "exactRemoteServerGone": true,
+    "directCanaryProcessGroupsGone": true,
+    "ownedLegacyUatPtyGroupsTerminated": [2920841, 2920843],
+    "durableSessionHosts": "excluded_by_contract_sessions_survive_client_disconnect"
+  },
+  "remoteServerArtifacts": {
+    "linuxAarch64Sha256": "72608fa5336999f89f276acef9f4620ca9dbb88f670e190a3e5ac9b82a0824f2",
+    "macAarch64Sha256": "4513a28415aa63b61aa6e39f6c8c412b1332f02bf004aedf99b8a237242d0385",
+    "linuxX8664Sha256": "783c3d3e5787bbee327882a2da6cd60147f9c85e388fc68f630911319c2ea2a9"
+  },
+  "settingsSha256": "8035a23520a88d8fde332cec7d47f4ac9d14c895bacbc2954be0201e213b77d9",
+  "logSha256AfterQuit": "32f698bd80abff690332c7a0332a1992ecd37ba39c320fe3876ec6df6e8f5106",
+  "permissionsApproved": 0,
+  "sourceOrProjectMutation": false,
+  "promptOrResponseContentRetained": false
+}

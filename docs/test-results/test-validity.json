@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "status": "pending_route_and_assembled_picker_matrix",
+  "status": "valid",
   "flakyCriticalTests": [],
   "invalidTestsRemaining": [],
   "testHarnessDefects": [
@@ -16,8 +16,8 @@
       "id": "HARNESS-ACP-SPLIT-TOOL-EVIDENCE",
       "category": "test_bug",
       "symptom": "The live ACP canary required cwd and sentinel digest in one completed tool call even though real agents may establish them across multiple completed calls.",
-      "fix": "Evaluate the union of completed tool evidence while retaining the withheld digest and marker-only rejection.",
-      "regression": "project evidence may be established across multiple completed tool calls",
+      "fix": "Decouple successful project reads from one provider transcript shape, then require the exact sentinel path and observed file bytes in one completed read operation or an exact project-confined ACP client read.",
+      "regression": "exact project-file evidence passes without requiring a provider-computed digest, while unrelated split calls remain non-green",
       "status": "fixed"
     },
     {
@@ -59,6 +59,14 @@
       "fix": "Exclude only exact ancestor (PID,start-time) identities, recheck every scanned identity around cmdline access, and continue to report matching sibling and descendant processes.",
       "regression": "Linux procfs fixture excludes observer ancestry, reports the exact live matching sibling PID, then cleans that sibling up",
       "status": "fixed"
+    },
+    {
+      "id": "HARNESS-ACP-PROMPT-ORACLE-LEAK",
+      "category": "test_bug",
+      "symptom": "The standalone ACP canary exposed the expected digest in its prompt and could accept transcript-shaped evidence without proving that the project sentinel was read.",
+      "fix": "Keep expected sentinel bytes and digest oracle-side; accept only one completed read that binds the exact sentinel path to its observed bytes, or an exact project-confined ACP client read. Refuse every permission request.",
+      "regression": "prompt echo and unrelated split calls fail; exact sentinel path plus actual content passes; permission requests approve nothing",
+      "status": "fixed"
     }
   ],
   "coverageClosureDefects": [
@@ -68,7 +76,7 @@
       "symptom": "One Mac route and one Intrepid route were treated as representative of 14 and 18 independently selectable picker entries.",
       "fix": "Enumerate every selectable entry, bind the inventory to its canonical manifest, run each once, and require exact revision/input evidence before production readiness.",
       "regression": "shared coverage validator plus the Zed every-entry matrix",
-      "status": "deterministic_green_installed_matrix_pending"
+      "status": "fixed_and_executed"
     },
     {
       "id": "PLAN-DIRECT-PROVIDER-ASSEMBLED-IMPERSONATION",
@@ -76,7 +84,7 @@
       "symptom": "A direct ACP client could pass while the installed Zed picker, launch wrapper or session/new boundary failed.",
       "fix": "Require assembled_product evidence for direct variant cells, exercise one installed-app representative of each stable execution class, and retain exact route evidence for every advertised entry.",
       "regression": "shared validator rejects provider-only direct cells; Zed plan separates exhaustive route matrix from five-class installed picker UAT",
-      "status": "deterministic_green_installed_uat_pending"
+      "status": "fixed_and_executed"
     }
   ],
   "negativeControl": {
@@ -90,5 +98,17 @@
     "multimindsAudit": "invalid_zero_of_nine_after_outer_timeout",
     "usedAsAcceptanceEvidence": false,
     "independentExactDiffReview": "required_on_the_final_exact_candidate_before_merge"
+  },
+  "executionEvidence": {
+    "advertisedRouteMatrix": {
+      "path": "docs/test-results/advertised-agent-matrix.json",
+      "sha256": "05f46c394f6a5caac919970468cd62796f4249b1190180e9e9deb4735a7bc36d",
+      "status": "passed"
+    },
+    "installedPickerJourney": {
+      "path": "docs/test-results/installed-picker-uat.json",
+      "sha256": "fdbc937d1ae6bc02a0f9398b0c907620976c0a590cfc54d315aba568f7eef3b3",
+      "status": "passed"
+    }
   }
 }

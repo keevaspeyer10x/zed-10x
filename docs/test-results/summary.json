@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-24T06:02:32+10:00",
-  "decisionCandidate": "uat_pending",
+  "generatedAt": "2026-08-27T09:16:59+10:00",
+  "decisionCandidate": "production_ready",
   "plannedRows": 19,
   "implementedRows": 19,
-  "executedRows": 17,
+  "executedRows": 19,
   "remainingPlannedRows": 0,
   "requirements": {
     "total": 8,
@@ -15,7 +15,7 @@
     "untested": 0
   },
   "uat": {
-    "status": "pending",
+    "status": "complete",
     "personas": [
       "Mac-local Zed 10x user",
       "Mac-to-Intrepid remote-project user"
@@ -33,7 +33,11 @@
       "exercise every advertised ACP route directly and launch one installed-picker representative for each of five production execution classes"
     ],
     "unacceptableFriction": [],
-    "evidencePath": "docs/test-results/installed-uat.json"
+    "evidencePath": "docs/test-results/installed-picker-uat.json",
+    "evidencePaths": [
+      "docs/test-results/advertised-agent-matrix.json",
+      "docs/test-results/installed-picker-uat.json"
+    ]
   },
   "observability": {
     "status": "passed",
@@ -105,7 +109,7 @@
     "highOrCriticalFindings": []
   },
   "defectDiscovery": {
-    "bugsFound": 13,
+    "bugsFound": 14,
     "productDefects": [
       "Remote external-agent inventory relied on a fixed startup delay instead of receiver-driven snapshot and reconnect ordering.",
       "Captured directory environments replayed PROMPT_COMMAND without its non-exported shell function, producing an immediate broken prompt.",
@@ -114,12 +118,13 @@
     ],
     "testHarnessDefects": [
       "Live TCP port allocation sent python -c source to SSH without one remote-shell quoting boundary.",
-      "ACP project evidence was incorrectly required to coexist in one tool call instead of the union of completed calls.",
+      "ACP project evidence was initially coupled to one provider transcript shape; an interim union-based correction was later found capable of accepting unrelated prompt-shaped fragments.",
       "The terminal UAT fixture returned from signal.pause after SIGWINCH instead of remaining alive for Ctrl-C.",
       "The fake TCP adapter emitted an invalid empty ThreadsResponse.",
       "The terminal resize oracle compared only the first and last widths instead of requiring distinct observed widths.",
       "The synthetic directory environment was authorized after project open, so Zed had already cached the pre-authorization environment.",
-      "The cleanup census matched its own remote observer ancestors because their argv contained the fixture path."
+      "The cleanup census matched its own remote observer ancestors because their argv contained the fixture path.",
+      "The standalone ACP canary required an agent-computed digest and cwd transcript instead of proving the exact sentinel path and observed file bytes."
     ],
     "infraOrToolingDefects": [],
     "processDefects": [
@@ -130,7 +135,7 @@
     "fixedDuringRun": [
       "Replaced fixed-delay external-agent inventory with request/response snapshots, rejoin refresh, and stale-response suppression.",
       "Added a RED SSH argv-shape regression and one shell-quoted remote command.",
-      "Added a RED split-tool-evidence fixture and unioned only completed tool evidence.",
+      "Replaced transcript-shape evidence with an exact same-call sentinel path plus observed file bytes, or an exact project-confined ACP client read; prompt echo and unrelated split calls remain non-green.",
       "Kept the terminal fixture alive across resize until the intended interrupt.",
       "Removed captured PROMPT_COMMAND before explicit terminal or task settings are applied.",
       "Anchored remote Vim shell execution to the opened project directory.",
@@ -140,21 +145,21 @@
       "Authorized the exact synthetic direnv before opening the installed app.",
       "Excluded only the observer's reuse-safe ancestor identities from cleanup census while retaining sibling/descendant residue detection.",
       "Retained marker-only, prompt-echo, permission, timeout, and cleanup negatives.",
-      "Separated every-route protocol evidence from installed assembled-product picker evidence and required one direct representative per stable execution class."
+      "Separated every-route protocol evidence from installed assembled-product picker evidence and required one direct representative per stable execution class.",
+      "Replaced the prompt-visible digest contract with exact same-call path plus observed sentinel-content proof or a project-confined ACP client read; prompt echo and unrelated split calls remain non-green."
     ],
     "confidenceOnlyRows": [],
-    "weakRows": [
-      "ACP-JOURNEY-002",
-      "ACP-ASSEMBLED-019"
-    ],
+    "weakRows": [],
     "newInformationSummary": [
       "The installed 658ad7c7 remote server advertises both secure environment capabilities and passes real noninteractive, PTY, and TCP journeys.",
       "Zed 10x opens the populated Intrepid checkout and terminal/task processes inherit exact cwd, directory/surface environment, input, resize, interrupt, and cleanup behavior.",
       "Installed Vim, MCP, DAP stdio, and DAP TCP journeys run from the real project and complete their actual protocol or editor behavior.",
-      "Real ACP agents may establish cwd and digest through different completed tool calls.",
-      "Codex Mac primary and Intrepid GLM each complete a withheld-oracle project read with no approved permission request."
+      "Provider transcripts vary, so project-read authority is now the exact resource and observed bytes within one authoritative operation rather than any particular explanatory transcript.",
+      "Codex Mac primary and Intrepid GLM each complete a withheld-oracle project read with no approved permission request.",
+      "The installed Mac and Intrepid pickers expose exactly 14 and 18 consistently host-labelled routes, respectively.",
+      "All five production launch classes traversed the installed picker; four completed exact project reads and the Mac Devin representative stopped only on external authentication, with a same-class green registry control."
     ],
-    "lowYieldAssessment": "readiness_withdrawn_pending_route_and_assembled_uat",
+    "lowYieldAssessment": "coverage_sufficient_after_full_variant_and_assembled_uat",
     "residualRisk": [
       "Public notarized distribution is intentionally out of scope; the installed private app uses a verified ad-hoc signature.",
       "The exact merged commit still requires a fresh post-merge bundle/install and focused repeat canary; the current installed binary identifies the pre-merge candidate."
@@ -176,36 +181,40 @@
     },
     {
       "id": "ACP-JOURNEY-002",
-      "status": "pending",
-      "command": "script/zed-agent-picker-uat.py for all 14 Mac-local and 18 Intrepid entries",
-      "evidencePath": null,
-      "evidenceStrength": "pending",
+      "status": "passed",
+      "command": "node --test script/tests/zed-acp-live-canary.test.mjs script/tests/zed-agent-picker-uat.test.mjs && script/zed-agent-picker-uat.py for Mac-local and Intrepid",
+      "evidencePath": "docs/test-results/advertised-agent-matrix.json",
+      "evidenceStrength": "direct",
       "resourceLocks": [
         "ai-provider",
         "remote-intrepid"
       ],
-      "attempts": 0,
-      "failureCategory": "coverage_gap_reopened",
-      "defectMateriality": "representative routes did not cover independently selectable picker entries",
-      "cleanupStatus": "pending",
-      "newInformation": "The picker exposes independently failing package, runtime, authentication, host, and protocol variants; sibling success is not equivalent evidence."
+      "attempts": 1,
+      "failureCategory": null,
+      "defectMateriality": "every advertised route was invoked and classified without a product failure",
+      "cleanupStatus": "passed",
+      "newInformation": "All 14 Mac and 18 Intrepid entries reached a project-bound result, a safely refused interaction, or an explicit external-readiness classification; the sole transient route mismatch passed on exact rerun.",
+      "evidenceSha256": "05f46c394f6a5caac919970468cd62796f4249b1190180e9e9deb4735a7bc36d",
+      "exitCode": 0
     },
     {
       "id": "ACP-ASSEMBLED-019",
-      "status": "pending",
-      "command": "installed Zed 10x picker/session journey for five production execution-class representatives",
-      "evidencePath": null,
-      "evidenceStrength": "pending",
+      "status": "passed",
+      "command": "computer-use the installed Zed 10x picker for the five declared representatives, then bind Zed logs and cleanup census",
+      "evidencePath": "docs/test-results/installed-picker-uat.json",
+      "evidenceStrength": "direct",
       "resourceLocks": [
         "installed-zed-10x",
         "ai-provider",
         "remote-intrepid"
       ],
-      "attempts": 0,
-      "failureCategory": "assembled_product_gap_reopened",
-      "defectMateriality": "direct ACP protocol execution did not traverse the installed picker, Zed launch wrapper or session/new boundary",
-      "cleanupStatus": "pending",
-      "newInformation": "The picker has five distinct production launch implementations; each needs direct installed-app evidence before siblings can rely on mechanical equivalence."
+      "attempts": 1,
+      "failureCategory": null,
+      "defectMateriality": "all five production launch classes traversed the installed app; Devin Mac stopped only on external authentication",
+      "cleanupStatus": "passed",
+      "newInformation": "The installed 14/18 host-labelled pickers launched Mac custom/registry and Intrepid local/persistent/registry classes against real project bytes without product-origin errors.",
+      "evidenceSha256": "fdbc937d1ae6bc02a0f9398b0c907620976c0a590cfc54d315aba568f7eef3b3",
+      "exitCode": 0
     },
     {
       "id": "ACP-NEG-003",
@@ -429,5 +438,14 @@
       "cleanupStatus": "passed",
       "newInformation": "The installed app carries the matching Linux remote server and opens the populated Intrepid project."
     }
-  ]
+  ],
+  "evidenceBinding": {
+    "testedRevision": "c366ecfec4f19768e42e75597d212a15e9f02022",
+    "loadBearingInputs": [
+      {
+        "path": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
+        "sha256": "ea95295eb071047c68b88c80c89b7162b35d1941f7cc1ee5ad60e3ab50ad3334"
+      }
+    ]
+  }
 }

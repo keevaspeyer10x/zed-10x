@@ -1,10 +1,10 @@
 # Test Plan Analysis — Root Cause Report
 
-> **Date:** 2026-08-24
-> **Test run:** reopened; 17 of 19 rows retain valid evidence and the exhaustive route plus assembled-picker rows are pending
-> **Analysis method:** DACI-RP over seven test-harness defects and four assembled-product defects discovered and fixed during deterministic and live execution
+> **Date:** 2026-08-27
+> **Test run:** complete; all 19 rows have passing, executed, digest-bound evidence
+> **Analysis method:** DACI-RP over eight test-harness defects, four assembled-product defects, and two process defects discovered and fixed during deterministic and live execution
 
-## Reopened readiness disposition
+## Final readiness disposition
 
 The earlier production-ready conclusion was too strong. `ACP-JOURNEY-002`
 sampled one successful Mac route and one successful Intrepid route even though
@@ -20,9 +20,13 @@ the canonical managed-agent manifest, executes every advertised route once,
 and separates explicit external readiness from product-origin failure. It also
 requires the installed picker and `session/new` journey for one representative
 of each stable production launch class before mechanically equivalent siblings
-can count. The deterministic matrix and custom/registry resolver tests are green.
-Production readiness remains withdrawn until exact route and assembled-app
-evidence is sealed against the final revision and load-bearing inputs.
+can count. The installed Mac and Intrepid pickers exposed exactly 14 and 18
+host-labelled routes. All five production execution classes traversed the
+installed product; external authentication refusal was classified separately
+and a same-class registry control passed. The exact route and assembled-product
+receipts are sealed against tested revision `c366ecfec4f19768e42e75597d212a15e9f02022`
+and its load-bearing inventory. The decision candidate is production-ready,
+subject to exact-head review, protected CI, and a post-merge rebuild/canary.
 
 ## Historical analysis retained from the prior run
 
@@ -30,23 +34,25 @@ The prior lifecycle exercised every changed assembled-product surface category t
 
 ## Defect Discovery Value
 
-- **Bugs found:** 11 product or harness defects, plus one earlier process defect
+- **Bugs found:** 14: four product, eight harness, and two process defects
 - **Product defects:** 4, all fixed and re-run through the installed app
-- **Test harness defects:** 7, all fixed before accepting the UAT
+- **Test harness defects:** 8, all fixed before accepting the UAT
 - **Infra/tooling defects:** 0
-- **Process defects:** 0 unresolved; the full lifecycle was executed rather than inferred from generated rows
-- **Fixed during run:** SSH remote-command quoting; multi-tool project-evidence aggregation; resize-sensitive terminal fixture; captured shell-hook sanitization; remote Vim cwd; tagged SSH/TCP initialize replay; valid DAP response fixture; semantic resize oracle; pre-open direnv authorization; reuse-safe cleanup ancestry
+- **Process defects:** 2, both fixed: representative routes no longer stand in for selectable variants, and direct protocol calls no longer stand in for the assembled picker/session boundary
+- **Fixed during run:** SSH remote-command quoting; project-read oracle hardening; resize-sensitive terminal fixture; captured shell-hook sanitization; remote Vim cwd; tagged SSH/TCP initialize replay; valid DAP response fixture; semantic resize oracle; pre-open direnv authorization; reuse-safe cleanup ancestry; exhaustive advertised-route execution; assembled picker execution-class coverage
 - **Confidence-only rows:** 0
-- **Weak rows:** 2 reopened (`ACP-JOURNEY-002`, `ACP-ASSEMBLED-019`)
-- **Low-yield assessment:** `readiness_withdrawn_pending_exhaustive_picker_uat`
+- **Weak rows:** 0
+- **Low-yield assessment:** `coverage_sufficient_after_full_variant_and_assembled_uat`
 - **New information learned:**
   - the bundled and uploaded `658ad7c7` remote server advertises and executes both secure environment capabilities;
   - the real SSH PTY consumes a no-echo frame before shell input and preserves cwd, directory/terminal/task environment, stdin, resize, Ctrl-C, and cancellation semantics;
   - the installed Vim filter runs in the real project cwd and transforms selected text;
   - the installed MCP context server completes initialize, initialized notification, and tools/list;
   - the installed stdio and TCP debug adapters complete their real request sequences, and TCP classifies a delayed true reset, opens a second connection, and replays initialize exactly once;
-  - real ACP agents may establish cwd and the sentinel digest in separate completed tool calls;
-  - Codex Mac primary and Intrepid GLM can each read a withheld project sentinel and terminate cleanly with zero approved permissions.
+  - a prompt-visible digest or a union of unrelated transcript fragments is not proof of a project read; the final oracle keeps expected bytes private and binds exact path to observed content in one completed read, or uses an exact project-confined ACP client read;
+  - the installed Mac and Intrepid pickers expose exactly 14 and 18 host-labelled routes;
+  - every advertised route was invoked and classified, and all five stable launch classes crossed the installed picker/session boundary;
+  - Codex Mac primary, Intrepid GLM, Intrepid Codex secondary, Intrepid Grok Build, and Intrepid Devin completed exact project-bound controls; the Mac Devin representative stopped only on external authentication.
 - **Residual risk:**
   - public notarization is intentionally out of scope for this private installation;
   - post-merge acceptance must rebuild/install the exact merged commit and repeat the remote open plus focused canaries.
@@ -59,6 +65,8 @@ Evidence is sealed in:
 - `docs/test-results/remote-environment-live-canary.json`
 - `docs/test-results/acp-route-codex-mac-primary.json`
 - `docs/test-results/acp-route-intrepid-glm.json`
+- `docs/test-results/advertised-agent-matrix.json`
+- `docs/test-results/installed-picker-uat.json`
 
 ## Root Cause Clusters
 
@@ -77,20 +85,20 @@ Evidence is sealed in:
 - **Fix:** create one shell-quoted `/usr/bin/python3 -c …` command string and pass it as the sole post-host SSH argument.
 - **Verification:** the new `remote port allocation sends one shell-quoted command to SSH` regression is RED on the former shape; 25/25 changed Node contracts pass; the live TCP receipt validates forwarded request/response hashes and cleanup.
 
-### Cluster 2: The project oracle was coupled to one tool-call shape
+### Cluster 2: The project oracle confused transcript shape with project access
 
 - **Affected row:** `ACP-JOURNEY-002`
 - **Category:** test bug
 - **Severity:** high test-validity impact; no product defect
-- **Symptom:** Intrepid GLM completed tool work but was rejected because cwd and sentinel digest did not appear in the same completed tool call.
+- **Symptom:** the first canary rejected legitimate provider behavior because cwd and digest did not share one call; its interim union-based correction then admitted a false-green shape because the expected digest was prompt-visible and unrelated calls could be combined.
 - **5-Why chain:**
   1. A real agent started project tools but the canary reported `project_evidence_mismatch`.
-  2. The canary evaluated each completed call independently.
-  3. Agents legitimately use separate calls to inspect cwd and hash/read the sentinel.
-  4. The test encoded one fixture's transcript shape as the user-visible contract.
-  5. The prior fixture had only a single combined evidence call, so the overconstraint stayed invisible.
-- **Fix:** evaluate the union of content-free evidence from completed tool calls while preserving all hard oracles: withheld digest, exact cwd, at least one completed tool call, terminal marker, zero approved permissions, and process-group cleanup.
-- **Verification:** the new `split-evidence` fixture is RED on the former implementation; marker-only, prompt-echo, wrong-cwd, permission, auth, capacity, and timeout negatives remain green; the live Intrepid GLM run now passes.
+  2. The canary encoded one fixture's transcript shape rather than the user-visible filesystem-read outcome.
+  3. The first correction unioned transcript fragments but left the expected digest visible in the prompt.
+  4. A fixture could therefore echo or recombine expected values without reading the project file.
+  5. The tests checked protocol-shaped text, not whether one read operation bound the exact project path to the actual sentinel bytes.
+- **Fix:** keep expected sentinel bytes and digest oracle-side. Pass only when one completed tool call names the exact sentinel path and returns its actual bytes, or when an exact project-confined ACP client read supplies the same content. Refuse all permission requests and retain terminal-marker and cleanup requirements.
+- **Verification:** prompt-echo, marker-only, wrong-project, unrelated split-call, permission, auth, capacity, and timeout fixtures remain non-green; the pass fixture actually reads `session_cwd/sentinel.txt`; installed picker representatives read exact local and remote project bytes.
 
 ### Cluster 3: The terminal fixture treated one signal wait as the process lifecycle
 
@@ -172,6 +180,26 @@ Evidence is sealed in:
 - **Fix:** exclude only the observer's exact `(PID, start-time)` ancestor identities, and re-read each scanned process identity around its command line to reject PID reuse; continue reporting any matching sibling or descendant identity.
 - **Verification:** the Linux procfs regression keeps a matching sibling process alive, reports that exact sibling PID while excluding the observer ancestry, terminates the sibling, and exits green. The final installed verification reports an empty process-residue set.
 
+### Cluster 11: Selectable variants were collapsed into representative routes
+
+- **Affected row:** `ACP-JOURNEY-002`
+- **Category:** process bug
+- **Severity:** release-blocking coverage gap
+- **Symptom:** one passing Mac route and one passing Intrepid route were treated as coverage for 14 and 18 independently selectable picker entries whose executable, host, package, authentication, and protocol paths can differ.
+- **Generator:** the plan described the journey at the feature level but did not close the inventory of user-selectable variants against executed evidence.
+- **Fix:** bind the picker inventory to the canonical managed-agent manifest, invoke every advertised entry once without replay, and classify product failures separately from external authentication, capacity, or permission outcomes.
+- **Verification:** the sealed route matrix covers exactly 14 Mac and 18 Intrepid entries; omission, staleness, manifest drift, duplicate invocation, and product-origin failure are deterministic negatives.
+
+### Cluster 12: Direct provider calls impersonated the assembled product boundary
+
+- **Affected row:** `ACP-ASSEMBLED-019`
+- **Category:** process bug
+- **Severity:** release-blocking assembled-system gap
+- **Symptom:** a direct ACP client could pass while the installed picker, host projection, launch wrapper, `session/new` call, or Zed-side protocol handling failed.
+- **Generator:** protocol-level evidence was accepted as if it traversed the external client's assembled user journey.
+- **Fix:** require installed-app evidence for one representative of each mechanically distinct production launch class, while retaining per-route direct evidence for every advertised entry.
+- **Verification:** Mac custom, Mac registry, Intrepid local custom, Intrepid persistent, and Intrepid registry classes all crossed the installed picker/session boundary against real project bytes. The standalone official Mac Codex canary mismatch is retained honestly and cannot override the installed-product pass.
+
 ## Product Root Cause Disposition
 
 The branch's product change addresses the original incident generator rather than either harness symptom. Environment-bearing remote consumers previously allowed caller values to be serialized into local SSH process argv, and the interactive path lacked a private readiness state before writing a frame to a PTY. The correction makes generic environment-bearing builders fail closed and routes supported consumers through versioned stdin framing; PTY consumers use an explicit no-echo readiness/complete handshake. Unit and live evidence cover ACP, terminals, tasks, shell execution, context stdio, DAP stdio/TCP, platform refusal, package identity, privacy, and cleanup.
@@ -186,7 +214,7 @@ The branch's product change addresses the original incident generator rather tha
 ## Blind-Spot Extrapolation
 
 - **Other remote-shell harnesses:** any test that passes structured source or JSON as multiple SSH arguments can reproduce Cluster 1. The regression asserts the concrete safe boundary, and the product tests separately assert no environment values enter generated argv/debug/error text.
-- **Other semantic agent oracles:** requiring related evidence to appear in a single message/tool call can reject correct multi-step work or encourage fixtures that merely echo the expected shape. The canary now aggregates only completed evidence while keeping the digest absent from the prompt.
+- **Other semantic agent oracles:** transcript fields are not outcome evidence. Withhold expected values, bind the real resource and observed result inside one authoritative operation, and keep marker-only, prompt-echo, and unrelated split evidence non-green.
 - **Other captured shell environments:** startup hooks may reference functions, aliases, or files that are not represented by a flat environment map. Captured hook variables must not be replayed as if they were self-contained configuration.
 - **Other forwarded services:** local forward connectability is not remote service readiness. Callers that attach a protocol immediately after establishing a tunnel need a service-level readiness or stability oracle.
 - **Sibling environment consumers:** context, DAP, Vim shell, terminal, task, and exec-in-shell were all inventoried because repairing only ACP would leave the same privacy generator elsewhere.

@@ -64,51 +64,53 @@
       "remainingEvidence": "none"
     },
     "4-execution": {
-      "status": "in_progress",
+      "status": "complete",
       "plannedRows": 19,
-      "executedRows": 17,
-      "passedRows": 17,
+      "executedRows": 19,
+      "passedRows": 19,
       "failedRows": 0,
       "blockedRows": 0,
       "skippedRows": 0,
-      "pendingRows": 2,
+      "pendingRows": 0,
       "evidence": [
         "docs/test-results/deterministic-suite.json",
         "docs/test-results/installed-uat.json",
         "docs/test-results/remote-environment-live-canary.json",
         "docs/test-results/acp-route-codex-mac-primary.json",
         "docs/test-results/acp-route-intrepid-glm.json",
-        "docs/test-results/acp-route-claude-mac-primary-negative.json"
+        "docs/test-results/acp-route-claude-mac-primary-negative.json",
+        "docs/test-results/advertised-agent-matrix.json",
+        "docs/test-results/installed-picker-uat.json"
       ],
-      "summary": "Seventeen rows retain valid direct evidence. ACP-JOURNEY-002 is reopened because its representative-route evidence did not cover the independently selectable 14-entry Mac and 18-entry Intrepid picker inventories. ACP-ASSEMBLED-019 prevents the direct protocol matrix from impersonating the installed Zed picker/session journey. The matrix, execution-class inventory and registry/custom resolver are deterministic-green; exact route and assembled-app host runs remain pending."
+      "summary": "All 19 rows have direct, executed evidence. ACP-JOURNEY-002 binds every independently selectable route in the exact 14-entry Mac and 18-entry Intrepid inventories. ACP-ASSEMBLED-019 separately binds the installed picker and session/new boundary for all five production execution classes. External authentication or permission refusal remains an explicit route classification rather than a product-origin failure, and cleanup is green."
     },
     "5-analysis": {
-      "status": "pending",
+      "status": "complete",
       "artifact": "docs/TEST_PLAN_ANALYSIS.md",
       "summaryArtifact": "docs/test-results/summary.json",
       "testValidityArtifact": "docs/test-results/test-validity.json",
-      "decisionCandidate": "uat_pending",
-      "rootCauseClusters": 10,
+      "decisionCandidate": "production_ready",
+      "rootCauseClusters": 12,
       "unresolvedFindings": 0,
-      "summary": "Prior analysis is retained as historical evidence. Final analysis must bind the exact tested revision and load-bearing picker inventory after every advertised Mac-local and Intrepid entry has route-level project evidence and every production launch class has installed-app picker/session evidence."
+      "summary": "The exact tested revision and load-bearing picker inventory are bound. Every advertised Mac-local and Intrepid entry has route-level evidence, every production launch class has installed-app picker/session evidence, and the stronger project-read oracle rejects prompt echo and unrelated split calls."
     },
     "6-tracking": {
-      "status": "pending",
+      "status": "complete",
       "issuesCreated": 0,
-      "reason": "Tracking and production disposition follow the reopened installed picker-matrix UAT and exact-candidate review."
+      "reason": "No unresolved product or test-plan defect remains to track from this lifecycle; public notarization and external provider-account readiness remain explicitly out of scope."
     }
   },
   "defectDiscovery": {
-    "bugsFound": 13,
+    "bugsFound": 14,
     "productDefects": 4,
-    "testHarnessDefects": 7,
+    "testHarnessDefects": 8,
     "infraOrToolingDefects": 0,
     "processDefects": 2,
     "fixedDuringRun": [
       "Replaced the one-second initial inventory push guess with a receiver-driven request/response snapshot, re-request on rejoin, and stale-response suppression.",
       "Promoted the project-aware ACP route oracle into tracked code with a withheld digest, fail-closed permissions, and deterministic false-green and cleanup tests.",
       "Corrected the live TCP canary to send Python source across SSH as one shell-quoted remote command and added a RED argv-shape regression.",
-      "Corrected the ACP canary to aggregate content-free project evidence across completed tool calls and added a RED split-evidence fixture.",
+      "Corrected the ACP canary to bind one exact sentinel path to observed file bytes, or an exact project-confined client read, and added prompt-echo plus unrelated split-evidence negatives.",
       "Kept the terminal UAT fixture alive across SIGWINCH until the intended Ctrl-C.",
       "Sanitized captured PROMPT_COMMAND while preserving explicit terminal and task overrides.",
       "Anchored remote Vim shell commands to the first opened project directory.",
@@ -117,7 +119,8 @@
       "Required two distinct observed terminal widths instead of comparing only the first and last samples.",
       "Authorized the exact synthetic direnv before project open.",
       "Excluded the cleanup observer's reuse-safe ancestors without hiding matching sibling or descendant residue.",
-      "Reopened representative picker-route acceptance and added exact selectable-variant plus revision/input evidence closure."
+      "Reopened representative picker-route acceptance and added exact selectable-variant plus revision/input evidence closure.",
+      "Withheld the sentinel digest and required one exact sentinel path plus observed file bytes in the same completed tool call, or an exact project-confined client read; prompt echo and unrelated split calls remain non-green."
     ],
     "knownDefects": [
       "Initial ExternalAgentsUpdated can arrive before client handler registration and is not replayed",
@@ -132,7 +135,8 @@
       "The terminal resize oracle compared only first and final widths",
       "The fixture directory environment was authorized after Zed cached it",
       "The remote cleanup census matched its own observer ancestry",
-      "Representative Mac and Intrepid ACP routes were accepted as coverage for independently selectable picker entries"
+      "Representative Mac and Intrepid ACP routes were accepted as coverage for independently selectable picker entries",
+      "The standalone canary exposed its expected digest and accepted transcript-shaped evidence that did not prove a real project-file read"
     ]
   },
   "coverageClosureVersion": 2
