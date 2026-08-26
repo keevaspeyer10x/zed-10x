@@ -282,6 +282,11 @@ fn local_execution_host_label() -> &'static str {
 }
 
 fn registry_agent_display_name(name: &str, execution_host: &str) -> SharedString {
+    let execution_host = match execution_host {
+        host if host.eq_ignore_ascii_case("intrepid") => "Intrepid",
+        host if host.eq_ignore_ascii_case("mac") || host.eq_ignore_ascii_case("macos") => "Mac",
+        host => host,
+    };
     format!("{name} ({execution_host})").into()
 }
 
@@ -2485,7 +2490,15 @@ mod tests {
     fn registry_display_name_identifies_remote_execution_host() {
         assert_eq!(
             registry_agent_display_name("Google Antigravity", "intrepid"),
-            SharedString::from("Google Antigravity (intrepid)")
+            SharedString::from("Google Antigravity (Intrepid)")
+        );
+        assert_eq!(
+            registry_agent_display_name("Codex", "macos"),
+            SharedString::from("Codex (Mac)")
+        );
+        assert_eq!(
+            registry_agent_display_name("Custom", "build-host"),
+            SharedString::from("Custom (build-host)")
         );
     }
 

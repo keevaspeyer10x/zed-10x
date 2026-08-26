@@ -93,7 +93,21 @@ test("project-aware ACP canary accepts a completed tool call with exact project 
   assert.equal(result.receipt.toolEvidenceMatched, true);
   assert.equal(result.receipt.terminalMarkerObserved, true);
   assert.equal(result.receipt.processGroupGone, true);
+  assert.equal(result.receipt.closeSessionSupported, true);
+  assert.equal(result.receipt.closeSessionCompleted, true);
   assert.equal(result.receipt.promptOrResponseContentRetained, false);
+});
+
+test("project-aware journey succeeds when the agent does not advertise session close", () => {
+  const result = runCanary("pass-without-close");
+  assert.equal(result.process.status, 0, result.process.stderr);
+  assert.equal(result.receipt.status, "pass");
+  assert.equal(result.receipt.toolCallCompleted, true);
+  assert.equal(result.receipt.toolEvidenceMatched, true);
+  assert.equal(result.receipt.terminalMarkerObserved, true);
+  assert.equal(result.receipt.closeSessionSupported, false);
+  assert.equal(result.receipt.closeSessionCompleted, false);
+  assert.equal(result.receipt.processGroupGone, true);
 });
 
 test("project evidence may be established across multiple completed tool calls", () => {

@@ -23,8 +23,9 @@ pub use settings::DirenvSettings;
 pub use settings::LspSettings;
 use settings::{
     DapSettingsContent, EditorconfigEvent, InvalidSettingsError, LocalSettingsKind,
-    LocalSettingsPath, RegisterSetting, SemanticTokenRules, Settings, SettingsLocation,
-    SettingsStore, parse_json_with_comments, watch_config_file,
+    LocalSettingsPath, PlatformOverrides, RegisterSetting, ReleaseChannelOverrides,
+    SemanticTokenRules, Settings, SettingsLocation, SettingsStore, parse_json_with_comments,
+    watch_config_file,
 };
 use std::{cell::OnceCell, collections::BTreeMap, path::PathBuf, sync::Arc, time::Duration};
 use task::{DebugTaskFile, TaskTemplates, VsCodeDebugTaskFile, VsCodeTaskFile};
@@ -1118,8 +1119,17 @@ impl SettingsObserver {
         cx: AsyncApp,
     ) -> anyhow::Result<()> {
         cx.update_global(|settings_store: &mut SettingsStore, cx| {
+            let execution_host_settings = settings_store
+                .raw_user_settings()
+                .map(serde_json::to_value)
+                .transpose()
+                .context("serializing execution-host user settings")?;
+            let contents = user_settings_for_execution_host(
+                &envelope.payload.contents,
+                execution_host_settings.as_ref(),
+            )?;
             settings_store
-                .set_user_settings(&envelope.payload.contents, cx)
+                .set_user_settings(&contents, cx)
                 .result()
                 .context("setting new user settings")?;
             anyhow::Ok(())
@@ -1576,6 +1586,147 @@ impl SettingsObserver {
     }
 }
 
+/// Synchronize user preferences without allowing the client machine to choose
+/// which external agents execute on the project host.
+///
+/// `agent_servers` can appear at the root, in platform/release-channel
+/// overrides, and inside profiles. Each of those settings containers remains
+/// owned by the execution host. Other settings continue to follow the client.
+fn user_settings_for_execution_host(
+    client_settings: &str,
+    execution_host_settings: Option<&serde_json::Value>,
+) -> anyhow::Result<String> {
+    fn object_mut<'a>(
+        value: &'a mut serde_json::Value,
+        context: &str,
+    ) -> anyhow::Result<&'a mut serde_json::Map<String, serde_json::Value>> {
+        value
+            .as_object_mut()
+            .with_context(|| format!("{context} must be a JSON object"))
+    }
+
+    fn synchronize_agent_servers(
+        client: &mut serde_json::Map<String, serde_json::Value>,
+        host: Option<&serde_json::Map<String, serde_json::Value>>,
+    ) {
+        if let Some(agent_servers) = host.and_then(|settings| settings.get("agent_servers")) {
+            client.insert("agent_servers".into(), agent_servers.clone());
+        } else {
+            client.remove("agent_servers");
+        }
+    }
+
+    let mut client: serde_json::Value =
+        serde_json::from_str(client_settings).context("parsing synchronized user settings")?;
+    let client_root = object_mut(&mut client, "synchronized user settings")?;
+    let host_root = execution_host_settings.and_then(serde_json::Value::as_object);
+
+    synchronize_agent_servers(client_root, host_root);
+
+    for scope in ReleaseChannelOverrides::OVERRIDE_KEYS
+        .iter()
+        .chain(PlatformOverrides::OVERRIDE_KEYS)
+        .copied()
+    {
+        let host_scope = host_root
+            .and_then(|settings| settings.get(scope))
+            .and_then(serde_json::Value::as_object);
+        let client_scope = client_root.get_mut(scope);
+        match (client_scope, host_scope) {
+            (Some(client_scope), host_scope) => {
+                let client_scope = object_mut(client_scope, scope)?;
+                synchronize_agent_servers(client_scope, host_scope);
+            }
+            (None, Some(host_scope)) if host_scope.contains_key("agent_servers") => {
+                client_root.insert(
+                    scope.into(),
+                    serde_json::json!({
+                        "agent_servers": host_scope["agent_servers"].clone()
+                    }),
+                );
+            }
+            (None, _) => {}
+        }
+    }
+
+    let host_profiles = host_root
+        .and_then(|settings| settings.get("profiles"))
+        .and_then(serde_json::Value::as_object);
+    if let Some(client_profiles) = client_root.get_mut("profiles") {
+        let client_profiles = object_mut(client_profiles, "profiles")?;
+
+        for (profile_name, client_profile) in client_profiles.iter_mut() {
+            let client_profile = object_mut(client_profile, "profile")?;
+            let host_profile = host_profiles
+                .and_then(|profiles| profiles.get(profile_name))
+                .and_then(serde_json::Value::as_object);
+            let host_profile_settings = host_profile
+                .and_then(|profile| profile.get("settings"))
+                .and_then(serde_json::Value::as_object);
+
+            if let Some(client_profile_settings) = client_profile.get_mut("settings") {
+                let client_profile_settings =
+                    object_mut(client_profile_settings, "profile settings")?;
+                synchronize_agent_servers(client_profile_settings, host_profile_settings);
+            } else if let Some(agent_servers) =
+                host_profile_settings.and_then(|settings| settings.get("agent_servers"))
+            {
+                client_profile.insert(
+                    "settings".into(),
+                    serde_json::json!({"agent_servers": agent_servers.clone()}),
+                );
+            }
+        }
+
+        if let Some(host_profiles) = host_profiles {
+            for (profile_name, host_profile) in host_profiles {
+                if client_profiles.contains_key(profile_name) {
+                    continue;
+                }
+                let Some(agent_servers) = host_profile
+                    .as_object()
+                    .and_then(|profile| profile.get("settings"))
+                    .and_then(serde_json::Value::as_object)
+                    .and_then(|settings| settings.get("agent_servers"))
+                else {
+                    continue;
+                };
+                client_profiles.insert(
+                    profile_name.clone(),
+                    serde_json::json!({
+                        "settings": {"agent_servers": agent_servers.clone()}
+                    }),
+                );
+            }
+        }
+    } else if let Some(host_profiles) = host_profiles {
+        let mut preserved_profiles = serde_json::Map::new();
+        for (profile_name, host_profile) in host_profiles {
+            let Some(agent_servers) = host_profile
+                .as_object()
+                .and_then(|profile| profile.get("settings"))
+                .and_then(serde_json::Value::as_object)
+                .and_then(|settings| settings.get("agent_servers"))
+            else {
+                continue;
+            };
+            preserved_profiles.insert(
+                profile_name.clone(),
+                serde_json::json!({
+                    "settings": {"agent_servers": agent_servers.clone()}
+                }),
+            );
+        }
+        if !preserved_profiles.is_empty() {
+            client_root.insert(
+                "profiles".into(),
+                serde_json::Value::Object(preserved_profiles),
+            );
+        }
+    }
+    serde_json::to_string(&client).context("serializing synchronized user settings")
+}
+
 fn apply_local_settings(
     worktree_id: WorktreeId,
     path: LocalSettingsPath,
@@ -1625,6 +1776,202 @@ pub fn local_settings_kind_to_proto(kind: LocalSettingsKind) -> proto::LocalSett
         LocalSettingsKind::Tasks => proto::LocalSettingsKind::Tasks,
         LocalSettingsKind::Editorconfig => proto::LocalSettingsKind::Editorconfig,
         LocalSettingsKind::Debug => proto::LocalSettingsKind::Debug,
+    }
+}
+
+#[cfg(test)]
+mod remote_user_settings_tests {
+    use super::user_settings_for_execution_host;
+    use serde_json::json;
+
+    #[test]
+    fn remote_execution_host_keeps_its_agent_inventory() {
+        let client_settings = json!({
+            "theme": "One Dark",
+            "agent_servers": {
+                "Claude Mac (primary)": {
+                    "command": "/Users/example/.local/bin/zed-acp-profile"
+                }
+            }
+        });
+        let host_settings = json!({
+            "theme": "Solarized Dark",
+            "agent_servers": {
+                "Claude Intrepid (primary)": {
+                    "command": "/home/example/.local/bin/zed-acp-session-attach"
+                }
+            }
+        });
+
+        let merged = user_settings_for_execution_host(
+            &serde_json::to_string(&client_settings).expect("client settings serialize"),
+            Some(&host_settings),
+        )
+        .expect("settings merge succeeds");
+        let merged: serde_json::Value =
+            serde_json::from_str(&merged).expect("merged settings parse");
+
+        assert_eq!(merged["theme"], "One Dark");
+        assert_eq!(merged["agent_servers"], host_settings["agent_servers"]);
+        assert!(
+            merged["agent_servers"]
+                .get("Claude Mac (primary)")
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn remote_execution_host_without_agents_rejects_client_agents() {
+        let client_settings = json!({
+            "agent_servers": {
+                "Codex Mac (work)": {
+                    "command": "/Users/example/.local/bin/zed-acp-profile"
+                }
+            },
+            "ui_font_size": 16
+        });
+        let host_settings = json!({"ui_font_size": 14});
+
+        let merged = user_settings_for_execution_host(
+            &serde_json::to_string(&client_settings).expect("client settings serialize"),
+            Some(&host_settings),
+        )
+        .expect("settings merge succeeds");
+        let merged: serde_json::Value =
+            serde_json::from_str(&merged).expect("merged settings parse");
+
+        assert_eq!(merged["ui_font_size"], 16);
+        assert!(merged.get("agent_servers").is_none());
+    }
+
+    #[test]
+    fn remote_execution_host_owns_agents_in_overrides_and_profiles() {
+        let client_settings = json!({
+            "linux": {
+                "agent_servers": {"Mac override": {"command": "mac-cli"}},
+                "ui_font_size": 16
+            },
+            "profiles": {
+                "Work": {
+                    "settings": {
+                        "agent_servers": {"Mac profile": {"command": "mac-cli"}},
+                        "buffer_font_size": 15
+                    }
+                },
+                "Client only": {
+                    "settings": {
+                        "agent_servers": {"Mac only": {"command": "mac-cli"}}
+                    }
+                }
+            }
+        });
+        let host_settings = json!({
+            "linux": {
+                "agent_servers": {"Intrepid override": {"command": "linux-cli"}}
+            },
+            "profiles": {
+                "Work": {
+                    "settings": {
+                        "agent_servers": {"Intrepid profile": {"command": "linux-cli"}}
+                    }
+                }
+            }
+        });
+
+        let merged = user_settings_for_execution_host(
+            &serde_json::to_string(&client_settings).expect("client settings serialize"),
+            Some(&host_settings),
+        )
+        .expect("settings merge succeeds");
+        let merged: serde_json::Value =
+            serde_json::from_str(&merged).expect("merged settings parse");
+
+        assert_eq!(merged["linux"]["ui_font_size"], 16);
+        assert_eq!(
+            merged["linux"]["agent_servers"],
+            host_settings["linux"]["agent_servers"]
+        );
+        assert_eq!(
+            merged["profiles"]["Work"]["settings"]["buffer_font_size"],
+            15
+        );
+        assert_eq!(
+            merged["profiles"]["Work"]["settings"]["agent_servers"],
+            host_settings["profiles"]["Work"]["settings"]["agent_servers"]
+        );
+        assert!(
+            merged["profiles"]["Client only"]["settings"]
+                .get("agent_servers")
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn remote_execution_host_restores_profile_agents_after_client_enables_profile() {
+        let initial_host_settings = json!({
+            "profiles": {
+                "Work": {
+                    "settings": {
+                        "agent_servers": {
+                            "Codex Intrepid": {"command": "intrepid-codex"}
+                        },
+                        "buffer_font_size": 13
+                    }
+                }
+            }
+        });
+        let first_client_update = json!({
+            "profiles": {
+                "Personal": {"settings": {"buffer_font_size": 14}}
+            }
+        });
+
+        let first_merge = user_settings_for_execution_host(
+            &serde_json::to_string(&first_client_update).expect("client settings serialize"),
+            Some(&initial_host_settings),
+        )
+        .expect("first settings merge succeeds");
+        let first_merge: serde_json::Value =
+            serde_json::from_str(&first_merge).expect("first merged settings parse");
+
+        assert_eq!(
+            first_merge["profiles"]["Work"]["settings"]["agent_servers"],
+            initial_host_settings["profiles"]["Work"]["settings"]["agent_servers"]
+        );
+        assert!(
+            first_merge["profiles"]["Work"]["settings"]
+                .get("buffer_font_size")
+                .is_none()
+        );
+
+        let second_client_update = json!({
+            "profiles": {
+                "Work": {
+                    "settings": {
+                        "agent_servers": {
+                            "Codex Mac": {"command": "mac-codex"}
+                        },
+                        "buffer_font_size": 16
+                    }
+                }
+            }
+        });
+        let second_merge = user_settings_for_execution_host(
+            &serde_json::to_string(&second_client_update).expect("client settings serialize"),
+            Some(&first_merge),
+        )
+        .expect("second settings merge succeeds");
+        let second_merge: serde_json::Value =
+            serde_json::from_str(&second_merge).expect("second merged settings parse");
+
+        assert_eq!(
+            second_merge["profiles"]["Work"]["settings"]["agent_servers"],
+            initial_host_settings["profiles"]["Work"]["settings"]["agent_servers"]
+        );
+        assert_eq!(
+            second_merge["profiles"]["Work"]["settings"]["buffer_font_size"],
+            16
+        );
     }
 }
 

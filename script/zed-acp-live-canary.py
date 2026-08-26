@@ -229,11 +229,11 @@ def load_command(args: argparse.Namespace) -> tuple[str, list[str], str]:
 def classify_error(message: str) -> str:
     lowered = message.casefold()
     rules = (
+        ("unsupported_route", r"method not found|unsupported|not supported|unknown model"),
         ("missing_executable", r"no such file|not found|exit (status: )?127"),
         ("authentication_expired", r"expired|token[^\n]*invalid"),
         ("authentication_required", r"auth|login|credential|unauthor"),
         ("capacity_or_rate_limit", r"capacity|rate.?limit|quota|overloaded|spend"),
-        ("unsupported_route", r"unsupported|not supported|unknown model"),
         ("permission_denied", r"permission|forbidden|denied"),
         ("timeout", r"timed? ?out|timeout|deadline"),
     )
@@ -384,6 +384,8 @@ class Journey:
         self.agent_text = ""
         self.tool_calls: dict[str, dict[str, Any]] = {}
         self.permission_requests = 0
+        self.close_session_supported = False
+        self.close_session_completed = False
 
     def observe(self, message: dict[str, Any]) -> None:
         if message.get("method") != "session/update":
@@ -427,8 +429,19 @@ class Journey:
     def run(self) -> dict[str, Any]:
         self.transport.send(INITIALIZE)
         initialized = self.await_response(0)
-        if initialized.get("result", {}).get("protocolVersion") != 1:
+        initialize_result = initialized.get("result", {})
+        if initialize_result.get("protocolVersion") != 1:
             raise CanaryFailure("unsupported_protocol")
+        agent_capabilities = initialize_result.get("agentCapabilities")
+        session_capabilities = (
+            agent_capabilities.get("sessionCapabilities")
+            if isinstance(agent_capabilities, dict)
+            else None
+        )
+        self.close_session_supported = (
+            isinstance(session_capabilities, dict)
+            and session_capabilities.get("close") is not None
+        )
 
         self.transport.send(
             {
@@ -494,15 +507,17 @@ class Journey:
         if self.marker not in self.agent_text:
             raise CanaryFailure("terminal_marker_missing")
 
-        self.transport.send(
-            {
-                "jsonrpc": "2.0",
-                "id": 3,
-                "method": "session/close",
-                "params": {"sessionId": session_id},
-            }
-        )
-        self.await_response(3)
+        if self.close_session_supported:
+            self.transport.send(
+                {
+                    "jsonrpc": "2.0",
+                    "id": 3,
+                    "method": "session/close",
+                    "params": {"sessionId": session_id},
+                }
+            )
+            self.await_response(3)
+            self.close_session_completed = True
         return {
             "toolCallStarted": bool(self.tool_calls),
             "toolCallCompleted": True,
@@ -511,6 +526,8 @@ class Journey:
             "stopReason": stop_reason,
             "permissionRequestsObserved": self.permission_requests,
             "permissionRequestsApproved": 0,
+            "closeSessionSupported": self.close_session_supported,
+            "closeSessionCompleted": self.close_session_completed,
         }
 
 
@@ -591,6 +608,14 @@ def main() -> int:
             "permissionRequestsObserved", journey.permission_requests if journey else 0
         ),
         "permissionRequestsApproved": journey_evidence.get("permissionRequestsApproved", 0),
+        "closeSessionSupported": journey_evidence.get(
+            "closeSessionSupported",
+            journey.close_session_supported if journey else False,
+        ),
+        "closeSessionCompleted": journey_evidence.get(
+            "closeSessionCompleted",
+            journey.close_session_completed if journey else False,
+        ),
         "stopReason": journey_evidence.get("stopReason"),
         "failureClass": failure_class,
         "promptOrResponseContentRetained": False,
