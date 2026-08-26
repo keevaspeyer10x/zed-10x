@@ -260,13 +260,35 @@ test("project-aware journey succeeds when the agent does not advertise session c
   assert.equal(result.receipt.processGroupGone, true);
 });
 
-test("project evidence may be established across multiple completed tool calls", () => {
+test("unrelated completed tool calls cannot be combined into project evidence", () => {
   const result = runCanary("split-evidence");
+  assert.equal(result.process.status, 1, result.process.stderr);
+  assert.equal(result.receipt.status, "failed");
+  assert.equal(result.receipt.toolCallCompleted, true);
+  assert.equal(result.receipt.toolEvidenceMatched, false);
+  assert.equal(result.receipt.terminalMarkerObserved, true);
+  assert.equal(result.receipt.failureClass, "project_evidence_mismatch");
+  assert.equal(result.receipt.processGroupGone, true);
+});
+
+test("ACP client read capability proves the real project without agent-supplied tool output", () => {
+  const result = runCanary("client-read");
   assert.equal(result.process.status, 0, result.process.stderr);
   assert.equal(result.receipt.status, "pass");
-  assert.equal(result.receipt.toolCallCompleted, true);
+  assert.equal(result.receipt.clientReadRequestCount, 1);
+  assert.equal(result.receipt.clientReadCompletedCount, 1);
+  assert.equal(result.receipt.clientReadSentinelMatched, true);
   assert.equal(result.receipt.toolEvidenceMatched, true);
   assert.equal(result.receipt.terminalMarkerObserved, true);
+});
+
+test("ACP client read capability refuses paths outside the test project", () => {
+  const result = runCanary("client-read-outside");
+  assert.equal(result.process.status, 1, result.process.stderr);
+  assert.equal(result.receipt.failureClass, "client_read_outside_project");
+  assert.equal(result.receipt.clientReadRequestCount, 1);
+  assert.equal(result.receipt.clientReadCompletedCount, 0);
+  assert.equal(result.receipt.clientReadSentinelMatched, false);
   assert.equal(result.receipt.processGroupGone, true);
 });
 
@@ -316,6 +338,7 @@ test("marker-only output cannot impersonate a project-aware journey", () => {
   assert.equal(result.process.status, 1);
   assert.equal(result.receipt.status, "failed");
   assert.equal(result.receipt.failureClass, "tool_evidence_missing");
+  assert.equal(result.receipt.stopReason, "end_turn");
   assert.equal(result.receipt.closeSessionSupported, true);
   assert.equal(result.receipt.closeSessionCompleted, true);
 });
@@ -358,6 +381,22 @@ test("authentication and capacity failures remain distinct", () => {
   assert.equal(authentication.process.status, 1);
   assert.equal(authentication.receipt.failureClass, "authentication_expired");
 
+  const authenticationMessage = runCanary("authentication-message");
+  assert.equal(authenticationMessage.process.status, 1);
+  assert.equal(
+    authenticationMessage.receipt.failureClass,
+    "authentication_required",
+  );
+  assert.equal(
+    authenticationMessage.receipt.agentMessageClassification,
+    "authentication_required",
+  );
+  assert.match(authenticationMessage.receipt.agentMessageSha256, /^[0-9a-f]{64}$/);
+  assert.equal(
+    JSON.stringify(authenticationMessage.receipt).includes("Please login"),
+    false,
+  );
+
   const capacity = runCanary("capacity");
   assert.equal(capacity.process.status, 1);
   assert.equal(capacity.receipt.failureClass, "capacity_or_rate_limit");
@@ -365,6 +404,29 @@ test("authentication and capacity failures remain distinct", () => {
   const sessionLimit = runCanary("session-limit");
   assert.equal(sessionLimit.process.status, 1);
   assert.equal(sessionLimit.receipt.failureClass, "capacity_or_rate_limit");
+});
+
+test("provider error evidence remains content-free and classifies API-key failures", () => {
+  const probe = spawnSync(
+    "/usr/bin/python3",
+    [
+      "-c",
+      String.raw`
+import importlib.util
+import pathlib
+
+path = pathlib.Path(${JSON.stringify(canary)})
+spec = importlib.util.spec_from_file_location("zed_acp_live_canary", path)
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+
+assert module.classify_error("API key required") == "authentication_required"
+assert module.classify_error("access token missing") == "authentication_required"
+`,
+    ],
+    { cwd: repositoryRoot, encoding: "utf8", timeout: 5_000 },
+  );
+  assert.equal(probe.status, 0, probe.stderr);
 });
 
 test("read-only canary never grants route-requested permissions", () => {
@@ -385,4 +447,31 @@ test("timeout kills the owned ACP process group", async () => {
   const childPid = Number(readFileSync(result.childPid, "utf8").trim());
   await new Promise((resolve) => setTimeout(resolve, 100));
   assert.throws(() => process.kill(childPid, 0), { code: "ESRCH" });
+});
+
+test("a reused or inaccessible process-group id fails closed without losing evidence", () => {
+  const probe = spawnSync(
+    "/usr/bin/python3",
+    [
+      "-c",
+      String.raw`
+import importlib.util
+import pathlib
+import signal
+
+path = pathlib.Path(${JSON.stringify(canary)})
+spec = importlib.util.spec_from_file_location("zed_acp_live_canary", path)
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+
+def denied(_process_group, _signal_number):
+    raise PermissionError(1, "operation not permitted")
+
+module.os.killpg = denied
+assert module.try_signal_process_group(424242, signal.SIGKILL) is False
+`,
+    ],
+    { cwd: repositoryRoot, encoding: "utf8", timeout: 5_000 },
+  );
+  assert.equal(probe.status, 0, probe.stderr);
 });

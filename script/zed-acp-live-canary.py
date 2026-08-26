@@ -27,7 +27,10 @@ INITIALIZE = {
     "method": "initialize",
     "params": {
         "protocolVersion": 1,
-        "clientCapabilities": {},
+        "clientCapabilities": {
+            "fs": {"readTextFile": True, "writeTextFile": False},
+            "terminal": False,
+        },
         "clientInfo": {"name": "zed-acp-project-canary", "version": "1.0.0"},
     },
 }
@@ -89,7 +92,7 @@ def sha256_text(value: str) -> str:
     return sha256_bytes(value.encode())
 
 
-def read_sentinel(root: Path, relative: Path) -> tuple[Path, str]:
+def read_sentinel(root: Path, relative: Path) -> tuple[Path, str, str]:
     if relative.is_absolute() or ".." in relative.parts or relative == Path("."):
         raise CanaryFailure("invalid_sentinel_path")
     sentinel = (root / relative).resolve(strict=True)
@@ -100,15 +103,54 @@ def read_sentinel(root: Path, relative: Path) -> tuple[Path, str]:
         metadata = os.fstat(fd)
         if not stat.S_ISREG(metadata.st_mode) or metadata.st_size > 8 * 1024 * 1024:
             raise CanaryFailure("invalid_sentinel_file")
-        digest = hashlib.sha256()
+        chunks: list[bytes] = []
+        total = 0
         while True:
             chunk = os.read(fd, 64 * 1024)
             if not chunk:
                 break
-            digest.update(chunk)
+            total += len(chunk)
+            if total > 8 * 1024 * 1024:
+                raise CanaryFailure("invalid_sentinel_file")
+            chunks.append(chunk)
     finally:
         os.close(fd)
-    return sentinel, digest.hexdigest()
+    content_bytes = b"".join(chunks)
+    try:
+        content = content_bytes.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise CanaryFailure("invalid_sentinel_file") from exc
+    return sentinel, content, sha256_bytes(content_bytes)
+
+
+def nested_strings(value: Any) -> list[str]:
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, list):
+        return [item for child in value for item in nested_strings(child)]
+    if isinstance(value, dict):
+        return [item for child in value.values() for item in nested_strings(child)]
+    return []
+
+
+def tool_input_names_sentinel(value: Any, absolute: Path, relative: Path) -> bool:
+    absolute_text = str(absolute)
+    relative_text = str(relative)
+    relative_pattern = re.compile(
+        rf"(?<![A-Za-z0-9_./-])(?:\./)?{re.escape(relative_text)}(?![A-Za-z0-9_./-])"
+    )
+    for text in nested_strings(value):
+        if text in {absolute_text, relative_text, f"./{relative_text}"}:
+            return True
+        if absolute_text in text or relative_pattern.search(text):
+            return True
+    return False
+
+
+def tool_output_contains_sentinel(value: Any, sentinel_content: str) -> bool:
+    return bool(sentinel_content) and any(
+        sentinel_content in text for text in nested_strings(value)
+    )
 
 
 def strip_jsonc(source: str) -> str:
@@ -385,7 +427,10 @@ def classify_error(message: str) -> str:
         ("unsupported_route", r"method not found|unsupported|not supported|unknown model"),
         ("missing_executable", r"no such file|not found|exit (status: )?127"),
         ("authentication_expired", r"expired|token[^\n]*invalid"),
-        ("authentication_required", r"auth|login|credential|unauthor"),
+        (
+            "authentication_required",
+            r"auth|login|credential|unauthor|api.?key|access.?token",
+        ),
         (
             "capacity_or_rate_limit",
             r"capacity|rate.?limit|quota|overloaded|spend|session limit",
@@ -399,6 +444,24 @@ def classify_error(message: str) -> str:
     return "provider_or_transport_error"
 
 
+def try_signal_process_group(process_group: int, signal_number: int) -> bool:
+    """Signal only the owned process group without losing terminal evidence.
+
+    A process group can disappear and its numeric id can be reused between the
+    preceding liveness check and killpg.  On macOS that race can surface as
+    EPERM when the reused group is no longer ours.  Treat the denial as an
+    unproven cleanup result instead of crashing the canary or signalling a
+    different group.
+    """
+    try:
+        os.killpg(process_group, signal_number)
+    except ProcessLookupError:
+        return True
+    except PermissionError:
+        return False
+    return True
+
+
 class Transport:
     def __init__(
         self, command: str, argv: list[str], cwd: Path, environment: dict[str, str]
@@ -407,6 +470,7 @@ class Transport:
         self.stderr_sha256 = hashlib.sha256()
         self.stderr_bytes = 0
         self.stderr_classes: set[str] = set()
+        self.cleanup_signal_denied = False
         try:
             self.process = subprocess.Popen(
                 [command, *argv],
@@ -486,18 +550,14 @@ class Transport:
         except subprocess.TimeoutExpired:
             pass
         if not self.group_is_gone():
-            try:
-                os.killpg(self.process_group, signal.SIGTERM)
-            except ProcessLookupError:
-                pass
+            if not try_signal_process_group(self.process_group, signal.SIGTERM):
+                self.cleanup_signal_denied = True
             deadline = time.monotonic() + grace_seconds
             while time.monotonic() < deadline and not self.group_is_gone():
                 time.sleep(0.02)
         if not self.group_is_gone():
-            try:
-                os.killpg(self.process_group, signal.SIGKILL)
-            except ProcessLookupError:
-                pass
+            if not try_signal_process_group(self.process_group, signal.SIGKILL):
+                self.cleanup_signal_denied = True
         try:
             self.process.wait(timeout=max(grace_seconds, 1))
         except subprocess.TimeoutExpired:
@@ -517,6 +577,7 @@ class Transport:
             "stderrBytes": self.stderr_bytes,
             "stderrSha256": self.stderr_sha256.hexdigest(),
             "stderrClassifications": sorted(self.stderr_classes),
+            "cleanupSignalDenied": self.cleanup_signal_denied,
         }
 
 
@@ -526,12 +587,14 @@ class Journey:
         transport: Transport,
         cwd: Path,
         sentinel: Path,
+        sentinel_content: str,
         sentinel_sha256: str,
         timeout_seconds: float,
     ) -> None:
         self.transport = transport
         self.cwd = cwd
         self.sentinel = sentinel
+        self.sentinel_content = sentinel_content
         self.sentinel_sha256 = sentinel_sha256
         self.deadline = time.monotonic() + timeout_seconds
         self.nonce = os.urandom(16).hex()
@@ -545,6 +608,12 @@ class Journey:
         self.permission_requests = 0
         self.close_session_supported = False
         self.close_session_completed = False
+        self.stop_reason: str | None = None
+        self.provider_error_code: int | str | None = None
+        self.provider_error_message_sha256: str | None = None
+        self.client_read_requests = 0
+        self.client_read_completed = 0
+        self.client_read_sentinel_matched = False
 
     def observe(self, message: dict[str, Any]) -> None:
         if message.get("method") != "session/update":
@@ -570,6 +639,63 @@ class Journey:
         self.permission_requests += 1
         raise CanaryFailure("permission_requested")
 
+    def handle_read_text_file(self, message: dict[str, Any]) -> None:
+        self.client_read_requests += 1
+        request_id = message.get("id")
+        params = message.get("params")
+        if not isinstance(request_id, (int, str)) or not isinstance(params, dict):
+            raise CanaryFailure("invalid_client_read_request")
+        if params.get("sessionId") != self.session_id:
+            raise CanaryFailure("invalid_client_read_request")
+        raw_path = params.get("path")
+        line = params.get("line")
+        limit = params.get("limit")
+        if (
+            not isinstance(raw_path, str)
+            or not Path(raw_path).is_absolute()
+            or (line is not None and (not isinstance(line, int) or line < 1))
+            or (limit is not None and (not isinstance(limit, int) or limit < 0))
+        ):
+            raise CanaryFailure("invalid_client_read_request")
+        try:
+            path = Path(raw_path).resolve(strict=True)
+        except OSError as exc:
+            raise CanaryFailure("invalid_client_read_request") from exc
+        if not path.is_relative_to(self.cwd):
+            raise CanaryFailure("client_read_outside_project")
+        try:
+            fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+            try:
+                metadata = os.fstat(fd)
+                if not stat.S_ISREG(metadata.st_mode) or metadata.st_size > 8 * 1024 * 1024:
+                    raise CanaryFailure("invalid_client_read_request")
+                chunks: list[bytes] = []
+                total = 0
+                while True:
+                    chunk = os.read(fd, 64 * 1024)
+                    if not chunk:
+                        break
+                    total += len(chunk)
+                    if total > 8 * 1024 * 1024:
+                        raise CanaryFailure("invalid_client_read_request")
+                    chunks.append(chunk)
+            finally:
+                os.close(fd)
+            content = b"".join(chunks).decode("utf-8")
+        except (OSError, UnicodeDecodeError) as exc:
+            raise CanaryFailure("invalid_client_read_request") from exc
+
+        lines = content.splitlines(keepends=True)
+        start = (line - 1) if line is not None else 0
+        end = start + limit if limit is not None else None
+        projected = "".join(lines[start:end])
+        self.client_read_completed += 1
+        if path == self.sentinel and sha256_text(content) == self.sentinel_sha256:
+            self.client_read_sentinel_matched = True
+        self.transport.send(
+            {"jsonrpc": "2.0", "id": request_id, "result": {"content": projected}}
+        )
+
     def await_response(
         self, request_id: int, deadline: float | None = None
     ) -> dict[str, Any]:
@@ -579,11 +705,19 @@ class Journey:
             self.observe(message)
             if message.get("method") == "session/request_permission":
                 self.reject_permission(message)
+            if message.get("method") == "fs/read_text_file":
+                self.handle_read_text_file(message)
+                continue
+            if message.get("method") is not None and message.get("id") is not None:
+                raise CanaryFailure("unsupported_client_request")
             if message.get("id") != request_id:
                 continue
             if "error" in message:
                 error = message.get("error")
                 safe_message = error.get("message", "") if isinstance(error, dict) else ""
+                if isinstance(error, dict) and isinstance(error.get("code"), (int, str)):
+                    self.provider_error_code = error["code"]
+                self.provider_error_message_sha256 = sha256_text(str(safe_message))
                 raise CanaryFailure(classify_error(str(safe_message)))
             if "result" in message:
                 return message
@@ -616,26 +750,37 @@ class Journey:
             for fields in self.tool_calls.values()
             if fields.get("status") == "completed"
         ]
-        completed_evidence = json.dumps(
-            [
+        relative_sentinel = self.sentinel.relative_to(self.cwd)
+        tool_evidence_matched = any(
+            tool_input_names_sentinel(
+                fields.get("rawInput"), self.sentinel, relative_sentinel
+            )
+            and tool_output_contains_sentinel(
                 {
                     "content": fields.get("content"),
                     "rawOutput": fields.get("rawOutput"),
-                }
-                for fields in completed
-            ],
-            sort_keys=True,
+                },
+                self.sentinel_content,
+            )
+            for fields in completed
         )
         return {
-            "toolCallStarted": bool(self.tool_calls),
-            "toolCallCompleted": bool(completed),
+            "toolCallStarted": bool(self.tool_calls) or self.client_read_requests > 0,
+            "toolCallCompleted": bool(completed) or self.client_read_completed > 0,
             "toolEvidenceMatched": (
-                bool(completed)
-                and str(self.cwd) in completed_evidence
-                and self.sentinel_sha256 in completed_evidence
+                tool_evidence_matched or self.client_read_sentinel_matched
             ),
             "terminalMarkerObserved": self.marker in self.agent_text,
-            "stopReason": stop_reason,
+            "stopReason": stop_reason if stop_reason is not None else self.stop_reason,
+            "providerErrorCode": self.provider_error_code,
+            "providerErrorMessageSha256": self.provider_error_message_sha256,
+            "clientReadRequestCount": self.client_read_requests,
+            "clientReadCompletedCount": self.client_read_completed,
+            "clientReadSentinelMatched": self.client_read_sentinel_matched,
+            "agentMessageSha256": sha256_text(self.agent_text) if self.agent_text else None,
+            "agentMessageClassification": (
+                classify_error(self.agent_text) if self.agent_text else None
+            ),
             "permissionRequestsObserved": self.permission_requests,
             "permissionRequestsApproved": 0,
             "closeSessionSupported": self.close_session_supported,
@@ -675,10 +820,8 @@ class Journey:
 
         relative_sentinel = self.sentinel.relative_to(self.cwd)
         prompt = (
-            "Use a project filesystem or terminal tool to inspect the current workspace. "
-            f"Confirm the exact working directory is {json.dumps(str(self.cwd))}, then read "
-            f"{json.dumps(str(relative_sentinel))} without modifying anything and compute its SHA-256. "
-            "The completed tool evidence must contain the observed working directory and computed digest. "
+            "Use a project filesystem tool to read "
+            f"{json.dumps(str(relative_sentinel))} in the current project without modifying it. "
             f"After the tool completes, reply with exactly {self.marker}"
         )
         self.transport.send(
@@ -696,9 +839,13 @@ class Journey:
         stop_reason = prompt_result.get("result", {}).get("stopReason")
         if not isinstance(stop_reason, str) or not stop_reason:
             raise CanaryFailure("nonterminal_response")
+        self.stop_reason = stop_reason
 
         current_evidence = self.evidence(stop_reason)
         if not current_evidence["toolCallCompleted"]:
+            message_class = current_evidence.get("agentMessageClassification")
+            if message_class not in {None, "provider_or_transport_error"}:
+                raise CanaryFailure(message_class)
             raise CanaryFailure("tool_evidence_missing")
         if not current_evidence["toolEvidenceMatched"]:
             raise CanaryFailure("project_evidence_mismatch")
@@ -723,6 +870,7 @@ def main() -> int:
     endpoint = args.endpoint or "direct"
     cwd: Path | None = None
     sentinel: Path | None = None
+    sentinel_content = ""
     sentinel_sha256 = ""
     process_group_gone = True
     try:
@@ -735,13 +883,14 @@ def main() -> int:
         cwd = args.cwd.resolve(strict=True)
         if not cwd.is_dir():
             raise CanaryFailure("invalid_project_directory")
-        sentinel, sentinel_sha256 = read_sentinel(cwd, args.sentinel)
+        sentinel, sentinel_content, sentinel_sha256 = read_sentinel(cwd, args.sentinel)
         command, argv, endpoint, environment = load_command(args)
         transport = Transport(command, argv, cwd, environment)
         journey = Journey(
             transport,
             cwd,
             sentinel,
+            sentinel_content,
             sentinel_sha256,
             args.timeout_seconds,
         )
@@ -808,6 +957,21 @@ def main() -> int:
             journey.close_session_completed if journey else False,
         ),
         "stopReason": journey_evidence.get("stopReason"),
+        "providerErrorCode": journey_evidence.get("providerErrorCode"),
+        "providerErrorMessageSha256": journey_evidence.get(
+            "providerErrorMessageSha256"
+        ),
+        "clientReadRequestCount": journey_evidence.get("clientReadRequestCount", 0),
+        "clientReadCompletedCount": journey_evidence.get(
+            "clientReadCompletedCount", 0
+        ),
+        "clientReadSentinelMatched": journey_evidence.get(
+            "clientReadSentinelMatched", False
+        ),
+        "agentMessageSha256": journey_evidence.get("agentMessageSha256"),
+        "agentMessageClassification": journey_evidence.get(
+            "agentMessageClassification"
+        ),
         "failureClass": failure_class,
         "promptOrResponseContentRetained": False,
         "elapsedMs": round((time.monotonic() - started) * 1000),
