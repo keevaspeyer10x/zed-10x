@@ -1,7 +1,7 @@
 use std::{
     path::{Path, PathBuf},
     pin::Pin,
-    task::Poll,
+    task::{Context as TaskContext, Poll},
 };
 
 use anyhow::{Context, Result};
@@ -293,7 +293,7 @@ async fn unpack_tar_archive(
     // We don't need to set the modified time. It's irrelevant to downloaded
     // archive verification, and some filesystems return errors when asked to
     // apply it after extraction.
-    let archive = async_tar::ArchiveBuilder::new(archive_bytes)
+    let archive = async_tar::ArchiveBuilder::new(PendingSafeReader::new(archive_bytes))
         .set_preserve_mtime(false)
         .build();
     archive
@@ -301,6 +301,54 @@ async fn unpack_tar_archive(
         .await
         .with_context(|| format!("extracting {url} to {destination_path:?}"))?;
     Ok(())
+}
+
+/// Prevents a consumer from losing bytes when it does not retain a partial read
+/// across `Poll::Pending`. The buffer is bounded by the consumer's current read
+/// request and the archive remains fully streaming.
+struct PendingSafeReader<R> {
+    reader: R,
+    buffered: Vec<u8>,
+    reached_eof: bool,
+}
+
+impl<R> PendingSafeReader<R> {
+    fn new(reader: R) -> Self {
+        Self {
+            reader,
+            buffered: Vec::new(),
+            reached_eof: false,
+        }
+    }
+}
+
+impl<R: AsyncRead + Unpin> AsyncRead for PendingSafeReader<R> {
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        cx: &mut TaskContext<'_>,
+        output: &mut [u8],
+    ) -> Poll<std::io::Result<usize>> {
+        if output.is_empty() {
+            return Poll::Ready(Ok(0));
+        }
+
+        while self.buffered.len() < output.len() && !self.reached_eof {
+            let mut scratch = [0_u8; 8 * 1024];
+            let remaining = output.len() - self.buffered.len();
+            let read_length = remaining.min(scratch.len());
+            match Pin::new(&mut self.reader).poll_read(cx, &mut scratch[..read_length]) {
+                Poll::Ready(Ok(0)) => self.reached_eof = true,
+                Poll::Ready(Ok(read)) => self.buffered.extend_from_slice(&scratch[..read]),
+                Poll::Ready(Err(error)) => return Poll::Ready(Err(error)),
+                Poll::Pending => return Poll::Pending,
+            }
+        }
+
+        let read_length = output.len().min(self.buffered.len());
+        output[..read_length].copy_from_slice(&self.buffered[..read_length]);
+        self.buffered.drain(..read_length);
+        Poll::Ready(Ok(read_length))
+    }
 }
 
 async fn extract_gz(
@@ -381,6 +429,127 @@ mod tests {
 
     struct StaticResponseClient {
         body: Vec<u8>,
+    }
+
+    struct PendingChunkedReader {
+        bytes: Vec<u8>,
+        position: usize,
+        return_pending: bool,
+    }
+
+    impl PendingChunkedReader {
+        fn new(bytes: Vec<u8>) -> Self {
+            Self {
+                bytes,
+                position: 0,
+                return_pending: true,
+            }
+        }
+    }
+
+    impl AsyncRead for PendingChunkedReader {
+        fn poll_read(
+            mut self: Pin<&mut Self>,
+            cx: &mut std::task::Context<'_>,
+            buffer: &mut [u8],
+        ) -> Poll<std::io::Result<usize>> {
+            if self.return_pending {
+                self.return_pending = false;
+                cx.waker().wake_by_ref();
+                return Poll::Pending;
+            }
+            self.return_pending = true;
+
+            if self.position == self.bytes.len() {
+                return Poll::Ready(Ok(0));
+            }
+
+            let read_length = buffer.len().min(1);
+            buffer[..read_length]
+                .copy_from_slice(&self.bytes[self.position..self.position + read_length]);
+            self.position += read_length;
+            Poll::Ready(Ok(read_length))
+        }
+    }
+
+    fn tar_gz_with_pax_value_containing_newlines() -> Vec<u8> {
+        vec![
+            0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xed, 0xd3, 0xb1, 0x0a,
+            0xc2, 0x30, 0x10, 0x80, 0xe1, 0xcc, 0x7d, 0x8a, 0x3e, 0x41, 0x9a, 0x06, 0xd3, 0x4e,
+            0x82, 0xe0, 0x52, 0xc1, 0x41, 0x70, 0x72, 0x8c, 0x18, 0x6c, 0xa1, 0x44, 0x48, 0x23,
+            0xad, 0x6f, 0xaf, 0xc5, 0x41, 0x1c, 0x3a, 0x56, 0x50, 0xff, 0x6f, 0xb9, 0xe3, 0x96,
+            0x9b, 0x7e, 0x99, 0xc9, 0x6c, 0xb5, 0xb3, 0x43, 0xe5, 0xec, 0xc9, 0x05, 0x31, 0x0b,
+            0xf5, 0x34, 0x35, 0x95, 0x32, 0xfa, 0xb5, 0x8f, 0xf7, 0x5c, 0xe9, 0x5c, 0x8b, 0x74,
+            0x10, 0x1f, 0x70, 0xed, 0xa2, 0x0d, 0x8f, 0xf7, 0xe2, 0x3f, 0x2d, 0x74, 0xba, 0x5f,
+            0x57, 0x9b, 0xed, 0x41, 0x0e, 0x36, 0xc6, 0x20, 0xa3, 0xeb, 0xe2, 0xf2, 0xd8, 0x78,
+            0x1b, 0x6e, 0x49, 0xdf, 0xc4, 0x3a, 0xf1, 0xae, 0x6f, 0x1b, 0xef, 0xba, 0x44, 0xe0,
+            0x07, 0xd9, 0xb3, 0xf3, 0x71, 0xe6, 0x1f, 0x63, 0xd4, 0xa5, 0x31, 0xd3, 0xfd, 0xab,
+            0xe2, 0xbd, 0x7f, 0x55, 0x94, 0x85, 0x11, 0xa9, 0xa2, 0xff, 0xd9, 0xd5, 0xae, 0x6d,
+            0x2f, 0xb4, 0x0d, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0xf0, 0xb5, 0xee, 0xb6, 0xeb, 0x7b, 0xe9, 0x00, 0x28, 0x00, 0x00,
+        ]
+    }
+
+    fn write_octal(field: &mut [u8], value: usize) {
+        let value = format!("{:0width$o}\0", value, width = field.len() - 1);
+        field.copy_from_slice(value.as_bytes());
+    }
+
+    fn append_tar_entry(archive: &mut Vec<u8>, name: &str, entry_type: u8, body: &[u8]) {
+        let mut header = [0_u8; 512];
+        header[..name.len()].copy_from_slice(name.as_bytes());
+        write_octal(&mut header[100..108], 0o755);
+        write_octal(&mut header[108..116], 0);
+        write_octal(&mut header[116..124], 0);
+        write_octal(&mut header[124..136], body.len());
+        write_octal(&mut header[136..148], 0);
+        header[148..156].fill(b' ');
+        header[156] = entry_type;
+        header[257..263].copy_from_slice(b"ustar\0");
+        header[263..265].copy_from_slice(b"00");
+        let checksum = header.iter().map(|byte| u32::from(*byte)).sum::<u32>();
+        let checksum = format!("{checksum:06o}\0 ");
+        header[148..156].copy_from_slice(checksum.as_bytes());
+
+        archive.extend_from_slice(&header);
+        archive.extend_from_slice(body);
+        let padding = (512 - body.len() % 512) % 512;
+        archive.resize(archive.len() + padding, 0);
+    }
+
+    fn tar_with_large_pax_value() -> Vec<u8> {
+        let key = b"SCHILY.xattr.test";
+        let value = (0..22_000)
+            .map(|index| {
+                if index % 97 == 0 {
+                    b'\n'
+                } else {
+                    (index % 251) as u8
+                }
+            })
+            .collect::<Vec<_>>();
+        let payload_length = 1 + key.len() + 1 + value.len() + 1;
+        let mut record_length = payload_length;
+        loop {
+            let next_length = payload_length + record_length.to_string().len();
+            if next_length == record_length {
+                break;
+            }
+            record_length = next_length;
+        }
+        let mut pax_body = format!("{record_length} ").into_bytes();
+        pax_body.extend_from_slice(key);
+        pax_body.push(b'=');
+        pax_body.extend_from_slice(&value);
+        pax_body.push(b'\n');
+        assert_eq!(pax_body.len(), record_length);
+        pax_body.extend_from_slice(b"14 path=agent\n");
+
+        let mut archive = Vec::new();
+        append_tar_entry(&mut archive, "PaxHeader/agent", b'x', &pax_body);
+        append_tar_entry(&mut archive, "fallback", b'0', b"hello\n");
+        archive.resize(archive.len() + 1024, 0);
+        archive
     }
 
     impl HttpClient for StaticResponseClient {
@@ -500,6 +669,75 @@ mod tests {
             assert_eq!(
                 std::fs::read(destination_path.join("agent")).unwrap(),
                 b"hello"
+            );
+        });
+    }
+
+    #[test]
+    fn extracts_tar_gz_with_pax_value_containing_newlines() {
+        futures::executor::block_on(async {
+            let archive = tar_gz_with_pax_value_containing_newlines();
+            let client = StaticResponseClient { body: archive };
+            let temp_dir = tempfile::tempdir().unwrap();
+            let destination_path = temp_dir.path().join("v_1");
+
+            download_server_binary(
+                &client,
+                "https://example.com/agent.tar.gz",
+                None,
+                &destination_path,
+                AssetKind::TarGz,
+            )
+            .await
+            .unwrap();
+
+            assert_eq!(
+                std::fs::read(destination_path.join("agent")).unwrap(),
+                b"hello\n"
+            );
+        });
+    }
+
+    #[test]
+    fn extracts_tar_gz_when_pax_header_read_is_interrupted() {
+        futures::executor::block_on(async {
+            let temp_dir = tempfile::tempdir().unwrap();
+            let destination_path = temp_dir.path().join("v_1");
+            let archive = PendingChunkedReader::new(tar_gz_with_pax_value_containing_newlines());
+
+            extract_tar_gz(
+                &destination_path,
+                "https://example.com/agent.tar.gz",
+                archive,
+            )
+            .await
+            .unwrap();
+
+            assert_eq!(
+                std::fs::read(destination_path.join("agent")).unwrap(),
+                b"hello\n"
+            );
+        });
+    }
+
+    #[test]
+    fn extracts_large_pax_header_when_async_read_is_interrupted() {
+        futures::executor::block_on(async {
+            let temp_dir = tempfile::tempdir().unwrap();
+            let destination_path = temp_dir.path().join("v_1");
+            let archive = PendingChunkedReader::new(tar_with_large_pax_value());
+
+            unpack_tar_archive(
+                &destination_path,
+                "https://example.com/agent.tar.gz",
+                archive,
+            )
+            .await
+            .unwrap();
+
+            assert_eq!(
+                std::fs::read(destination_path.join("agent")).unwrap(),
+                b"hello\n"
             );
         });
     }
