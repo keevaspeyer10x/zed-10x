@@ -38,6 +38,9 @@ jobs:
       - name: Verify formatting
         run: cargo fmt --all -- --check
 
+      - name: Test GitHub archive extraction
+        run: cargo test --locked -p http_client --features github-download
+
       - name: Test custom agent rename and reconnect compatibility
         run: |
           cargo test --locked -p project custom_agent_aliases_override_colliding_registry_ids_when_unambiguous --lib

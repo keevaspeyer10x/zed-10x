@@ -1239,8 +1239,7 @@ dependencies = [
 [[package]]
 name = "async-tar"
 version = "0.6.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f6affe71e5b6180fb5eaf9e8127a243694baf6ae1120c199227167302f56c14b"
+source = "git+https://github.com/dignifiedquire/async-tar?rev=695a4e54c0482873e7b8ab40b8cb1d1cfb81074c#695a4e54c0482873e7b8ab40b8cb1d1cfb81074c"
 dependencies = [
  "async-std",
  "filetime",

@@ -84,6 +84,8 @@ if [[ -f "$RUST_CI" ]]; then
         contains "$RUST_CI" "./script/linux"
     check "format command is exact" \
         contains "$RUST_CI" "cargo fmt --all -- --check"
+    check "focused CI runs GitHub archive extraction tests" \
+        contains "$RUST_CI" "cargo test --locked -p http_client --features github-download"
     check "focused CI runs custom agent alias resolution tests" \
         contains "$RUST_CI" "cargo test --locked -p project custom_agent_aliases_override_colliding_registry_ids_when_unambiguous --lib"
     check "focused CI runs custom agent alias ownership tests" \
