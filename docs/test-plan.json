@@ -1,7 +1,7 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "freshLifecycle": true,
-  "generatedAt": "2026-08-23T07:55:48Z",
+  "generatedAt": "2026-08-26T15:37:43.971Z",
   "scope": "zed-10x-remote-execution-release",
   "counts": {
     "totalRows": 19,
@@ -10,8 +10,8 @@
   },
   "freshnessDelta": {
     "priorRows": 6,
-    "newRows": 18,
-    "addedRows": 12,
+    "newRows": 19,
+    "addedRows": 13,
     "removedRows": 0,
     "materiallyChangedRows": 6,
     "reason": "The security incident proved the prior ACP-only plan omitted every sibling remote execution consumer."
@@ -26,8 +26,8 @@
       "runner": "cargo-test+installed-zed-uat",
       "rowKind": "journey",
       "surfaceIds": [
-        "SURFACE-MAC-LOCAL",
-        "SURFACE-MAC-REMOTE-INTREPID"
+        "SURFACE-MAC-LOCAL-ACP",
+        "SURFACE-MAC-REMOTE-INTREPID-ACP"
       ],
       "journeyIds": [
         "JOURNEY-ACP"
@@ -64,11 +64,13 @@
       "runner": "zed-agent-picker-uat+zed-acp-live-canary",
       "rowKind": "journey",
       "surfaceIds": [
-        "SURFACE-MAC-LOCAL",
-        "SURFACE-MAC-REMOTE-INTREPID"
+        "SURFACE-MAC-LOCAL-ACP",
+        "SURFACE-MAC-REMOTE-INTREPID-ACP"
       ],
       "journeyIds": [
-        "JOURNEY-ACP"
+        "JOURNEY-ACP",
+        "JOURNEY-PRIVACY-FAILURE",
+        "JOURNEY-CLEANUP"
       ],
       "requirementIds": [
         "REQ-ACP-002"
@@ -145,11 +147,13 @@
       "runner": "installed-zed-computer-use+log-census",
       "rowKind": "journey",
       "surfaceIds": [
-        "SURFACE-MAC-LOCAL",
-        "SURFACE-MAC-REMOTE-INTREPID"
+        "SURFACE-MAC-LOCAL-ACP",
+        "SURFACE-MAC-REMOTE-INTREPID-ACP"
       ],
       "journeyIds": [
-        "JOURNEY-ACP"
+        "JOURNEY-ACP",
+        "JOURNEY-PRIVACY-FAILURE",
+        "JOURNEY-CLEANUP"
       ],
       "requirementIds": [
         "REQ-ACP-002"
@@ -196,8 +200,8 @@
       "runner": "zed-acp-live-canary",
       "rowKind": "contract",
       "surfaceIds": [
-        "SURFACE-MAC-LOCAL",
-        "SURFACE-MAC-REMOTE-INTREPID"
+        "SURFACE-MAC-LOCAL-ACP",
+        "SURFACE-MAC-REMOTE-INTREPID-ACP"
       ],
       "journeyIds": [
         "JOURNEY-ACP",
@@ -237,8 +241,8 @@
       "runner": "zed-acp-live-canary+installed-zed-uat",
       "rowKind": "contract",
       "surfaceIds": [
-        "SURFACE-MAC-LOCAL",
-        "SURFACE-MAC-REMOTE-INTREPID"
+        "SURFACE-MAC-LOCAL-ACP",
+        "SURFACE-MAC-REMOTE-INTREPID-ACP"
       ],
       "journeyIds": [
         "JOURNEY-ACP",
@@ -668,7 +672,8 @@
         "security"
       ],
       "surfaceIds": [
-        "SURFACE-MAC-REMOTE-INTREPID"
+        "SURFACE-MAC-REMOTE-INTREPID",
+        "SURFACE-MAC-REMOTE-INTREPID-ACP"
       ],
       "journeyIds": [
         "JOURNEY-TERMINAL",
@@ -760,9 +765,10 @@
         "observability"
       ],
       "surfaceIds": [
-        "SURFACE-MAC-LOCAL",
+        "SURFACE-MAC-LOCAL-ACP",
         "SURFACE-MAC-REMOTE-INTREPID",
-        "SURFACE-UNSUPPORTED-ENV-BACKENDS"
+        "SURFACE-UNSUPPORTED-ENV-BACKENDS",
+        "SURFACE-MAC-REMOTE-INTREPID-ACP"
       ],
       "journeyIds": [
         "JOURNEY-PRIVACY-FAILURE",
@@ -901,7 +907,34 @@
         "coverageMode": "mechanically_equivalent",
         "equivalentToVariantId": "VAR-MAC-CODEX-PRIMARY",
         "equivalenceEvidence": [
-          "same mac-custom production launch implementation; exact route protocol is independently exercised by ACP-JOURNEY-002"
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-CLAUDE-PRIMARY",
+        "journeyId": "JOURNEY-PRIVACY-FAILURE",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-MAC-CODEX-PRIMARY",
+        "equivalenceEvidence": [
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-CLAUDE-PRIMARY",
+        "journeyId": "JOURNEY-CLEANUP",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-MAC-CODEX-PRIMARY",
+        "equivalenceEvidence": [
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
         ]
       },
       {
@@ -910,7 +943,34 @@
         "coverageMode": "mechanically_equivalent",
         "equivalentToVariantId": "VAR-MAC-CODEX-PRIMARY",
         "equivalenceEvidence": [
-          "same mac-custom production launch implementation; exact route protocol is independently exercised by ACP-JOURNEY-002"
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-CLAUDE-SECONDARY",
+        "journeyId": "JOURNEY-PRIVACY-FAILURE",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-MAC-CODEX-PRIMARY",
+        "equivalenceEvidence": [
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-CLAUDE-SECONDARY",
+        "journeyId": "JOURNEY-CLEANUP",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-MAC-CODEX-PRIMARY",
+        "equivalenceEvidence": [
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
         ]
       },
       {
@@ -919,7 +979,34 @@
         "coverageMode": "mechanically_equivalent",
         "equivalentToVariantId": "VAR-MAC-CODEX-PRIMARY",
         "equivalenceEvidence": [
-          "same mac-custom production launch implementation; exact route protocol is independently exercised by ACP-JOURNEY-002"
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-CLAUDE-WORK",
+        "journeyId": "JOURNEY-PRIVACY-FAILURE",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-MAC-CODEX-PRIMARY",
+        "equivalenceEvidence": [
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-CLAUDE-WORK",
+        "journeyId": "JOURNEY-CLEANUP",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-MAC-CODEX-PRIMARY",
+        "equivalenceEvidence": [
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
         ]
       },
       {
@@ -932,12 +1019,57 @@
         ]
       },
       {
+        "variantId": "VAR-MAC-CODEX-PRIMARY",
+        "journeyId": "JOURNEY-PRIVACY-FAILURE",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ACP-ASSEMBLED-019"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-CODEX-PRIMARY",
+        "journeyId": "JOURNEY-CLEANUP",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ACP-ASSEMBLED-019"
+        ]
+      },
+      {
         "variantId": "VAR-MAC-CODEX-SECONDARY",
         "journeyId": "JOURNEY-ACP",
         "coverageMode": "mechanically_equivalent",
         "equivalentToVariantId": "VAR-MAC-CODEX-PRIMARY",
         "equivalenceEvidence": [
-          "same mac-custom production launch implementation; exact route protocol is independently exercised by ACP-JOURNEY-002"
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-CODEX-SECONDARY",
+        "journeyId": "JOURNEY-PRIVACY-FAILURE",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-MAC-CODEX-PRIMARY",
+        "equivalenceEvidence": [
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-CODEX-SECONDARY",
+        "journeyId": "JOURNEY-CLEANUP",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-MAC-CODEX-PRIMARY",
+        "equivalenceEvidence": [
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
         ]
       },
       {
@@ -946,7 +1078,34 @@
         "coverageMode": "mechanically_equivalent",
         "equivalentToVariantId": "VAR-MAC-CODEX-PRIMARY",
         "equivalenceEvidence": [
-          "same mac-custom production launch implementation; exact route protocol is independently exercised by ACP-JOURNEY-002"
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-CODEX-WORK",
+        "journeyId": "JOURNEY-PRIVACY-FAILURE",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-MAC-CODEX-PRIMARY",
+        "equivalenceEvidence": [
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-CODEX-WORK",
+        "journeyId": "JOURNEY-CLEANUP",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-MAC-CODEX-PRIMARY",
+        "equivalenceEvidence": [
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
         ]
       },
       {
@@ -955,7 +1114,34 @@
         "coverageMode": "mechanically_equivalent",
         "equivalentToVariantId": "VAR-MAC-DEVIN",
         "equivalenceEvidence": [
-          "same mac-registry production launch implementation; exact route protocol is independently exercised by ACP-JOURNEY-002"
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-ANTIGRAVITY",
+        "journeyId": "JOURNEY-PRIVACY-FAILURE",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-MAC-DEVIN",
+        "equivalenceEvidence": [
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-ANTIGRAVITY",
+        "journeyId": "JOURNEY-CLEANUP",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-MAC-DEVIN",
+        "equivalenceEvidence": [
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
         ]
       },
       {
@@ -964,7 +1150,34 @@
         "coverageMode": "mechanically_equivalent",
         "equivalentToVariantId": "VAR-MAC-DEVIN",
         "equivalenceEvidence": [
-          "same mac-registry production launch implementation; exact route protocol is independently exercised by ACP-JOURNEY-002"
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-CLAUDE-REGISTRY",
+        "journeyId": "JOURNEY-PRIVACY-FAILURE",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-MAC-DEVIN",
+        "equivalenceEvidence": [
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-CLAUDE-REGISTRY",
+        "journeyId": "JOURNEY-CLEANUP",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-MAC-DEVIN",
+        "equivalenceEvidence": [
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
         ]
       },
       {
@@ -973,7 +1186,34 @@
         "coverageMode": "mechanically_equivalent",
         "equivalentToVariantId": "VAR-MAC-DEVIN",
         "equivalenceEvidence": [
-          "same mac-registry production launch implementation; exact route protocol is independently exercised by ACP-JOURNEY-002"
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-CODEX-REGISTRY",
+        "journeyId": "JOURNEY-PRIVACY-FAILURE",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-MAC-DEVIN",
+        "equivalenceEvidence": [
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-CODEX-REGISTRY",
+        "journeyId": "JOURNEY-CLEANUP",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-MAC-DEVIN",
+        "equivalenceEvidence": [
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
         ]
       },
       {
@@ -982,7 +1222,34 @@
         "coverageMode": "mechanically_equivalent",
         "equivalentToVariantId": "VAR-MAC-DEVIN",
         "equivalenceEvidence": [
-          "same mac-registry production launch implementation; exact route protocol is independently exercised by ACP-JOURNEY-002"
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-CURSOR",
+        "journeyId": "JOURNEY-PRIVACY-FAILURE",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-MAC-DEVIN",
+        "equivalenceEvidence": [
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-CURSOR",
+        "journeyId": "JOURNEY-CLEANUP",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-MAC-DEVIN",
+        "equivalenceEvidence": [
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
         ]
       },
       {
@@ -995,12 +1262,57 @@
         ]
       },
       {
+        "variantId": "VAR-MAC-DEVIN",
+        "journeyId": "JOURNEY-PRIVACY-FAILURE",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ACP-ASSEMBLED-019"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-DEVIN",
+        "journeyId": "JOURNEY-CLEANUP",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ACP-ASSEMBLED-019"
+        ]
+      },
+      {
         "variantId": "VAR-MAC-GLM-REGISTRY",
         "journeyId": "JOURNEY-ACP",
         "coverageMode": "mechanically_equivalent",
         "equivalentToVariantId": "VAR-MAC-DEVIN",
         "equivalenceEvidence": [
-          "same mac-registry production launch implementation; exact route protocol is independently exercised by ACP-JOURNEY-002"
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-GLM-REGISTRY",
+        "journeyId": "JOURNEY-PRIVACY-FAILURE",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-MAC-DEVIN",
+        "equivalenceEvidence": [
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-GLM-REGISTRY",
+        "journeyId": "JOURNEY-CLEANUP",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-MAC-DEVIN",
+        "equivalenceEvidence": [
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
         ]
       },
       {
@@ -1009,7 +1321,34 @@
         "coverageMode": "mechanically_equivalent",
         "equivalentToVariantId": "VAR-MAC-DEVIN",
         "equivalenceEvidence": [
-          "same mac-registry production launch implementation; exact route protocol is independently exercised by ACP-JOURNEY-002"
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-GROK",
+        "journeyId": "JOURNEY-PRIVACY-FAILURE",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-MAC-DEVIN",
+        "equivalenceEvidence": [
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-GROK",
+        "journeyId": "JOURNEY-CLEANUP",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-MAC-DEVIN",
+        "equivalenceEvidence": [
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
         ]
       },
       {
@@ -1018,7 +1357,34 @@
         "coverageMode": "mechanically_equivalent",
         "equivalentToVariantId": "VAR-MAC-DEVIN",
         "equivalenceEvidence": [
-          "same mac-registry production launch implementation; exact route protocol is independently exercised by ACP-JOURNEY-002"
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-KIMI-REGISTRY",
+        "journeyId": "JOURNEY-PRIVACY-FAILURE",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-MAC-DEVIN",
+        "equivalenceEvidence": [
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-KIMI-REGISTRY",
+        "journeyId": "JOURNEY-CLEANUP",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-MAC-DEVIN",
+        "equivalenceEvidence": [
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
         ]
       },
       {
@@ -1031,12 +1397,57 @@
         ]
       },
       {
+        "variantId": "VAR-INTREPID-GLM",
+        "journeyId": "JOURNEY-PRIVACY-FAILURE",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ACP-ASSEMBLED-019"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-GLM",
+        "journeyId": "JOURNEY-CLEANUP",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ACP-ASSEMBLED-019"
+        ]
+      },
+      {
         "variantId": "VAR-INTREPID-KIMI",
         "journeyId": "JOURNEY-ACP",
         "coverageMode": "mechanically_equivalent",
         "equivalentToVariantId": "VAR-INTREPID-GLM",
         "equivalenceEvidence": [
-          "same intrepid-local production launch implementation; exact route protocol is independently exercised by ACP-JOURNEY-002"
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-KIMI",
+        "journeyId": "JOURNEY-PRIVACY-FAILURE",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-GLM",
+        "equivalenceEvidence": [
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-KIMI",
+        "journeyId": "JOURNEY-CLEANUP",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-GLM",
+        "equivalenceEvidence": [
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
         ]
       },
       {
@@ -1045,7 +1456,34 @@
         "coverageMode": "mechanically_equivalent",
         "equivalentToVariantId": "VAR-INTREPID-CODEX-SECONDARY",
         "equivalenceEvidence": [
-          "same intrepid-persistent production launch implementation; exact route protocol is independently exercised by ACP-JOURNEY-002"
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CLAUDE-SELECTED",
+        "journeyId": "JOURNEY-PRIVACY-FAILURE",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-CODEX-SECONDARY",
+        "equivalenceEvidence": [
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CLAUDE-SELECTED",
+        "journeyId": "JOURNEY-CLEANUP",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-CODEX-SECONDARY",
+        "equivalenceEvidence": [
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
         ]
       },
       {
@@ -1054,7 +1492,34 @@
         "coverageMode": "mechanically_equivalent",
         "equivalentToVariantId": "VAR-INTREPID-CODEX-SECONDARY",
         "equivalenceEvidence": [
-          "same intrepid-persistent production launch implementation; exact route protocol is independently exercised by ACP-JOURNEY-002"
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CLAUDE-PRIMARY",
+        "journeyId": "JOURNEY-PRIVACY-FAILURE",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-CODEX-SECONDARY",
+        "equivalenceEvidence": [
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CLAUDE-PRIMARY",
+        "journeyId": "JOURNEY-CLEANUP",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-CODEX-SECONDARY",
+        "equivalenceEvidence": [
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
         ]
       },
       {
@@ -1063,7 +1528,34 @@
         "coverageMode": "mechanically_equivalent",
         "equivalentToVariantId": "VAR-INTREPID-CODEX-SECONDARY",
         "equivalenceEvidence": [
-          "same intrepid-persistent production launch implementation; exact route protocol is independently exercised by ACP-JOURNEY-002"
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CLAUDE-SECONDARY",
+        "journeyId": "JOURNEY-PRIVACY-FAILURE",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-CODEX-SECONDARY",
+        "equivalenceEvidence": [
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CLAUDE-SECONDARY",
+        "journeyId": "JOURNEY-CLEANUP",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-CODEX-SECONDARY",
+        "equivalenceEvidence": [
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
         ]
       },
       {
@@ -1072,7 +1564,34 @@
         "coverageMode": "mechanically_equivalent",
         "equivalentToVariantId": "VAR-INTREPID-CODEX-SECONDARY",
         "equivalenceEvidence": [
-          "same intrepid-persistent production launch implementation; exact route protocol is independently exercised by ACP-JOURNEY-002"
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CLAUDE-WORK",
+        "journeyId": "JOURNEY-PRIVACY-FAILURE",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-CODEX-SECONDARY",
+        "equivalenceEvidence": [
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CLAUDE-WORK",
+        "journeyId": "JOURNEY-CLEANUP",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-CODEX-SECONDARY",
+        "equivalenceEvidence": [
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
         ]
       },
       {
@@ -1081,7 +1600,34 @@
         "coverageMode": "mechanically_equivalent",
         "equivalentToVariantId": "VAR-INTREPID-CODEX-SECONDARY",
         "equivalenceEvidence": [
-          "same intrepid-persistent production launch implementation; exact route protocol is independently exercised by ACP-JOURNEY-002"
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CODEX-SELECTED",
+        "journeyId": "JOURNEY-PRIVACY-FAILURE",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-CODEX-SECONDARY",
+        "equivalenceEvidence": [
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CODEX-SELECTED",
+        "journeyId": "JOURNEY-CLEANUP",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-CODEX-SECONDARY",
+        "equivalenceEvidence": [
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
         ]
       },
       {
@@ -1090,7 +1636,34 @@
         "coverageMode": "mechanically_equivalent",
         "equivalentToVariantId": "VAR-INTREPID-CODEX-SECONDARY",
         "equivalenceEvidence": [
-          "same intrepid-persistent production launch implementation; exact route protocol is independently exercised by ACP-JOURNEY-002"
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CODEX-PRIMARY",
+        "journeyId": "JOURNEY-PRIVACY-FAILURE",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-CODEX-SECONDARY",
+        "equivalenceEvidence": [
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CODEX-PRIMARY",
+        "journeyId": "JOURNEY-CLEANUP",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-CODEX-SECONDARY",
+        "equivalenceEvidence": [
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
         ]
       },
       {
@@ -1103,12 +1676,57 @@
         ]
       },
       {
+        "variantId": "VAR-INTREPID-CODEX-SECONDARY",
+        "journeyId": "JOURNEY-PRIVACY-FAILURE",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ACP-ASSEMBLED-019"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CODEX-SECONDARY",
+        "journeyId": "JOURNEY-CLEANUP",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ACP-ASSEMBLED-019"
+        ]
+      },
+      {
         "variantId": "VAR-INTREPID-CODEX-WORK",
         "journeyId": "JOURNEY-ACP",
         "coverageMode": "mechanically_equivalent",
         "equivalentToVariantId": "VAR-INTREPID-CODEX-SECONDARY",
         "equivalenceEvidence": [
-          "same intrepid-persistent production launch implementation; exact route protocol is independently exercised by ACP-JOURNEY-002"
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CODEX-WORK",
+        "journeyId": "JOURNEY-PRIVACY-FAILURE",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-CODEX-SECONDARY",
+        "equivalenceEvidence": [
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CODEX-WORK",
+        "journeyId": "JOURNEY-CLEANUP",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-CODEX-SECONDARY",
+        "equivalenceEvidence": [
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
         ]
       },
       {
@@ -1117,7 +1735,34 @@
         "coverageMode": "mechanically_equivalent",
         "equivalentToVariantId": "VAR-INTREPID-DEVIN",
         "equivalenceEvidence": [
-          "same intrepid-registry production launch implementation; exact route protocol is independently exercised by ACP-JOURNEY-002"
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-ANTIGRAVITY",
+        "journeyId": "JOURNEY-PRIVACY-FAILURE",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-DEVIN",
+        "equivalenceEvidence": [
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-ANTIGRAVITY",
+        "journeyId": "JOURNEY-CLEANUP",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-DEVIN",
+        "equivalenceEvidence": [
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
         ]
       },
       {
@@ -1126,7 +1771,34 @@
         "coverageMode": "mechanically_equivalent",
         "equivalentToVariantId": "VAR-INTREPID-DEVIN",
         "equivalenceEvidence": [
-          "same intrepid-registry production launch implementation; exact route protocol is independently exercised by ACP-JOURNEY-002"
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CLAUDE-REGISTRY",
+        "journeyId": "JOURNEY-PRIVACY-FAILURE",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-DEVIN",
+        "equivalenceEvidence": [
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CLAUDE-REGISTRY",
+        "journeyId": "JOURNEY-CLEANUP",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-DEVIN",
+        "equivalenceEvidence": [
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
         ]
       },
       {
@@ -1135,7 +1807,34 @@
         "coverageMode": "mechanically_equivalent",
         "equivalentToVariantId": "VAR-INTREPID-DEVIN",
         "equivalenceEvidence": [
-          "same intrepid-registry production launch implementation; exact route protocol is independently exercised by ACP-JOURNEY-002"
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CODEX-REGISTRY",
+        "journeyId": "JOURNEY-PRIVACY-FAILURE",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-DEVIN",
+        "equivalenceEvidence": [
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CODEX-REGISTRY",
+        "journeyId": "JOURNEY-CLEANUP",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-DEVIN",
+        "equivalenceEvidence": [
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
         ]
       },
       {
@@ -1144,7 +1843,34 @@
         "coverageMode": "mechanically_equivalent",
         "equivalentToVariantId": "VAR-INTREPID-DEVIN",
         "equivalenceEvidence": [
-          "same intrepid-registry production launch implementation; exact route protocol is independently exercised by ACP-JOURNEY-002"
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CURSOR",
+        "journeyId": "JOURNEY-PRIVACY-FAILURE",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-DEVIN",
+        "equivalenceEvidence": [
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CURSOR",
+        "journeyId": "JOURNEY-CLEANUP",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-DEVIN",
+        "equivalenceEvidence": [
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
         ]
       },
       {
@@ -1157,12 +1883,57 @@
         ]
       },
       {
+        "variantId": "VAR-INTREPID-DEVIN",
+        "journeyId": "JOURNEY-PRIVACY-FAILURE",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ACP-ASSEMBLED-019"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-DEVIN",
+        "journeyId": "JOURNEY-CLEANUP",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ACP-ASSEMBLED-019"
+        ]
+      },
+      {
         "variantId": "VAR-INTREPID-GLM-REGISTRY",
         "journeyId": "JOURNEY-ACP",
         "coverageMode": "mechanically_equivalent",
         "equivalentToVariantId": "VAR-INTREPID-DEVIN",
         "equivalenceEvidence": [
-          "same intrepid-registry production launch implementation; exact route protocol is independently exercised by ACP-JOURNEY-002"
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-GLM-REGISTRY",
+        "journeyId": "JOURNEY-PRIVACY-FAILURE",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-DEVIN",
+        "equivalenceEvidence": [
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-GLM-REGISTRY",
+        "journeyId": "JOURNEY-CLEANUP",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-DEVIN",
+        "equivalenceEvidence": [
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
         ]
       },
       {
@@ -1171,7 +1942,34 @@
         "coverageMode": "mechanically_equivalent",
         "equivalentToVariantId": "VAR-INTREPID-DEVIN",
         "equivalenceEvidence": [
-          "same intrepid-registry production launch implementation; exact route protocol is independently exercised by ACP-JOURNEY-002"
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-GROK",
+        "journeyId": "JOURNEY-PRIVACY-FAILURE",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-DEVIN",
+        "equivalenceEvidence": [
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-GROK",
+        "journeyId": "JOURNEY-CLEANUP",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-DEVIN",
+        "equivalenceEvidence": [
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
         ]
       },
       {
@@ -1180,7 +1978,34 @@
         "coverageMode": "mechanically_equivalent",
         "equivalentToVariantId": "VAR-INTREPID-DEVIN",
         "equivalenceEvidence": [
-          "same intrepid-registry production launch implementation; exact route protocol is independently exercised by ACP-JOURNEY-002"
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-KIMI-REGISTRY",
+        "journeyId": "JOURNEY-PRIVACY-FAILURE",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-DEVIN",
+        "equivalenceEvidence": [
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-KIMI-REGISTRY",
+        "journeyId": "JOURNEY-CLEANUP",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-DEVIN",
+        "equivalenceEvidence": [
+          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
+        ],
+        "equivalenceRowIds": [
+          "ACP-JOURNEY-002"
         ]
       }
     ]
@@ -1188,7 +2013,7 @@
   "surfaceJourneyCoverage": {
     "cells": [
       {
-        "surfaceId": "SURFACE-MAC-LOCAL",
+        "surfaceId": "SURFACE-MAC-LOCAL-ACP",
         "journeyId": "JOURNEY-ACP",
         "applicability": "applicable",
         "rowIds": [
@@ -1199,49 +2024,49 @@
         ]
       },
       {
-        "surfaceId": "SURFACE-MAC-LOCAL",
+        "surfaceId": "SURFACE-MAC-LOCAL-ACP",
         "journeyId": "JOURNEY-TERMINAL",
         "applicability": "not_applicable",
         "reason": "No SSH environment transport is crossed."
       },
       {
-        "surfaceId": "SURFACE-MAC-LOCAL",
+        "surfaceId": "SURFACE-MAC-LOCAL-ACP",
         "journeyId": "JOURNEY-TASK",
         "applicability": "not_applicable",
         "reason": "No SSH environment transport is crossed."
       },
       {
-        "surfaceId": "SURFACE-MAC-LOCAL",
+        "surfaceId": "SURFACE-MAC-LOCAL-ACP",
         "journeyId": "JOURNEY-SHELL",
         "applicability": "not_applicable",
         "reason": "No SSH environment transport is crossed."
       },
       {
-        "surfaceId": "SURFACE-MAC-LOCAL",
+        "surfaceId": "SURFACE-MAC-LOCAL-ACP",
         "journeyId": "JOURNEY-CONTEXT",
         "applicability": "not_applicable",
         "reason": "Only remote context launch changed."
       },
       {
-        "surfaceId": "SURFACE-MAC-LOCAL",
+        "surfaceId": "SURFACE-MAC-LOCAL-ACP",
         "journeyId": "JOURNEY-DAP-STDIO",
         "applicability": "not_applicable",
         "reason": "Only remote DAP launch changed."
       },
       {
-        "surfaceId": "SURFACE-MAC-LOCAL",
+        "surfaceId": "SURFACE-MAC-LOCAL-ACP",
         "journeyId": "JOURNEY-DAP-TCP",
         "applicability": "not_applicable",
         "reason": "Only remote DAP launch changed."
       },
       {
-        "surfaceId": "SURFACE-MAC-LOCAL",
+        "surfaceId": "SURFACE-MAC-LOCAL-ACP",
         "journeyId": "JOURNEY-CAPABILITY",
         "applicability": "not_applicable",
         "reason": "Capability is remote-only."
       },
       {
-        "surfaceId": "SURFACE-MAC-LOCAL",
+        "surfaceId": "SURFACE-MAC-LOCAL-ACP",
         "journeyId": "JOURNEY-PRIVACY-FAILURE",
         "applicability": "applicable",
         "rowIds": [
@@ -1250,7 +2075,7 @@
         ]
       },
       {
-        "surfaceId": "SURFACE-MAC-LOCAL",
+        "surfaceId": "SURFACE-MAC-LOCAL-ACP",
         "journeyId": "JOURNEY-CLEANUP",
         "applicability": "applicable",
         "rowIds": [
@@ -1261,14 +2086,8 @@
       {
         "surfaceId": "SURFACE-MAC-REMOTE-INTREPID",
         "journeyId": "JOURNEY-ACP",
-        "applicability": "applicable",
-        "rowIds": [
-          "ACP-SMOKE-001",
-          "ACP-JOURNEY-002",
-          "ACP-NEG-003",
-          "ACP-OPS-004",
-          "ENV-CONSUMER-MATRIX-014"
-        ]
+        "applicability": "not_applicable",
+        "reason": "ACP picker selection is owned by the separate Intrepid ACP surface."
       },
       {
         "surfaceId": "SURFACE-MAC-REMOTE-INTREPID",
@@ -1354,7 +2173,6 @@
         "journeyId": "JOURNEY-CLEANUP",
         "applicability": "applicable",
         "rowIds": [
-          "ACP-OPS-004",
           "ENV-TERMINAL-008",
           "ENV-TASK-009",
           "ENV-PRIVACY-016",
@@ -1423,7 +2241,79 @@
         "journeyId": "JOURNEY-CLEANUP",
         "applicability": "not_applicable",
         "reason": "Fail-closed construction starts no process."
+      },
+      {
+        "surfaceId": "SURFACE-MAC-REMOTE-INTREPID-ACP",
+        "journeyId": "JOURNEY-ACP",
+        "applicability": "applicable",
+        "rowIds": [
+          "ACP-SMOKE-001",
+          "ACP-JOURNEY-002",
+          "ACP-NEG-003",
+          "ACP-OPS-004"
+        ]
+      },
+      {
+        "surfaceId": "SURFACE-MAC-REMOTE-INTREPID-ACP",
+        "journeyId": "JOURNEY-TERMINAL",
+        "applicability": "not_applicable",
+        "reason": "This picker variant changes only ACP launch, failure/privacy handling, and session cleanup."
+      },
+      {
+        "surfaceId": "SURFACE-MAC-REMOTE-INTREPID-ACP",
+        "journeyId": "JOURNEY-TASK",
+        "applicability": "not_applicable",
+        "reason": "This picker variant changes only ACP launch, failure/privacy handling, and session cleanup."
+      },
+      {
+        "surfaceId": "SURFACE-MAC-REMOTE-INTREPID-ACP",
+        "journeyId": "JOURNEY-SHELL",
+        "applicability": "not_applicable",
+        "reason": "This picker variant changes only ACP launch, failure/privacy handling, and session cleanup."
+      },
+      {
+        "surfaceId": "SURFACE-MAC-REMOTE-INTREPID-ACP",
+        "journeyId": "JOURNEY-CONTEXT",
+        "applicability": "not_applicable",
+        "reason": "This picker variant changes only ACP launch, failure/privacy handling, and session cleanup."
+      },
+      {
+        "surfaceId": "SURFACE-MAC-REMOTE-INTREPID-ACP",
+        "journeyId": "JOURNEY-DAP-STDIO",
+        "applicability": "not_applicable",
+        "reason": "This picker variant changes only ACP launch, failure/privacy handling, and session cleanup."
+      },
+      {
+        "surfaceId": "SURFACE-MAC-REMOTE-INTREPID-ACP",
+        "journeyId": "JOURNEY-DAP-TCP",
+        "applicability": "not_applicable",
+        "reason": "This picker variant changes only ACP launch, failure/privacy handling, and session cleanup."
+      },
+      {
+        "surfaceId": "SURFACE-MAC-REMOTE-INTREPID-ACP",
+        "journeyId": "JOURNEY-CAPABILITY",
+        "applicability": "not_applicable",
+        "reason": "This picker variant changes only ACP launch, failure/privacy handling, and session cleanup."
+      },
+      {
+        "surfaceId": "SURFACE-MAC-REMOTE-INTREPID-ACP",
+        "journeyId": "JOURNEY-PRIVACY-FAILURE",
+        "applicability": "applicable",
+        "rowIds": [
+          "ACP-NEG-003",
+          "ENV-PRIVACY-016"
+        ]
+      },
+      {
+        "surfaceId": "SURFACE-MAC-REMOTE-INTREPID-ACP",
+        "journeyId": "JOURNEY-CLEANUP",
+        "applicability": "applicable",
+        "rowIds": [
+          "ACP-OPS-004",
+          "ENV-PRIVACY-016"
+        ]
       }
     ]
-  }
+  },
+  "coverageClosureVersion": 2
 }

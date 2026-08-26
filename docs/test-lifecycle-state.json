@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "startedAt": "2026-08-23T01:21:50Z",
   "repo": "zed-10x",
-  "branch": "fix/secure-remote-environment-production",
+  "branch": "codex/zed-picker-release-uat",
   "scope": {
     "id": "zed-10x-remote-execution-release",
     "description": "Installed Zed 10x external-agent and environment-bearing remote execution journeys across Mac-local and Mac-to-Intrepid projects",
@@ -38,14 +38,17 @@
     "1-discovery": {
       "status": "complete",
       "artifact": "docs/discovery-ir.json",
-      "productSurfaces": 3,
+      "productSurfaces": 4,
       "criticalJourneys": 10,
-      "surfaceJourneyCells": 30,
-      "applicableCells": 30
+      "surfaceJourneyCells": 40,
+      "applicableCells": 16
     },
     "2-generation": {
       "status": "complete",
-      "artifacts": ["docs/test-plan.json", "docs/TEST_PLAN.md"],
+      "artifacts": [
+        "docs/test-plan.json",
+        "docs/TEST_PLAN.md"
+      ],
       "plannedRows": 19,
       "readyNowRows": 19
     },
@@ -131,5 +134,6 @@
       "The remote cleanup census matched its own observer ancestry",
       "Representative Mac and Intrepid ACP routes were accepted as coverage for independently selectable picker entries"
     ]
-  }
+  },
+  "coverageClosureVersion": 2
 }
