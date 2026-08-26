@@ -4036,6 +4036,122 @@ async fn test_remote_external_agent_server_reconnects_to_latest_inventory(
     assert_eq!(command.path, PathBuf::from("new-kimi-cli"));
 }
 
+#[gpui::test]
+async fn test_remote_client_settings_never_replace_execution_host_agents(
+    cx: &mut TestAppContext,
+    server_cx: &mut TestAppContext,
+) {
+    let fs = FakeFs::new(server_cx.executor());
+    fs.insert_tree(
+        path!("/project"),
+        json!({
+            "README.md": "before reconnect"
+        }),
+    )
+    .await;
+
+    let host_settings = json!({
+        "agent_servers": {
+            "Codex Intrepid (primary)": {
+                "type": "custom",
+                "command": "intrepid-codex"
+            }
+        }
+    })
+    .to_string();
+    let client_settings = json!({
+        "ui_font_size": 16,
+        "agent_servers": {
+            "Codex Mac (primary)": {
+                "type": "custom",
+                "command": "mac-codex"
+            }
+        }
+    })
+    .to_string();
+
+    let (project, _headless_project) = init_test_with_optional_server_settings(
+        &fs,
+        cx,
+        server_cx,
+        Some(&host_settings),
+        None,
+        Some(&client_settings),
+    )
+    .await;
+    server_cx.run_until_parked();
+    cx.run_until_parked();
+
+    let names = project.update(cx, |project, cx| {
+        project
+            .agent_server_store()
+            .read(cx)
+            .external_agents()
+            .map(|name| name.to_string())
+            .collect::<Vec<_>>()
+    });
+    pretty_assertions::assert_eq!(names, ["Codex Intrepid (primary)"]);
+
+    // A subsequent Mac settings update and a real reconnect must not reintroduce
+    // client-only routes into the execution host's authoritative inventory.
+    cx.update_global::<SettingsStore, _>(|settings_store, cx| {
+        settings_store
+            .set_user_settings(
+                &json!({
+                    "ui_font_size": 17,
+                    "agent_servers": {
+                        "Claude Mac (work)": {
+                            "type": "custom",
+                            "command": "mac-claude"
+                        }
+                    }
+                })
+                .to_string(),
+                cx,
+            )
+            .unwrap();
+    });
+    cx.run_until_parked();
+    server_cx.run_until_parked();
+
+    let (worktree, _) = project
+        .update(cx, |project, cx| {
+            project.find_or_create_worktree(path!("/project"), true, cx)
+        })
+        .await
+        .unwrap();
+    let worktree_id = worktree.read_with(cx, |worktree, _| worktree.id());
+    let buffer = project
+        .update(cx, |project, cx| {
+            project.open_buffer((worktree_id, rel_path("README.md")), cx)
+        })
+        .await
+        .unwrap();
+    let client = cx.read(|cx| project.read(cx).remote_client().unwrap());
+    client
+        .update(cx, |client, cx| client.simulate_disconnect(cx))
+        .await;
+    buffer.update(cx, |buffer, cx| {
+        buffer.edit([(0.."before".len(), "after")], None, cx);
+    });
+    project
+        .update(cx, |project, cx| project.save_buffer(buffer, cx))
+        .await
+        .unwrap();
+    server_cx.run_until_parked();
+    cx.run_until_parked();
+
+    let names = project.update(cx, |project, cx| {
+        project
+            .agent_server_store()
+            .read(cx)
+            .external_agents()
+            .map(|name| name.to_string())
+            .collect::<Vec<_>>()
+    });
+    pretty_assertions::assert_eq!(names, ["Codex Intrepid (primary)"]);
+}
+
 fn test_registry_agent(id: &str, display_name: &str) -> RegistryAgent {
     RegistryAgent::Npx(RegistryNpxAgent {
         metadata: RegistryAgentMetadata {
@@ -4561,7 +4677,7 @@ pub async fn init_test(
     cx: &mut TestAppContext,
     server_cx: &mut TestAppContext,
 ) -> (Entity<Project>, Entity<HeadlessProject>) {
-    init_test_with_optional_server_settings(server_fs, cx, server_cx, None).await
+    init_test_with_optional_server_settings(server_fs, cx, server_cx, None, None, None).await
 }
 
 async fn init_test_with_server_settings_before_client(
@@ -4570,7 +4686,15 @@ async fn init_test_with_server_settings_before_client(
     server_cx: &mut TestAppContext,
     server_settings: &str,
 ) -> (Entity<Project>, Entity<HeadlessProject>) {
-    init_test_with_optional_server_settings(server_fs, cx, server_cx, Some(server_settings)).await
+    init_test_with_optional_server_settings(
+        server_fs,
+        cx,
+        server_cx,
+        Some(server_settings),
+        None,
+        None,
+    )
+    .await
 }
 
 async fn init_test_with_optional_server_settings(
@@ -4578,6 +4702,8 @@ async fn init_test_with_optional_server_settings(
     cx: &mut TestAppContext,
     server_cx: &mut TestAppContext,
     server_settings: Option<&str>,
+    host_user_settings: Option<&str>,
+    client_user_settings: Option<&str>,
 ) -> (Entity<Project>, Entity<HeadlessProject>) {
     let server_fs = server_fs.clone();
     cx.update(|cx| {
@@ -4586,6 +4712,19 @@ async fn init_test_with_optional_server_settings(
     server_cx.update(|cx| {
         release_channel::init(semver::Version::new(0, 0, 0), cx);
     });
+    if let Some(client_user_settings) = client_user_settings {
+        cx.update(|cx| {
+            if !cx.has_global::<SettingsStore>() {
+                let settings_store = SettingsStore::test(cx);
+                cx.set_global(settings_store);
+            }
+        });
+        cx.update_global::<SettingsStore, _>(|settings_store, cx| {
+            settings_store
+                .set_user_settings(client_user_settings, cx)
+                .unwrap();
+        });
+    }
     init_logger();
 
     let (opts, ssh_server_client, _) = RemoteClient::fake_server(cx, server_cx);
@@ -4620,6 +4759,15 @@ async fn init_test_with_optional_server_settings(
         server_cx
             .executor()
             .advance_clock(std::time::Duration::from_secs(2));
+        server_cx.run_until_parked();
+    }
+
+    if let Some(host_user_settings) = host_user_settings {
+        server_cx
+            .update_global::<SettingsStore, _>(|settings_store, cx| {
+                settings_store.set_user_settings(host_user_settings, cx)
+            })
+            .unwrap();
         server_cx.run_until_parked();
     }
 

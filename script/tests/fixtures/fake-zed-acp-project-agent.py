@@ -42,6 +42,7 @@ def main() -> int:
         "--mode",
         choices=(
             "pass",
+            "pass-without-close",
             "split-evidence",
             "prompt-echo",
             "marker-only",
@@ -70,7 +71,11 @@ def main() -> int:
                     "id": request_id,
                     "result": {
                         "protocolVersion": 1,
-                        "agentCapabilities": {},
+                        "agentCapabilities": (
+                            {}
+                            if args.mode == "pass-without-close"
+                            else {"sessionCapabilities": {"close": {}}}
+                        ),
                         "agentInfo": {"name": "fixture", "version": "1"},
                         "authMethods": [],
                     },
@@ -225,7 +230,16 @@ def main() -> int:
                 }
             )
         elif method == "session/close":
-            emit({"jsonrpc": "2.0", "id": request_id, "result": {}})
+            if args.mode == "pass-without-close":
+                emit(
+                    {
+                        "jsonrpc": "2.0",
+                        "id": request_id,
+                        "error": {"code": -32601, "message": "method not found"},
+                    }
+                )
+            else:
+                emit({"jsonrpc": "2.0", "id": request_id, "result": {}})
         elif request_id is not None:
             emit(
                 {
