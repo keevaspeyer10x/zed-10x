@@ -316,18 +316,34 @@ test("marker-only output cannot impersonate a project-aware journey", () => {
   assert.equal(result.process.status, 1);
   assert.equal(result.receipt.status, "failed");
   assert.equal(result.receipt.failureClass, "tool_evidence_missing");
+  assert.equal(result.receipt.closeSessionSupported, true);
+  assert.equal(result.receipt.closeSessionCompleted, true);
 });
 
 test("echoing every prompt-visible value cannot impersonate a project read", () => {
   const result = runCanary("prompt-echo");
   assert.equal(result.process.status, 1);
   assert.equal(result.receipt.failureClass, "project_evidence_mismatch");
+  assert.equal(result.receipt.closeSessionSupported, true);
+  assert.equal(result.receipt.closeSessionCompleted, true);
 });
 
 test("tool output from the wrong project is rejected", () => {
   const result = runCanary("wrong-cwd");
   assert.equal(result.process.status, 1);
   assert.equal(result.receipt.failureClass, "project_evidence_mismatch");
+  assert.equal(result.receipt.closeSessionSupported, true);
+  assert.equal(result.receipt.closeSessionCompleted, true);
+});
+
+test("failed cleanup never masks the original project failure", () => {
+  const result = runCanary("wrong-cwd-close-error");
+  assert.equal(result.process.status, 1);
+  assert.equal(result.receipt.failureClass, "project_evidence_mismatch");
+  assert.equal(result.receipt.toolCallCompleted, true);
+  assert.equal(result.receipt.closeSessionSupported, true);
+  assert.equal(result.receipt.closeSessionCompleted, false);
+  assert.equal(result.receipt.processGroupGone, true);
 });
 
 test("missing executable is classified before a false-green session", () => {

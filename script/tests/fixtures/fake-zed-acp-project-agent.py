@@ -47,6 +47,7 @@ def main() -> int:
             "prompt-echo",
             "marker-only",
             "wrong-cwd",
+            "wrong-cwd-close-error",
             "authentication",
             "capacity",
             "session-limit",
@@ -169,7 +170,11 @@ def main() -> int:
                 )
                 return 0
 
-            observed_cwd = "/wrong/project" if args.mode == "wrong-cwd" else session_cwd
+            observed_cwd = (
+                "/wrong/project"
+                if args.mode in {"wrong-cwd", "wrong-cwd-close-error"}
+                else session_cwd
+            )
             if args.mode != "marker-only":
                 if args.mode == "prompt-echo":
                     sentinel_sha = hashlib.sha256(prompt.encode()).hexdigest()
@@ -243,7 +248,7 @@ def main() -> int:
                 }
             )
         elif method == "session/close":
-            if args.mode == "pass-without-close":
+            if args.mode in {"pass-without-close", "wrong-cwd-close-error"}:
                 emit(
                     {
                         "jsonrpc": "2.0",

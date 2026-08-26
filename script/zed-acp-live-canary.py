@@ -570,9 +570,12 @@ class Journey:
         self.permission_requests += 1
         raise CanaryFailure("permission_requested")
 
-    def await_response(self, request_id: int) -> dict[str, Any]:
+    def await_response(
+        self, request_id: int, deadline: float | None = None
+    ) -> dict[str, Any]:
+        response_deadline = self.deadline if deadline is None else deadline
         while True:
-            message = self.transport.receive(self.deadline)
+            message = self.transport.receive(response_deadline)
             self.observe(message)
             if message.get("method") == "session/request_permission":
                 self.reject_permission(message)
@@ -584,6 +587,60 @@ class Journey:
                 raise CanaryFailure(classify_error(str(safe_message)))
             if "result" in message:
                 return message
+
+    def close_session(self, timeout_seconds: float) -> bool:
+        if (
+            not self.close_session_supported
+            or self.session_id is None
+            or self.close_session_completed
+        ):
+            return self.close_session_completed
+        try:
+            self.transport.send(
+                {
+                    "jsonrpc": "2.0",
+                    "id": 3,
+                    "method": "session/close",
+                    "params": {"sessionId": self.session_id},
+                }
+            )
+            self.await_response(3, time.monotonic() + max(timeout_seconds, 0.1))
+        except (CanaryFailure, OSError, ValueError):
+            return False
+        self.close_session_completed = True
+        return True
+
+    def evidence(self, stop_reason: str | None = None) -> dict[str, Any]:
+        completed = [
+            fields
+            for fields in self.tool_calls.values()
+            if fields.get("status") == "completed"
+        ]
+        completed_evidence = json.dumps(
+            [
+                {
+                    "content": fields.get("content"),
+                    "rawOutput": fields.get("rawOutput"),
+                }
+                for fields in completed
+            ],
+            sort_keys=True,
+        )
+        return {
+            "toolCallStarted": bool(self.tool_calls),
+            "toolCallCompleted": bool(completed),
+            "toolEvidenceMatched": (
+                bool(completed)
+                and str(self.cwd) in completed_evidence
+                and self.sentinel_sha256 in completed_evidence
+            ),
+            "terminalMarkerObserved": self.marker in self.agent_text,
+            "stopReason": stop_reason,
+            "permissionRequestsObserved": self.permission_requests,
+            "permissionRequestsApproved": 0,
+            "closeSessionSupported": self.close_session_supported,
+            "closeSessionCompleted": self.close_session_completed,
+        }
 
     def run(self) -> dict[str, Any]:
         self.transport.send(INITIALIZE)
@@ -640,54 +697,17 @@ class Journey:
         if not isinstance(stop_reason, str) or not stop_reason:
             raise CanaryFailure("nonterminal_response")
 
-        completed = [
-            fields
-            for fields in self.tool_calls.values()
-            if fields.get("status") == "completed"
-        ]
-        if not completed:
+        current_evidence = self.evidence(stop_reason)
+        if not current_evidence["toolCallCompleted"]:
             raise CanaryFailure("tool_evidence_missing")
-        completed_evidence = json.dumps(
-            [
-                {
-                    "content": fields.get("content"),
-                    "rawOutput": fields.get("rawOutput"),
-                }
-                for fields in completed
-            ],
-            sort_keys=True,
-        )
-        evidence_matches = (
-            str(self.cwd) in completed_evidence
-            and self.sentinel_sha256 in completed_evidence
-        )
-        if not evidence_matches:
+        if not current_evidence["toolEvidenceMatched"]:
             raise CanaryFailure("project_evidence_mismatch")
-        if self.marker not in self.agent_text:
+        if not current_evidence["terminalMarkerObserved"]:
             raise CanaryFailure("terminal_marker_missing")
 
-        if self.close_session_supported:
-            self.transport.send(
-                {
-                    "jsonrpc": "2.0",
-                    "id": 3,
-                    "method": "session/close",
-                    "params": {"sessionId": session_id},
-                }
-            )
-            self.await_response(3)
-            self.close_session_completed = True
-        return {
-            "toolCallStarted": bool(self.tool_calls),
-            "toolCallCompleted": True,
-            "toolEvidenceMatched": True,
-            "terminalMarkerObserved": True,
-            "stopReason": stop_reason,
-            "permissionRequestsObserved": self.permission_requests,
-            "permissionRequestsApproved": 0,
-            "closeSessionSupported": self.close_session_supported,
-            "closeSessionCompleted": self.close_session_completed,
-        }
+        if self.close_session_supported and not self.close_session(2.0):
+            raise CanaryFailure("session_close_failed")
+        return self.evidence(stop_reason)
 
 
 def main() -> int:
@@ -731,6 +751,12 @@ def main() -> int:
     except (OSError, ValueError) as exc:
         failure_class = classify_error(str(exc))
     finally:
+        if journey is not None and failure_class is not None:
+            # A non-green project oracle must not strand the durable session it
+            # created. Preserve the original failure classification even when
+            # best-effort close is unsupported or fails.
+            journey.close_session(min(args.termination_grace_seconds, 2.0))
+            journey_evidence = journey.evidence()
         if transport is not None:
             process_group_gone = transport.finish(args.termination_grace_seconds)
             if failure_class in {"transport_exited", "provider_or_transport_error"}:
