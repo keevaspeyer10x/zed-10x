@@ -956,6 +956,16 @@ fn thread_metadata_to_debug_json(
     })
 }
 
+fn removed_agent_draft_may_rebind(thread_id: ThreadId, cx: &App) -> bool {
+    ThreadMetadataStore::try_global(cx)
+        .and_then(|store| store.read(cx).entry(thread_id).cloned())
+        .is_some_and(|metadata| {
+            metadata.is_draft()
+                && crate::draft_prompt_store::read_with_provenance(thread_id, cx)
+                    .is_some_and(|stored| stored.provenance.may_rebind_when_agent_is_removed())
+        })
+}
+
 /// Optional parameters for `AgentPanel::create_thread_with_options`. All
 /// fields default to the panel's current selection so the agent tool only
 /// needs to override what it actually cares about.
@@ -1145,6 +1155,31 @@ impl BaseView {
 struct PendingThreadRestore {
     thread_id: ThreadId,
     agent: Agent,
+    activation: Option<PendingThreadActivation>,
+}
+
+#[derive(Clone, Copy)]
+struct PendingThreadActivation {
+    focus: bool,
+    source: AgentThreadSource,
+}
+
+impl PendingThreadRestore {
+    fn automatic(thread_id: ThreadId, agent: Agent) -> Self {
+        Self {
+            thread_id,
+            agent,
+            activation: None,
+        }
+    }
+
+    fn explicit(thread_id: ThreadId, agent: Agent, focus: bool, source: AgentThreadSource) -> Self {
+        Self {
+            thread_id,
+            agent,
+            activation: Some(PendingThreadActivation { focus, source }),
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -1473,10 +1508,12 @@ impl AgentPanel {
                             .availability(&panel.project, cx)
                         {
                             AgentAvailability::Pending => {
-                                panel.pending_active_thread_restore = Some(PendingThreadRestore {
-                                    thread_id: *thread_id,
-                                    agent: clamp(info.agent_type.clone()),
-                                });
+                                panel.pending_active_thread_restore = Some(
+                                    PendingThreadRestore::automatic(
+                                        *thread_id,
+                                        clamp(info.agent_type.clone()),
+                                    ),
+                                );
                                 None
                             }
                             AgentAvailability::Available(agent) => Some(agent),
@@ -1976,17 +2013,22 @@ impl AgentPanel {
                 AgentAvailability::Pending => blocks_selected_reconciliation = true,
                 AgentAvailability::Available(agent) => {
                     self.pending_active_thread_restore = None;
-                    if matches!(self.base_view, BaseView::Uninitialized)
+                    if (pending.activation.is_some()
+                        || matches!(self.base_view, BaseView::Uninitialized))
                         && let Some(metadata) = ThreadMetadataStore::try_global(cx)
                             .and_then(|store| store.read(cx).entry(pending.thread_id).cloned())
                     {
+                        let activation = pending.activation.unwrap_or(PendingThreadActivation {
+                            focus: false,
+                            source: AgentThreadSource::AgentPanel,
+                        });
                         self.load_agent_thread_without_canceling_pending(
                             agent,
                             pending.thread_id,
                             Some(metadata.folder_paths().clone()),
                             metadata.title.clone(),
-                            false,
-                            AgentThreadSource::AgentPanel,
+                            activation.focus,
+                            activation.source,
                             window,
                             cx,
                         );
@@ -1998,26 +2040,44 @@ impl AgentPanel {
                     if let Some(metadata) = ThreadMetadataStore::try_global(cx)
                         .and_then(|store| store.read(cx).entry(pending.thread_id).cloned())
                     {
+                        let should_activate = pending.activation.is_some()
+                            || matches!(self.base_view, BaseView::Uninitialized);
+                        let activation = pending.activation.unwrap_or(PendingThreadActivation {
+                            focus: false,
+                            source: AgentThreadSource::AgentPanel,
+                        });
                         let has_content = metadata.session_id.is_some()
                             || crate::draft_prompt_store::persisted_draft_has_user_content(
                                 pending.thread_id,
                                 cx,
                             );
                         let deferred_initial_content =
-                            crate::draft_prompt_store::read_with_provenance(pending.thread_id, cx)
-                                .is_some_and(|stored| {
-                                    stored.provenance.may_rebind_when_agent_is_removed()
-                                });
-                        if deferred_initial_content
-                            && matches!(self.base_view, BaseView::Uninitialized)
-                        {
+                            removed_agent_draft_may_rebind(pending.thread_id, cx);
+                        if deferred_initial_content && should_activate {
                             self.load_agent_thread_without_canceling_pending(
                                 Agent::NativeAgent,
                                 pending.thread_id,
                                 Some(metadata.folder_paths().clone()),
                                 metadata.title.clone(),
-                                false,
-                                AgentThreadSource::AgentPanel,
+                                activation.focus,
+                                activation.source,
+                                window,
+                                cx,
+                            );
+                            blocks_selected_reconciliation = true;
+                        } else if has_content && should_activate {
+                            // Submitted history and ordinary user drafts keep
+                            // their exact historical agent identity. Loading
+                            // the removed agent intentionally produces the
+                            // visible load-error state rather than silently
+                            // rebinding or discarding the thread.
+                            self.load_agent_thread_without_canceling_pending(
+                                pending.agent,
+                                pending.thread_id,
+                                Some(metadata.folder_paths().clone()),
+                                metadata.title.clone(),
+                                activation.focus,
+                                activation.source,
                                 window,
                                 cx,
                             );
@@ -2158,10 +2218,10 @@ impl AgentPanel {
             let persisted = Agent::from(metadata.agent_id.clone());
             match persisted.availability(&self.project, cx) {
                 AgentAvailability::Pending => {
-                    self.pending_new_draft_restore = Some(PendingThreadRestore {
+                    self.pending_new_draft_restore = Some(PendingThreadRestore::automatic(
                         thread_id,
-                        agent: persisted.clone(),
-                    });
+                        persisted.clone(),
+                    ));
                     self.selected_agent = persisted;
                     return;
                 }
@@ -3921,7 +3981,7 @@ impl AgentPanel {
             thread_id,
             initial_content,
         });
-        self.pending_new_draft_restore = Some(PendingThreadRestore { thread_id, agent });
+        self.pending_new_draft_restore = Some(PendingThreadRestore::automatic(thread_id, agent));
         self.serialize(cx);
         cx.emit(AgentPanelEvent::EntryChanged);
         cx.notify();
@@ -4832,19 +4892,15 @@ impl AgentPanel {
                         store.update(cx, |store, cx| store.unarchive(thread_id, cx));
                     }
                     self.set_selected_agent_and_persist(agent.clone(), cx);
-                    self.pending_active_thread_restore =
-                        Some(PendingThreadRestore { thread_id, agent });
+                    self.pending_active_thread_restore = Some(PendingThreadRestore::explicit(
+                        thread_id, agent, focus, source,
+                    ));
                     self.serialize(cx);
                     cx.notify();
                     return;
                 }
                 AgentAvailability::Available(agent) => agent,
-                AgentAvailability::Removed
-                    if crate::draft_prompt_store::read_with_provenance(thread_id, cx)
-                        .is_some_and(|stored| {
-                            stored.provenance.may_rebind_when_agent_is_removed()
-                        }) =>
-                {
+                AgentAvailability::Removed if removed_agent_draft_may_rebind(thread_id, cx) => {
                     Agent::NativeAgent
                 }
                 AgentAvailability::Removed => agent,
@@ -12109,10 +12165,10 @@ mod tests {
         });
         panel.update(cx, |panel, _cx| {
             panel.selected_agent = Agent::Stub;
-            panel.pending_active_thread_restore = Some(PendingThreadRestore {
-                thread_id: pending_thread_id,
-                agent: pending_agent.clone(),
-            });
+            panel.pending_active_thread_restore = Some(PendingThreadRestore::automatic(
+                pending_thread_id,
+                pending_agent.clone(),
+            ));
         });
 
         registry.update(cx, |registry, cx| {
@@ -12562,14 +12618,14 @@ mod tests {
         .expect("pending draft prompt should persist");
         panel.update(cx, |panel, _cx| {
             panel.selected_agent = pending_agent.clone();
-            panel.pending_active_thread_restore = Some(PendingThreadRestore {
-                thread_id: pending_session_thread_id,
-                agent: pending_agent.clone(),
-            });
-            panel.pending_new_draft_restore = Some(PendingThreadRestore {
-                thread_id: pending_draft_thread_id,
-                agent: pending_agent.clone(),
-            });
+            panel.pending_active_thread_restore = Some(PendingThreadRestore::automatic(
+                pending_session_thread_id,
+                pending_agent.clone(),
+            ));
+            panel.pending_new_draft_restore = Some(PendingThreadRestore::automatic(
+                pending_draft_thread_id,
+                pending_agent.clone(),
+            ));
         });
 
         panel.update_in(cx, |panel, window, cx| {
@@ -12659,14 +12715,14 @@ mod tests {
         let (panel, mut cx) = setup_panel(cx).await;
         let pending_thread_id = ThreadId::new();
         panel.update(&mut cx, |panel, _cx| {
-            panel.pending_active_thread_restore = Some(PendingThreadRestore {
-                thread_id: pending_thread_id,
-                agent: Agent::Stub,
-            });
-            panel.pending_new_draft_restore = Some(PendingThreadRestore {
-                thread_id: ThreadId::new(),
-                agent: Agent::Stub,
-            });
+            panel.pending_active_thread_restore = Some(PendingThreadRestore::automatic(
+                pending_thread_id,
+                Agent::Stub,
+            ));
+            panel.pending_new_draft_restore = Some(PendingThreadRestore::automatic(
+                ThreadId::new(),
+                Agent::Stub,
+            ));
         });
 
         panel.update_in(&mut cx, |panel, window, cx| {
@@ -12729,10 +12785,10 @@ mod tests {
         });
         panel.update(cx, |panel, _cx| {
             panel.selected_agent = pending_agent.clone();
-            panel.pending_active_thread_restore = Some(PendingThreadRestore {
-                thread_id: pending_thread_id,
-                agent: pending_agent.clone(),
-            });
+            panel.pending_active_thread_restore = Some(PendingThreadRestore::automatic(
+                pending_thread_id,
+                pending_agent.clone(),
+            ));
         });
 
         panel.update_in(cx, |panel, window, cx| {
@@ -12807,10 +12863,10 @@ mod tests {
             .expect("pending draft prompt should persist");
         panel.update(cx, |panel, _cx| {
             panel.selected_agent = pending_agent.clone();
-            panel.pending_new_draft_restore = Some(PendingThreadRestore {
-                thread_id: pending_thread_id,
-                agent: pending_agent.clone(),
-            });
+            panel.pending_new_draft_restore = Some(PendingThreadRestore::automatic(
+                pending_thread_id,
+                pending_agent.clone(),
+            ));
         });
 
         registry.update(cx, |registry, cx| {
@@ -12867,6 +12923,8 @@ mod tests {
         let panel = workspace.update_in(cx, |workspace, window, cx| {
             cx.new(|cx| AgentPanel::new(workspace, window, cx))
         });
+        crate::test_support::open_draft_with_connection(&panel, StubAgentConnection::new(), cx);
+        let previously_active_thread_id = crate::test_support::active_thread_id(&panel, cx);
         let pending_agent = Agent::Custom {
             id: "Test Registry".into(),
         };
@@ -12901,9 +12959,12 @@ mod tests {
             );
         });
         cx.run_until_parked();
-        panel.read_with(cx, |panel, _cx| {
-            assert!(matches!(panel.base_view, BaseView::Uninitialized));
-            assert!(panel.draft_thread.is_none());
+        panel.read_with(cx, |panel, cx| {
+            assert_eq!(
+                panel.active_thread_id(cx),
+                Some(previously_active_thread_id),
+                "the current view stays visible only while explicit activation waits for authority"
+            );
             assert_eq!(
                 panel
                     .pending_active_thread_restore
@@ -12920,8 +12981,299 @@ mod tests {
         cx.run_until_parked();
         panel.read_with(cx, |panel, cx| {
             assert_eq!(panel.active_thread_id(cx), Some(thread_id));
+            assert_ne!(
+                panel.active_thread_id(cx),
+                Some(previously_active_thread_id)
+            );
             assert_eq!(panel.selected_agent, pending_agent);
             assert!(panel.pending_active_thread_restore.is_none());
+        });
+    }
+
+    #[gpui::test]
+    async fn test_manual_pending_session_activation_survives_removed_inventory(
+        cx: &mut TestAppContext,
+    ) {
+        init_test(cx);
+        let fs = FakeFs::new(cx.executor());
+        let registry = cx.update(|cx| AgentRegistryStore::init_test_global(cx, Vec::new()));
+        cx.update(|cx| {
+            agent::ThreadStore::init_global(cx);
+            language_model::LanguageModelRegistry::test(cx);
+            <dyn fs::Fs>::set_global(fs.clone(), cx);
+            set_test_registry_agent_settings(cx);
+        });
+
+        fs.insert_tree("/project", json!({ "file.txt": "" })).await;
+        let project = Project::test(fs, [Path::new("/project")], cx).await;
+        let multi_workspace =
+            cx.add_window(|window, cx| MultiWorkspace::test_new(project, window, cx));
+        let workspace = multi_workspace
+            .read_with(cx, |multi_workspace, _cx| {
+                multi_workspace.workspace().clone()
+            })
+            .unwrap();
+        let cx = &mut VisualTestContext::from_window(multi_workspace.into(), cx);
+        let panel = workspace.update_in(cx, |workspace, window, cx| {
+            cx.new(|cx| AgentPanel::new(workspace, window, cx))
+        });
+        crate::test_support::open_draft_with_connection(&panel, StubAgentConnection::new(), cx);
+        let previously_active_thread_id = crate::test_support::active_thread_id(&panel, cx);
+        let pending_agent = Agent::Custom {
+            id: "Test Registry".into(),
+        };
+        let pending_thread_id = ThreadId::new();
+        let pending_session_id = acp::SessionId::new("manually-selected-pending-session");
+        cx.update(|_, cx| {
+            save_test_thread_metadata(
+                pending_thread_id,
+                Some(pending_session_id.clone()),
+                &pending_agent,
+                cx,
+            );
+        });
+
+        panel.update_in(cx, |panel, window, cx| {
+            panel.load_agent_thread(
+                pending_agent.clone(),
+                pending_thread_id,
+                None,
+                None,
+                true,
+                AgentThreadSource::Sidebar,
+                window,
+                cx,
+            );
+        });
+        cx.run_until_parked();
+        panel.read_with(cx, |panel, cx| {
+            assert_eq!(
+                panel.active_thread_id(cx),
+                Some(previously_active_thread_id)
+            );
+            assert_eq!(
+                panel
+                    .pending_active_thread_restore
+                    .as_ref()
+                    .map(|pending| pending.thread_id),
+                Some(pending_thread_id)
+            );
+        });
+
+        registry.update(cx, |registry, cx| {
+            registry.set_agents(
+                vec![test_registry_agent_named("Different Registry Agent")],
+                cx,
+            );
+        });
+        cx.run_until_parked();
+
+        panel.read_with(cx, |panel, cx| {
+            assert_eq!(panel.active_thread_id(cx), Some(pending_thread_id));
+            let conversation = panel
+                .active_conversation_view()
+                .expect("removed historical session should remain visibly selected");
+            assert_eq!(*conversation.read(cx).agent_key(), pending_agent);
+            assert_eq!(
+                conversation.read(cx).root_session_id.as_ref(),
+                Some(&pending_session_id)
+            );
+            assert!(panel.pending_active_thread_restore.is_none());
+        });
+    }
+
+    #[gpui::test]
+    async fn test_cold_pending_submitted_session_removed_restores_visible_history(
+        cx: &mut TestAppContext,
+    ) {
+        init_test(cx);
+        let fs = FakeFs::new(cx.executor());
+        let registry = cx.update(|cx| AgentRegistryStore::init_test_global(cx, Vec::new()));
+        cx.update(|cx| {
+            agent::ThreadStore::init_global(cx);
+            language_model::LanguageModelRegistry::test(cx);
+            <dyn fs::Fs>::set_global(fs.clone(), cx);
+            set_test_registry_agent_settings(cx);
+        });
+
+        fs.insert_tree("/project", json!({ "file.txt": "" })).await;
+        let project = Project::test(fs, [Path::new("/project")], cx).await;
+        let multi_workspace =
+            cx.add_window(|window, cx| MultiWorkspace::test_new(project, window, cx));
+        let workspace = multi_workspace
+            .read_with(cx, |multi_workspace, _cx| {
+                multi_workspace.workspace().clone()
+            })
+            .unwrap();
+        workspace.update(cx, |workspace, _cx| workspace.set_random_database_id());
+        let workspace_id = workspace
+            .read_with(cx, |workspace, _cx| workspace.database_id())
+            .expect("workspace should have a database id");
+        let pending_agent = Agent::Custom {
+            id: "Test Registry".into(),
+        };
+        let pending_thread_id = ThreadId::new();
+        let pending_session_id = acp::SessionId::new("cold-pending-submitted-session");
+        cx.update(|cx| {
+            save_test_thread_metadata(
+                pending_thread_id,
+                Some(pending_session_id.clone()),
+                &pending_agent,
+                cx,
+            );
+        });
+        cx.update(|cx| {
+            crate::draft_prompt_store::write_with_provenance(
+                pending_thread_id,
+                &[acp::ContentBlock::Text(acp::TextContent::new(
+                    "stale deferred prompt from before submission",
+                ))],
+                crate::draft_prompt_store::DraftPromptProvenance::DeferredInitialContent,
+                cx,
+            )
+        })
+        .await
+        .expect("stale deferred draft state should persist for the regression");
+        let kvp = cx.update(|cx| KeyValueStore::global(cx));
+        cx.background_spawn(async move {
+            save_serialized_panel(
+                workspace_id,
+                SerializedAgentPanel {
+                    selected_agent: Some(pending_agent.clone()),
+                    last_created_entry_kind: AgentPanelEntryKind::Thread,
+                    last_active_thread: Some(SerializedActiveThread {
+                        session_id: Some(pending_session_id.0.to_string()),
+                        thread_id: Some(pending_thread_id),
+                        agent_type: pending_agent,
+                        title: Some("Historical pending session".to_owned()),
+                        work_dirs: Some(PathList::default().serialize()),
+                    }),
+                    last_active_terminal_id: None,
+                    new_draft_thread_id: None,
+                },
+                kvp,
+            )
+            .await
+        })
+        .await
+        .expect("panel state should persist");
+
+        let cx = &mut VisualTestContext::from_window(multi_workspace.into(), cx);
+        let async_cx = cx.update(|window, cx| window.to_async(cx));
+        let panel = AgentPanel::load(workspace.downgrade(), async_cx)
+            .await
+            .expect("panel should load while registry authority is pending");
+        cx.run_until_parked();
+        panel.read_with(cx, |panel, _cx| {
+            assert!(matches!(panel.base_view, BaseView::Uninitialized));
+            assert_eq!(
+                panel
+                    .pending_active_thread_restore
+                    .as_ref()
+                    .map(|pending| pending.thread_id),
+                Some(pending_thread_id)
+            );
+        });
+
+        registry.update(cx, |registry, cx| {
+            registry.set_agents(
+                vec![test_registry_agent_named("Different Registry Agent")],
+                cx,
+            );
+        });
+        cx.run_until_parked();
+
+        panel.read_with(cx, |panel, cx| {
+            assert_eq!(panel.active_thread_id(cx), Some(pending_thread_id));
+            let conversation = panel
+                .active_conversation_view()
+                .expect("cold submitted history must not disappear after removal resolves");
+            assert_eq!(
+                *conversation.read(cx).agent_key(),
+                Agent::Custom {
+                    id: "Test Registry".into(),
+                }
+            );
+            assert_eq!(
+                conversation.read(cx).root_session_id.as_ref(),
+                Some(&acp::SessionId::new("cold-pending-submitted-session"))
+            );
+            assert!(panel.pending_active_thread_restore.is_none());
+        });
+    }
+
+    #[gpui::test]
+    async fn test_direct_removed_submitted_session_ignores_stale_external_draft(
+        cx: &mut TestAppContext,
+    ) {
+        init_test(cx);
+        let fs = FakeFs::new(cx.executor());
+        cx.update(|cx| {
+            AgentRegistryStore::init_test_global(cx, vec![test_registry_agent_named("Other")]);
+            agent::ThreadStore::init_global(cx);
+            language_model::LanguageModelRegistry::test(cx);
+            <dyn fs::Fs>::set_global(fs.clone(), cx);
+            set_test_registry_agent_settings(cx);
+        });
+
+        fs.insert_tree("/project", json!({ "file.txt": "" })).await;
+        let project = Project::test(fs, [Path::new("/project")], cx).await;
+        let multi_workspace =
+            cx.add_window(|window, cx| MultiWorkspace::test_new(project, window, cx));
+        let workspace = multi_workspace
+            .read_with(cx, |multi_workspace, _cx| {
+                multi_workspace.workspace().clone()
+            })
+            .unwrap();
+        let cx = &mut VisualTestContext::from_window(multi_workspace.into(), cx);
+        let panel = workspace.update_in(cx, |workspace, window, cx| {
+            cx.new(|cx| AgentPanel::new(workspace, window, cx))
+        });
+        let removed_agent = Agent::Custom {
+            id: "Removed Registry Agent".into(),
+        };
+        let thread_id = ThreadId::new();
+        let session_id = acp::SessionId::new("direct-removed-submitted-session");
+        cx.update(|_, cx| {
+            save_test_thread_metadata(thread_id, Some(session_id.clone()), &removed_agent, cx);
+        });
+        cx.update(|_, cx| {
+            crate::draft_prompt_store::write_with_provenance(
+                thread_id,
+                &[acp::ContentBlock::Text(acp::TextContent::new(
+                    "stale external prompt from before submission",
+                ))],
+                crate::draft_prompt_store::DraftPromptProvenance::ExternalSource,
+                cx,
+            )
+        })
+        .await
+        .expect("stale external draft state should persist for the regression");
+
+        panel.update_in(cx, |panel, window, cx| {
+            panel.load_agent_thread(
+                removed_agent.clone(),
+                thread_id,
+                None,
+                None,
+                true,
+                AgentThreadSource::Sidebar,
+                window,
+                cx,
+            );
+        });
+        cx.run_until_parked();
+
+        panel.read_with(cx, |panel, cx| {
+            assert_eq!(panel.active_thread_id(cx), Some(thread_id));
+            let conversation = panel
+                .active_conversation_view()
+                .expect("removed submitted history should stay visibly selected");
+            assert_eq!(*conversation.read(cx).agent_key(), removed_agent);
+            assert_eq!(
+                conversation.read(cx).root_session_id.as_ref(),
+                Some(&session_id)
+            );
         });
     }
 
@@ -12967,10 +13319,10 @@ mod tests {
             .expect("pending draft prompt should persist");
         panel.update(cx, |panel, _cx| {
             panel.selected_agent = pending_agent.clone();
-            panel.pending_new_draft_restore = Some(PendingThreadRestore {
-                thread_id: pending_thread_id,
-                agent: pending_agent.clone(),
-            });
+            panel.pending_new_draft_restore = Some(PendingThreadRestore::automatic(
+                pending_thread_id,
+                pending_agent.clone(),
+            ));
         });
 
         panel.update_in(cx, |panel, window, cx| {

@@ -70,6 +70,9 @@ jobs:
           cargo test --locked -p agent_ui test_guarded_user_thread_supersedes_pending_restorations_and_preserves_them --lib
           cargo test --locked -p agent_ui test_native_summary_action_cancels_pending_restoration_before_lookup --lib
           cargo test --locked -p agent_ui test_manual_pending_draft_load_waits_without_constructing_server --lib
+          cargo test --locked -p agent_ui test_manual_pending_session_activation_survives_removed_inventory --lib
+          cargo test --locked -p agent_ui test_cold_pending_submitted_session_removed_restores_visible_history --lib
+          cargo test --locked -p agent_ui test_direct_removed_submitted_session_ignores_stale_external_draft --lib
           cargo test --locked -p agent_ui test_initialize_from_source_transfers_draft_to_fresh_panel --lib
           cargo test --locked -p agent_ui test_initialize_from_source_waits_for_destination_agent_authority --lib
           cargo test --locked -p agent_ui test_new_thread_replaces_removed_empty_draft --lib

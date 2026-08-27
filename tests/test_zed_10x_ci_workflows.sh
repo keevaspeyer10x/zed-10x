@@ -140,6 +140,12 @@ if [[ -f "$RUST_CI" ]]; then
         contains "$RUST_CI" "cargo test --locked -p agent_ui test_native_summary_action_cancels_pending_restoration_before_lookup --lib"
     check "focused CI prevents manual loads from constructing pending agents" \
         contains "$RUST_CI" "cargo test --locked -p agent_ui test_manual_pending_draft_load_waits_without_constructing_server --lib"
+    check "focused CI preserves explicit pending session activation after removal" \
+        contains "$RUST_CI" "cargo test --locked -p agent_ui test_manual_pending_session_activation_survives_removed_inventory --lib"
+    check "focused CI keeps cold submitted history visible after removal" \
+        contains "$RUST_CI" "cargo test --locked -p agent_ui test_cold_pending_submitted_session_removed_restores_visible_history --lib"
+    check "focused CI prevents stale draft provenance from rebinding submitted history" \
+        contains "$RUST_CI" "cargo test --locked -p agent_ui test_direct_removed_submitted_session_ignores_stale_external_draft --lib"
     check "focused CI preserves normal cross-workspace draft transfer" \
         contains "$RUST_CI" "cargo test --locked -p agent_ui test_initialize_from_source_transfers_draft_to_fresh_panel --lib"
     check "focused CI enforces destination-host authority for copied drafts" \
