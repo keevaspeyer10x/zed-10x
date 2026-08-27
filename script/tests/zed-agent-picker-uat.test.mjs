@@ -24,6 +24,9 @@ function runMatrix({
   configured = expected,
   existingSummary = false,
   driftSource = false,
+  registryEntries = [],
+  sourceExclusions = { Darwin: [], Linux: [] },
+  inventoryExclusions = { Darwin: [], Linux: [] },
 }) {
   const root = mkdtempSync(path.join(tmpdir(), "zed-picker-matrix-"));
   const project = path.join(root, "project");
@@ -35,39 +38,72 @@ function runMatrix({
   mkdirSync(registry);
   writeFileSync(path.join(project, "sentinel.txt"), "picker-matrix\n");
   writeFileSync(path.join(registry, "registry.json"), JSON.stringify({ agents: [] }));
-  const managed = [...new Set([...expected, ...configured, "Other Surface"] )];
+  const macCustom = expected.filter((name) => !registryEntries.includes(name));
+  const macRegistry = registryEntries.filter(
+    (name) => !inventoryExclusions.Darwin.includes(name),
+  );
+  const intrepidRegistry = registryEntries.filter(
+    (name) => !inventoryExclusions.Linux.includes(name),
+  );
+  const linuxLocal = ["Other Surface"];
+  const managed = [
+    ...new Set([...expected, ...configured, ...registryEntries, "Other Surface"]),
+  ];
   const inventory = path.join(root, "inventory.json");
   writeFileSync(
     inventory,
     JSON.stringify({
       schema: "zed-agent-picker-inventory-v1",
       managedEntries: managed,
-      surfaces: { "mac-local": expected, intrepid: [] },
+      surfaces: {
+        "mac-local": expected,
+        intrepid: [...linuxLocal, ...intrepidRegistry],
+      },
       executionClasses: {
         "mac-custom": {
           surface: "mac-local",
-          representative: expected[0],
-          members: expected,
+          representative: macCustom[0] ?? null,
+          members: macCustom,
         },
-        "mac-registry": { surface: "mac-local", representative: null, members: [] },
-        "intrepid-local": { surface: "intrepid", representative: null, members: [] },
+        "mac-registry": {
+          surface: "mac-local",
+          representative: macRegistry[0] ?? null,
+          members: macRegistry,
+        },
+        "intrepid-local": {
+          surface: "intrepid",
+          representative: linuxLocal[0],
+          members: linuxLocal,
+        },
         "intrepid-persistent": { surface: "intrepid", representative: null, members: [] },
-        "intrepid-registry": { surface: "intrepid", representative: null, members: [] },
+        "intrepid-registry": {
+          surface: "intrepid",
+          representative: intrepidRegistry[0] ?? null,
+          members: intrepidRegistry,
+        },
       },
     }),
   );
   const sourceManifest = path.join(root, "agent-servers.json");
+  const sourceManaged = driftSource ? [...managed, "Source Drift"] : managed;
+  const sourceLinuxLocal = driftSource
+    ? [...linuxLocal, "Source Drift"]
+    : linuxLocal;
   writeFileSync(
     sourceManifest,
     JSON.stringify({
       schemaVersion: 2,
-      managedNames: driftSource ? [...managed, "Source Drift"] : managed,
-      macLanes: expected,
-      linuxLocalLanes: [],
+      managedNames: sourceManaged,
+      macLanes: macCustom,
+      linuxLocalLanes: sourceLinuxLocal,
       persistentLanes: {},
-      projectHostRegistryLanes: [],
+      projectHostRegistryLanes: registryEntries,
+      projectHostRegistryExclusions: sourceExclusions,
       agentServers: Object.fromEntries(
-        (driftSource ? [...managed, "Source Drift"] : managed).map((name) => [name, {}]),
+        sourceManaged.map((name) => [
+          name,
+          registryEntries.includes(name) ? { type: "registry" } : {},
+        ]),
       ),
     }),
   );
@@ -180,13 +216,42 @@ test("source manifest drift fails before any route starts", () => {
   assert.equal(result.summary.failureClass, "source_inventory_mismatch");
 });
 
+test("source manifest host exclusions drive the exact picker inventory", () => {
+  const result = runMatrix({
+    expected: ["Mac Route", "Registry Kept"],
+    registryEntries: ["Registry Kept", "Registry Excluded"],
+    sourceExclusions: { Darwin: ["Registry Excluded"], Linux: [] },
+    inventoryExclusions: { Darwin: ["Registry Excluded"], Linux: [] },
+  });
+  assert.equal(result.process.status, 0, result.process.stderr);
+  assert.deepEqual(result.calls, ["Mac Route", "Registry Kept"]);
+  assert.equal(result.summary.expectedEndpoints.length, 2);
+});
+
+test("source manifest rejects missing or cross-host registry exclusions", () => {
+  for (const sourceExclusions of [
+    null,
+    { Darwin: ["Registry Route"] },
+    { Darwin: ["Registry Route"], Linux: ["Registry Route"] },
+  ]) {
+    const result = runMatrix({
+      expected: ["Registry Route"],
+      registryEntries: ["Registry Route"],
+      sourceExclusions,
+    });
+    assert.equal(result.process.status, 1);
+    assert.deepEqual(result.calls, []);
+    assert.equal(result.summary.failureClass, "invalid_source_manifest");
+  }
+});
+
 test("an immutable existing summary prevents replay", () => {
   const result = runMatrix({ expected: ["Alpha"], existingSummary: true });
   assert.equal(result.process.status, 2);
   assert.deepEqual(result.calls, []);
 });
 
-test("checked inventory binds the complete 14-entry Mac and 18-entry Intrepid sets", () => {
+test("checked inventory binds the complete 13-entry Mac and 18-entry Intrepid sets", () => {
   const inventory = JSON.parse(
     readFileSync(
       path.join(repositoryRoot, "docs/test-plan-inputs/zed-agent-picker-inventory.json"),
@@ -194,7 +259,7 @@ test("checked inventory binds the complete 14-entry Mac and 18-entry Intrepid se
     ),
   );
   assert.equal(inventory.managedEntries.length, 24);
-  assert.equal(inventory.surfaces["mac-local"].length, 14);
+  assert.equal(inventory.surfaces["mac-local"].length, 13);
   assert.equal(inventory.surfaces.intrepid.length, 18);
   assert.equal(new Set(inventory.managedEntries).size, 24);
   assert.deepEqual(Object.keys(inventory.executionClasses), [
@@ -225,7 +290,6 @@ test("checked inventory binds the complete 14-entry Mac and 18-entry Intrepid se
     ),
     [
       "antigravity-acp",
-      "claude-acp",
       "codex-acp",
       "cursor",
       "devin",

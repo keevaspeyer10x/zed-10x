@@ -176,32 +176,63 @@ def validate_source_manifest(
     linux_local = manifest.get("linuxLocalLanes")
     persistent = manifest.get("persistentLanes")
     registry = manifest.get("projectHostRegistryLanes")
+    registry_exclusions = manifest.get("projectHostRegistryExclusions")
     servers = manifest.get("agentServers")
     if not (
         isinstance(managed, list)
         and all(isinstance(item, str) and item for item in managed)
         and len(managed) == len(set(managed))
         and isinstance(mac, list)
+        and len(mac) == len(set(mac))
         and isinstance(linux_local, list)
+        and len(linux_local) == len(set(linux_local))
         and isinstance(persistent, dict)
         and isinstance(registry, list)
+        and len(registry) == len(set(registry))
         and isinstance(servers, dict)
         and all(isinstance(item, str) and item for item in mac + linux_local + registry)
         and all(isinstance(item, str) and item for item in persistent)
+        and isinstance(registry_exclusions, dict)
+        and set(registry_exclusions) == {"Darwin", "Linux"}
+        and all(
+            isinstance(exclusions, list)
+            and all(isinstance(item, str) and item for item in exclusions)
+            and len(exclusions) == len(set(exclusions))
+            and set(exclusions).issubset(registry)
+            for exclusions in registry_exclusions.values()
+        )
+        and set(registry_exclusions["Darwin"]).isdisjoint(
+            registry_exclusions["Linux"]
+        )
+        and set(managed)
+        == set(mac) | set(linux_local) | set(persistent) | set(registry)
+        and set(servers) == set(managed)
+        and set(mac).isdisjoint(linux_local)
+        and set(mac).isdisjoint(persistent)
+        and set(mac).isdisjoint(registry)
+        and set(linux_local).isdisjoint(persistent)
+        and set(linux_local).isdisjoint(registry)
+        and set(persistent).isdisjoint(registry)
     ):
         raise MatrixFailure("invalid_source_manifest")
+    mac_registry = [
+        item for item in registry if item not in registry_exclusions["Darwin"]
+    ]
+    linux_registry = [
+        item for item in registry if item not in registry_exclusions["Linux"]
+    ]
     projected = {
         "managedEntries": managed,
         "surfaces": {
-            "mac-local": mac + registry,
-            "intrepid": linux_local + list(persistent) + registry,
+            "mac-local": mac + mac_registry,
+            "intrepid": linux_local + list(persistent) + linux_registry,
         },
         "executionClassMembers": {
             "mac-custom": mac,
-            "mac-registry": registry,
+            "mac-registry": mac_registry,
             "intrepid-local": linux_local,
             "intrepid-persistent": list(persistent),
-            "intrepid-registry": registry,
+            "intrepid-registry": linux_registry,
         },
     }
     if (

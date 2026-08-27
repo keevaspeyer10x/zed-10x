@@ -35,7 +35,6 @@
       "Codex (Mac, secondary)",
       "Codex (Mac, work)",
       "antigravity-acp",
-      "claude-acp",
       "codex-acp",
       "cursor",
       "devin",
@@ -82,7 +81,6 @@
       "representative": "devin",
       "members": [
         "antigravity-acp",
-        "claude-acp",
         "codex-acp",
         "cursor",
         "devin",
