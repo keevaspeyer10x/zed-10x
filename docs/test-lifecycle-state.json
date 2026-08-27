@@ -82,7 +82,7 @@
         "docs/test-results/advertised-agent-matrix.json",
         "docs/test-results/installed-picker-uat.json"
       ],
-      "summary": "All 19 rows have direct, executed evidence. ACP-JOURNEY-002 binds every independently selectable route in the exact 12-entry Mac and 16-entry Intrepid healthy inventories. ACP-ASSEMBLED-019 separately binds the installed picker and session/new boundary for all five production execution classes. External authentication or permission refusal remains an explicit route classification rather than a product-origin failure, and cleanup is green."
+      "summary": "All 19 rows have direct, executed evidence. ACP-JOURNEY-002 binds every independently configured route in the exact 12-entry Mac and 16-entry Intrepid healthy inventories. ACP-ASSEMBLED-019 separately selects all 12 Mac and all 14 visible Intrepid entries in the installed app; the two additional Intrepid registry entries are intentionally alias-collapsed and remain covered by the direct matrix. Working routes prove real project-file access, external authentication or capacity stops remain explicit, restart restoration is green, and cleanup is green."
     },
     "5-analysis": {
       "status": "complete",
@@ -92,7 +92,7 @@
       "decisionCandidate": "production_ready",
       "rootCauseClusters": 12,
       "unresolvedFindings": 0,
-      "summary": "The exact tested revision and load-bearing picker inventory are bound. Every advertised Mac-local and Intrepid entry has route-level evidence, every production launch class has installed-app picker/session evidence, and the stronger project-read oracle rejects prompt echo and unrelated split calls."
+      "summary": "The exact tested revision and load-bearing picker inventory are bound. Every configured Mac-local and Intrepid entry has route-level evidence, every visible installed picker entry has assembled-app evidence, restart restoration is green, and the stronger project-read oracle rejects prompt echo and unrelated split calls."
     },
     "6-tracking": {
       "status": "complete",

@@ -139,7 +139,7 @@
       ],
       "runCommand": "node --test script/tests/zed-acp-live-canary.test.mjs script/tests/zed-agent-picker-uat.test.mjs && script/zed-agent-picker-uat.py for Mac-local and Intrepid",
       "evidencePath": "docs/test-results/advertised-agent-matrix.json",
-      "evidenceSha256": "7cecb6350dd3eea5c544665aa6d5ab5ec665b79211b7a646731fc36ae7fbe5b4"
+      "evidenceSha256": "90e4204e47aaa7a0ea0b5b321c343d4a19880e8c7baf5bd41680bcb8d0f71a03"
     },
     {
       "id": "ACP-ASSEMBLED-019",
@@ -155,9 +155,9 @@
         }
       ],
       "plannedEvidence": [
-        "installed app picker selection and session/new for five execution-class representatives",
+        "installed app picker selection and session/new for every selectable Mac and Intrepid route",
         "product logs and UI terminal state",
-        "project-bound outcome and cleanup census"
+        "project-bound outcome or precise external-readiness boundary, restart restoration, and cleanup census"
       ],
       "decisionRule": "hard_fail",
       "specificOracles": [
@@ -183,9 +183,9 @@
       "assertionRefs": [
         {
           "file": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
-          "testName": "five production execution classes",
+          "testName": "complete host-valid installed picker inventories",
           "asserts": [
-            "one exact assembled representative per class"
+            "every selectable Mac and Intrepid entry is exercised in the installed app"
           ]
         },
         {
@@ -196,10 +196,10 @@
           ]
         }
       ],
-      "runCommand": "computer-use the installed Zed 10x picker for the five declared representatives, then bind Zed logs and cleanup census",
+      "runCommand": "computer-use the installed Zed 10x picker for every selectable Mac and Intrepid entry, then quit, reopen, reconnect, restore a completed thread, and bind cleanup",
       "evidenceLayer": "assembled_product",
       "evidencePath": "docs/test-results/installed-picker-uat.json",
-      "evidenceSha256": "fdbc937d1ae6bc02a0f9398b0c907620976c0a590cfc54d315aba568f7eef3b3"
+      "evidenceSha256": "00a3bf719784b5dc00851781202b56ae7c04435ec646433b3a68b73496212af7"
     },
     {
       "id": "ACP-NEG-003",

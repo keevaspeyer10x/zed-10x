@@ -30,7 +30,7 @@
       "read real project bytes through a Mac-local ACP route",
       "read real project bytes through an Intrepid ACP route",
       "exercise noninteractive, PTY, and TCP secure environment transport",
-      "exercise every advertised ACP route directly and launch one installed-picker representative for each of five production execution classes"
+      "exercise every configured ACP route directly, select every visible Mac and Intrepid entry in the installed picker, and restore a completed Intrepid thread after restart"
     ],
     "unacceptableFriction": [],
     "evidencePath": "docs/test-results/installed-picker-uat.json",
@@ -157,7 +157,7 @@
       "Provider transcripts vary, so project-read authority is now the exact resource and observed bytes within one authoritative operation rather than any particular explanatory transcript.",
       "Codex Mac primary and Intrepid GLM each complete a withheld-oracle project read with no approved permission request.",
       "The final Mac and Intrepid projections expose exactly 12 and 16 healthy, consistently host-labelled routes, respectively.",
-      "All five production launch classes traversed the installed picker; four completed exact project reads and the Mac Devin representative stopped only on external authentication, with a same-class green registry control."
+      "All 12 visible Mac and all 14 visible Intrepid entries traversed the installed picker; seven Mac and eleven Intrepid entries completed exact project reads, the remainder stopped only at precise external authentication or capacity boundaries, and a completed Intrepid thread restored after restart."
     ],
     "lowYieldAssessment": "coverage_sufficient_after_full_variant_and_assembled_uat",
     "residualRisk": [
@@ -191,16 +191,16 @@
       ],
       "attempts": 1,
       "failureCategory": null,
-      "defectMateriality": "every advertised route was invoked and classified without a product failure",
+      "defectMateriality": "every configured route was invoked and classified without a product failure",
       "cleanupStatus": "passed",
       "newInformation": "All 12 Mac and 16 Intrepid healthy entries reached a project-bound result, a safely refused interaction, or an explicit external-readiness classification with no product-origin failure.",
-      "evidenceSha256": "7cecb6350dd3eea5c544665aa6d5ab5ec665b79211b7a646731fc36ae7fbe5b4",
+      "evidenceSha256": "90e4204e47aaa7a0ea0b5b321c343d4a19880e8c7baf5bd41680bcb8d0f71a03",
       "exitCode": 0
     },
     {
       "id": "ACP-ASSEMBLED-019",
       "status": "passed",
-      "command": "computer-use the installed Zed 10x picker for the five declared representatives, then bind Zed logs and cleanup census",
+      "command": "computer-use the installed Zed 10x picker for every visible Mac and Intrepid entry, then quit, reopen, reconnect, restore a completed thread, and bind cleanup",
       "evidencePath": "docs/test-results/installed-picker-uat.json",
       "evidenceStrength": "direct",
       "resourceLocks": [
@@ -210,10 +210,10 @@
       ],
       "attempts": 1,
       "failureCategory": null,
-      "defectMateriality": "all five production launch classes traversed the installed app; Devin Mac stopped only on external authentication",
+      "defectMateriality": "all 12 Mac and all 14 visible Intrepid routes traversed the installed app with real project reads or precise external boundaries",
       "cleanupStatus": "passed",
-      "newInformation": "The installed 14/18 host-labelled pickers launched Mac custom/registry and Intrepid local/persistent/registry classes against real project bytes without product-origin errors.",
-      "evidenceSha256": "fdbc937d1ae6bc02a0f9398b0c907620976c0a590cfc54d315aba568f7eef3b3",
+      "newInformation": "The installed 12-entry Mac and 14-entry visible Intrepid pickers launched every selectable route without product-origin errors, and restart restoration preserved the completed Intrepid project result.",
+      "evidenceSha256": "00a3bf719784b5dc00851781202b56ae7c04435ec646433b3a68b73496212af7",
       "exitCode": 0
     },
     {
@@ -440,7 +440,7 @@
     }
   ],
   "evidenceBinding": {
-    "testedRevision": "74864015a64570f6b52e5810528ddb9f77e5e355",
+    "testedRevision": "c88d2217b1d2b546e18e2e6d6fee0b82425b6daa",
     "loadBearingInputs": [
       {
         "path": "docs/test-plan-inputs/zed-agent-picker-inventory.json",

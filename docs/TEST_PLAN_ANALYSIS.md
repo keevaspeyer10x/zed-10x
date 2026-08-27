@@ -16,18 +16,19 @@ whose executable, package, authentication, host runtime, or protocol path can
 fail independently.
 
 The correction adds an exact selectable-variant matrix, binds its inventory to
-the canonical managed-agent manifest and host health exclusions, executes every advertised route once,
-and separates explicit external readiness from product-origin failure. It also
-requires the installed picker and `session/new` journey for one representative
-of each stable production launch class before mechanically equivalent siblings
-can count. The final Mac and Intrepid projections expose exactly 12 and 16
-healthy host-labelled routes. The complete route matrix tested those exact
-projections without a product-origin failure. All five production execution classes traversed the
-installed product; external authentication refusal was classified separately
-and a same-class registry control passed. The exact route receipt is sealed
-against tested revision `74864015a64570f6b52e5810528ddb9f77e5e355`
-and its load-bearing inventory. The decision candidate is production-ready,
-subject to exact-head review, protected CI, and a post-merge rebuild/canary.
+the canonical managed-agent manifest and host health exclusions, executes every
+configured route once, and separates explicit external readiness from
+product-origin failure. It also exercises every visible installed picker entry:
+all 12 Mac entries and all 14 Intrepid entries. The two additional configured
+Intrepid registry entries are intentionally hidden by same-host custom aliases
+and remain independently covered by the 16-route direct matrix. Working routes
+proved real project-file access; external authentication and capacity boundaries
+were classified separately. The app was then quit, reopened, reconnected to
+Intrepid, and restored a completed thread without replay or rebinding failure.
+The exact route receipt is sealed against tested revision
+`c88d2217b1d2b546e18e2e6d6fee0b82425b6daa` and its load-bearing inventory. The
+decision candidate is production-ready, subject to protected CI, merge, and a
+post-merge rebuild/canary.
 
 ## Historical analysis retained from the prior run
 
@@ -52,8 +53,9 @@ The prior lifecycle exercised every changed assembled-product surface category t
   - the installed stdio and TCP debug adapters complete their real request sequences, and TCP classifies a delayed true reset, opens a second connection, and replays initialize exactly once;
   - a prompt-visible digest or a union of unrelated transcript fragments is not proof of a project read; the final oracle keeps expected bytes private and binds exact path to observed content in one completed read, or uses an exact project-confined ACP client read;
   - the final Mac and Intrepid projections expose exactly 12 and 16 healthy host-labelled routes;
-  - every advertised route was invoked and classified, and all five stable launch classes crossed the installed picker/session boundary;
-  - Codex Mac primary, Intrepid GLM, Intrepid Codex secondary, Intrepid Grok Build, and Intrepid Devin completed exact project-bound controls; the Mac Devin representative stopped only on external authentication.
+  - every configured route was invoked and classified, and every visible Mac and Intrepid route crossed the installed picker/session boundary;
+  - seven Mac and eleven Intrepid picker entries completed exact project-bound reads; the remaining visible entries stopped only at precise external authentication or capacity boundaries;
+  - after quit/reopen/reconnect, the installed app restored a completed Kimi Intrepid thread and its exact prior project result without a replay or rebinding error.
 - **Residual risk:**
   - public notarization is intentionally out of scope for this private installation;
   - post-merge acceptance must rebuild/install the exact merged commit and repeat the remote open plus focused canaries.

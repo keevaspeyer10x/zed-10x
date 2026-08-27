@@ -21,221 +21,221 @@
       "routes": [
         {
           "classification": "external_unavailable",
-          "elapsedMs": 4495,
+          "elapsedMs": 4992,
           "endpoint": "Claude (Mac, primary)",
           "failureClass": "capacity_or_rate_limit",
-          "receiptSha256": "3d3a4f35d9a1926fa3b0a47ce0d4024f91d5bf09d77ccbb25f46a66d856e8ed8"
+          "receiptSha256": "104fc213e4a22f11723e939052d2d3945f01fcdc2b66f8be70a162c5b053be12"
         },
         {
           "classification": "passed",
-          "elapsedMs": 8114,
+          "elapsedMs": 8105,
           "endpoint": "Claude (Mac, secondary)",
           "failureClass": null,
-          "receiptSha256": "b618d39f494721e8f8a633fadec5df0ae95fb37b8ace703c0a5a7bad5e5b4216"
+          "receiptSha256": "0b172cbf9e06f4b3fe0e20e80e6500a3dc2a3dfc8bde51ca1f4bd508edbfecf5"
         },
         {
           "classification": "passed",
-          "elapsedMs": 9989,
+          "elapsedMs": 11250,
           "endpoint": "Claude (Mac, work)",
           "failureClass": null,
-          "receiptSha256": "7af6b7b1a6912d7044e896bc6acdc8882d3cfb606d4b47774f7e9d6fe36cf14a"
+          "receiptSha256": "b65c23c5387d21b03ed3ecba65defec38d8ee0df8b61af235d997ae83d91ffe1"
         },
         {
           "classification": "passed",
-          "elapsedMs": 17635,
+          "elapsedMs": 17135,
           "endpoint": "Codex (Mac, secondary)",
           "failureClass": null,
-          "receiptSha256": "f25b45ca403f86b67b9461f60bab755ab50ee93728c55a627a8f4bd91643aa7f"
+          "receiptSha256": "2dca21e2f97e068d612e04dc321f8b990c1d5952857fe99062125561bb7d723e"
         },
         {
           "classification": "passed",
-          "elapsedMs": 17715,
+          "elapsedMs": 16668,
           "endpoint": "Codex (Mac, work)",
           "failureClass": null,
-          "receiptSha256": "00e8e1354edcf520859f589038a79a9b89be794fad9da67556a92fd0f0b28e7c"
+          "receiptSha256": "72fb86320701b459d0fba3d2180166b6015cb9526b82eae24006cc02420fcc51"
         },
         {
           "classification": "external_unavailable",
-          "elapsedMs": 4693,
+          "elapsedMs": 5049,
           "endpoint": "antigravity-acp",
           "failureClass": "authentication_required",
-          "receiptSha256": "9e8d4fdd73c4a5fd60513a145bf8c6cc5eb89399e7de14dad7af437b450353c2"
+          "receiptSha256": "548d4a5d2611d200b4342c69e3acf1f8e1497f78f66cbb7821d6506524740bd5"
         },
         {
           "classification": "passed",
-          "elapsedMs": 17548,
+          "elapsedMs": 16781,
           "endpoint": "codex-acp",
           "failureClass": null,
-          "receiptSha256": "5e265fd8c5e57c55d9c57c69a6f4bc9ab659e84b1fcedde269a5d742a55a50db"
+          "receiptSha256": "b52eb8dd17f467328100da51fa78992c1eb0dba7061cccc46528d6dbc70ba0c4"
         },
         {
           "classification": "passed",
-          "elapsedMs": 38545,
+          "elapsedMs": 37253,
           "endpoint": "cursor",
           "failureClass": null,
-          "receiptSha256": "10ed466a0d1430a88d55776f287b0385a1276b1824b40c789649992f29f2e32c"
+          "receiptSha256": "cc80addbaa58ba2df9aa16913da300c1b183bfffedcfa1e5197d7318f94d2c85"
         },
         {
           "classification": "external_unavailable",
-          "elapsedMs": 3257,
+          "elapsedMs": 3536,
           "endpoint": "devin",
           "failureClass": "authentication_required",
-          "receiptSha256": "7fe0c534f926dd21d837f03f48bad742ea77fda7ee8056d8f4b538185b9bb489"
+          "receiptSha256": "f2638085f1f6fcc6c028e3ada3310b24c106eedf55bcd821e66114e7ab5cef84"
         },
         {
           "classification": "external_unavailable",
-          "elapsedMs": 803,
+          "elapsedMs": 1398,
           "endpoint": "glm-acp-agent",
           "failureClass": "authentication_required",
-          "receiptSha256": "fb72c6d3d4266dd5554824c84fc406de83c8ee3c4ca163d3715d84a51e4d8390"
+          "receiptSha256": "e92aa32a525ae30b32b1f0731cfaf0e286fc3d00a00f79047fe7f92350b8b446"
         },
         {
           "classification": "passed",
-          "elapsedMs": 17812,
+          "elapsedMs": 17865,
           "endpoint": "grok-build",
           "failureClass": null,
-          "receiptSha256": "247db580b7c9265e98935946bfa89abe7ce5f30d17474022185b5a5ea901816b"
+          "receiptSha256": "8d4f4192e4ee504d546ed04e0435cab80308ece9e64db453db1897d17b0ac83c"
         },
         {
           "classification": "external_unavailable",
-          "elapsedMs": 14043,
+          "elapsedMs": 14263,
           "endpoint": "kimi",
           "failureClass": "authentication_required",
-          "receiptSha256": "ec8c5761de82b99bcf5c640ec0c0332a66b1ead16477cb28d40206dea6808249"
+          "receiptSha256": "68b19f55c2b0c3a4a90009836f8c1467da31a58be01040fb9ab35234d3c209f2"
         }
       ],
       "settingsSha256": "eca080e08c04e8ebbede162f46bcef4b4b87d77d688f33e2d149db2b9a1c0cd6",
-      "summarySha256": "433dfe1b16b313c0d2bbd8b8422740ac3210b32ab7bd044c19589fe10b8b7abd",
+      "summarySha256": "61ed47143b9a9f8c44302a869d4e6aaf67af9a26acb506ceb20a79a1f8357e51",
       "surface": "mac-local"
     },
     {
       "canarySha256": "eb0292df9dae8d7ca7f8fe7eedf1bc094b0ac9d7faaaac62baf4baf4560c114e",
       "counts": {
         "external_unavailable": 3,
-        "interaction_required": 1,
-        "passed": 12
+        "interaction_required": 0,
+        "passed": 13
       },
       "expectedCount": 16,
       "registrySha256": "1431501923d3fa13b96e4f34dab827860f957f02dddc1bbf113b3fed47da8ee9",
       "routes": [
         {
-          "classification": "interaction_required",
-          "elapsedMs": 52757,
+          "classification": "passed",
+          "elapsedMs": 27969,
           "endpoint": "GLM (Intrepid)",
-          "failureClass": "permission_requested",
-          "receiptSha256": "15ec715c0c6165a091e96dcf593a6136c230c18b5ac742829bad19644b85dc37"
+          "failureClass": null,
+          "receiptSha256": "6b724d44c417efe28e80d05af6260d7dad9025e84cc427f6358730050801a651"
         },
         {
           "classification": "passed",
-          "elapsedMs": 24538,
+          "elapsedMs": 10298,
           "endpoint": "Kimi (Intrepid)",
           "failureClass": null,
-          "receiptSha256": "4037fe65a9d5a680b4dfabd0e4a26e739d0222aba4955595eddb045b45b6f482"
+          "receiptSha256": "c31826072c76243c90ed7c4d89a190a86bc79672135aee7d56c0ad7acf7816c3"
         },
         {
           "classification": "passed",
-          "elapsedMs": 59716,
+          "elapsedMs": 61817,
           "endpoint": "Claude (Intrepid, selected)",
           "failureClass": null,
-          "receiptSha256": "8f9f4813181b1403d3c4673c26d0dbb7bf03229d009d2aae8452d0df5290cdb3"
+          "receiptSha256": "4b3b9b29cc3237f9d1bf98a0a676c1ff9cc1e9965bd26af9cc945a188499a12e"
         },
         {
           "classification": "external_unavailable",
-          "elapsedMs": 4377,
+          "elapsedMs": 7256,
           "endpoint": "Claude (Intrepid, primary)",
           "failureClass": "capacity_or_rate_limit",
-          "receiptSha256": "4e58db731e391ba0640b67db0a7dd02880fb3481ecb9cf2a689e5d3eb14bd9e6"
+          "receiptSha256": "54e73cb1b92a022150e5b9438528c016a7255ff257d73fb3154b9b5ac31b3147"
         },
         {
           "classification": "external_unavailable",
-          "elapsedMs": 2066,
+          "elapsedMs": 2784,
           "endpoint": "Claude (Intrepid, secondary)",
           "failureClass": "authentication_expired",
-          "receiptSha256": "416f38e56349ad43fbe262e6f329ab0297506303085e44dd7ced76b70f58e35b"
+          "receiptSha256": "01eabe610bc3c358c780e79d1d898eea147653bfd9f14ed4909832618ab766a2"
         },
         {
           "classification": "passed",
-          "elapsedMs": 10392,
+          "elapsedMs": 17637,
           "endpoint": "Claude (Intrepid, work)",
           "failureClass": null,
-          "receiptSha256": "9e4458508b403af2205462c6f6952f5453eb49800be8e957ff5e86b135b85811"
+          "receiptSha256": "259cda67e9f95cd9fc19e8ba3c629691aa2496004f664037a7e60c7e86336eaa"
         },
         {
           "classification": "passed",
-          "elapsedMs": 17151,
+          "elapsedMs": 15628,
           "endpoint": "Codex (Intrepid, selected)",
           "failureClass": null,
-          "receiptSha256": "bd592ce836d11a2716946de0483de44512fba5543688b6c29b8517bf59c581bf"
+          "receiptSha256": "f6c7fe73614f45edda967dbead2dff8ab36269b520c2476f6be2a227e79541b2"
         },
         {
           "classification": "passed",
-          "elapsedMs": 19464,
+          "elapsedMs": 21394,
           "endpoint": "Codex (Intrepid, primary)",
           "failureClass": null,
-          "receiptSha256": "2181b11e381080f32fa2fdb016be1d0c02b38f05cb003d99ee4a9d1d0b7365d1"
+          "receiptSha256": "a2c31f3932236ea88dcdbe4db5890a0d7e5dacd6ab8944615359fd685c3fa3ba"
         },
         {
           "classification": "passed",
-          "elapsedMs": 17614,
+          "elapsedMs": 17687,
           "endpoint": "Codex (Intrepid, secondary)",
           "failureClass": null,
-          "receiptSha256": "d8472b80f648d7c72eac897d3cc62a9b13f897df77736813a6820d3902f9ead9"
+          "receiptSha256": "2c6953fe54a0b2382a5f2567803e4802136f5a5079df49bed8e6c6d4545eb86a"
         },
         {
           "classification": "external_unavailable",
-          "elapsedMs": 5545,
+          "elapsedMs": 5646,
           "endpoint": "antigravity-acp",
           "failureClass": "authentication_required",
-          "receiptSha256": "7afe9133f0204d2e65c9b43565e29cac35cb02ced691ff3e9e90240f527ff168"
+          "receiptSha256": "38e93a2b006fc36a81489cbc866417865f146f6ae3c1e0a71ebf999f8b1441b0"
         },
         {
           "classification": "passed",
-          "elapsedMs": 71564,
+          "elapsedMs": 72871,
           "endpoint": "claude-acp",
           "failureClass": null,
-          "receiptSha256": "5e9f47bcb55a2386e834657c1f1bb881f18c6e2ebb6d8afd9f77d5d26cfd6cd2"
+          "receiptSha256": "63a472a46245aafc196e5fb2913964a9370534e9a9f516ed2078f7a8f6fcb8db"
         },
         {
           "classification": "passed",
-          "elapsedMs": 30474,
+          "elapsedMs": 36422,
           "endpoint": "cursor",
           "failureClass": null,
-          "receiptSha256": "29914adfa610ac93e3f1a30aa73c92ca74edf4b058eb7875caf96ba29c59db12"
+          "receiptSha256": "6b9503d0614431b7eb74544b59be11f09fe302579a2fae420f476b7eeb2c6944"
         },
         {
           "classification": "passed",
-          "elapsedMs": 5718,
+          "elapsedMs": 9868,
           "endpoint": "devin",
           "failureClass": null,
-          "receiptSha256": "29be603b20126169ea0bdbdfe9e1b2f4c981d86b6bf3c1fcff7bc67e58e56974"
+          "receiptSha256": "8ce2a8486c91af092af12bd659a1a41fec35b93b9d6def8e8964af0549004063"
         },
         {
           "classification": "passed",
-          "elapsedMs": 8493,
+          "elapsedMs": 7293,
           "endpoint": "glm-acp-agent",
           "failureClass": null,
-          "receiptSha256": "4c746d0596bfb8762c41693e040ade93b2222804234b4e8c7efc577f050ba1e7"
+          "receiptSha256": "4e43f9ad64433fd68f02376e7dd3983801497856ecbf2c73290e28f1aa431545"
         },
         {
           "classification": "passed",
-          "elapsedMs": 20890,
+          "elapsedMs": 12381,
           "endpoint": "grok-build",
           "failureClass": null,
-          "receiptSha256": "9c3ed8b90294a96b36a642122f58cd19bd632bbe74e83138657f16afff889b3d"
+          "receiptSha256": "1bd32f3d567072e700620b7c83a05cf99ec3172e75ce62772d3672834b418c97"
         },
         {
           "classification": "passed",
-          "elapsedMs": 29998,
+          "elapsedMs": 13182,
           "endpoint": "kimi",
           "failureClass": null,
-          "receiptSha256": "a8b40a3c033ba81f45ee32826dca8c12ac31eaeda508e4a1336c6f4d8cbfe8af"
+          "receiptSha256": "fd86aadd94d7ba8987a06a558f1ef5b8853f53f126cf6c2baff3df819478235e"
         }
       ],
       "settingsSha256": "cd4100890dae6ac0bffdc027cbc5b556fa7b7b4c54c734ea3d2214f5a0fb18f1",
-      "summarySha256": "37870704295beaf60553099be99e08a1db48b59304ef4b64d99f4e8bbd9a36e2",
+      "summarySha256": "4ce456b337b6a4d1223128a04b2bff11bcf7115ae72d2c371218ebe9ad4b5470",
       "surface": "intrepid"
     }
   ],
-  "testedRevision": "74864015a64570f6b52e5810528ddb9f77e5e355",
-  "testedTree": "ebb0e1e17e4e4547369723dc9899d13c5fa67cbf"
+  "testedRevision": "c88d2217b1d2b546e18e2e6d6fee0b82425b6daa",
+  "testedTree": "b8609ee5970c7eb8df16008fd0180d4e41516203"
 }

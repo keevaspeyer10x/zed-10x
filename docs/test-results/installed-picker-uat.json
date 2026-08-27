@@ -1,57 +1,118 @@
 {
-  "schemaVersion": 1,
-  "generatedAt": "2026-08-26T23:08:04Z",
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-27T12:33:23Z",
   "status": "passed",
-  "command": "computer-use the installed Zed 10x picker for the five declared representatives, then bind Zed logs and cleanup census",
+  "command": "Computer Use against the exact installed Zed 10x app: select every visible Mac and Intrepid route, require a real project-file result or precise external boundary, then quit, reopen, reconnect, and restore a completed Intrepid thread",
   "exitCode": 0,
   "attempts": 1,
   "installedProduct": {
     "path": "/Applications/Zed 10x.app",
     "bundleIdentifier": "ai.10xlabs.Zed10x",
-    "bundleVersion": "20260826.220642",
-    "sourceRevision": "33f618c43476eff685f2a17bb13a1a29c10ccc61",
-    "sourceTree": "82c594be13b0bdbcd7f163929caadba08cb2d494",
-    "runtimeSha256": "a95420426be3d442558b0a1e34e4aa2cf2a5d28c26e99a073079d2f1d5724491",
+    "bundleVersion": "20260827.114258",
+    "sourceRevision": "c88d2217b1d2b546e18e2e6d6fee0b82425b6daa",
+    "sourceTree": "b8609ee5970c7eb8df16008fd0180d4e41516203",
+    "runtimeSha256": "f244c6e18901ffb1f367889fbe96e214b91a09375b337f0847f1cc9b34a0051b",
     "codeSignatureVerified": true,
     "publicNotarization": "not_applicable_private_build"
   },
   "inventories": {
-    "mac": {"expected": 14, "observed": 14, "hostLabelsConsistent": true},
-    "intrepid": {"expected": 18, "observed": 18, "hostLabelsConsistent": true}
+    "mac": {
+      "configuredEndpoints": 12,
+      "selectableEntries": 12,
+      "observedSelectableEntries": 12,
+      "hostLabelsConsistent": true
+    },
+    "intrepid": {
+      "configuredEndpoints": 16,
+      "selectableEntries": 14,
+      "observedSelectableEntries": 14,
+      "hostLabelsConsistent": true,
+      "aliasCollapsedRegistryEntries": [
+        "glm-acp-agent",
+        "kimi"
+      ]
+    }
   },
-  "sentinels": {
-    "macSha256": "d782b5c0b19f0336f5d0bdcf80e8d875b3894e4e4e2269736edaa1d9a78297b7",
-    "intrepidSha256": "fd6e191ca31259f9ef7b527a6007b23c0f3fe76857a7c32ff3939effa664eb66"
+  "projectOracles": {
+    "mac": {
+      "path": "crates/zed/Cargo.toml",
+      "sha256": "28e236ab27870a601bc07122e3dc9fead92f5c81d9c16599b0d5de8367a48de7"
+    },
+    "intrepid": {
+      "path": "STATUS.md",
+      "firstLine": "STATUS - agent-lawyer"
+    }
   },
-  "executionClasses": [
-    {"class": "mac-custom", "selected": "Codex (Mac, primary)", "outcome": "passed_exact_project_read"},
-    {"class": "mac-registry", "selected": "Devin (Mac)", "outcome": "external_authentication_unavailable", "sameClassGreenControl": "Grok Build (Mac) passed exact project read"},
-    {"class": "intrepid-local", "selected": "GLM (Intrepid)", "outcome": "passed_exact_project_read"},
-    {"class": "intrepid-persistent", "selected": "Codex (Intrepid, secondary)", "outcome": "passed_exact_project_read"},
-    {"class": "intrepid-registry", "selected": "Devin (Intrepid)", "outcome": "passed_exact_project_read", "sameClassGreenControls": ["Grok Build (Intrepid)", "Codex (Intrepid)"]}
-  ],
+  "mac": {
+    "selectedOnce": 12,
+    "passedExactProjectRead": [
+      "Claude (Mac, secondary)",
+      "Claude (Mac, work)",
+      "Codex (Mac)",
+      "Codex (Mac, secondary)",
+      "Codex (Mac, work)",
+      "Cursor (Mac)",
+      "Grok Build (Mac)"
+    ],
+    "externalUnavailable": {
+      "Claude (Mac, primary)": "capacity_or_rate_limit",
+      "Devin (Mac)": "authentication_required",
+      "GLM Agent (Mac)": "authentication_required",
+      "Google Antigravity (Mac)": "authentication_required",
+      "Kimi CLI (Mac)": "authentication_required"
+    }
+  },
+  "intrepid": {
+    "selectedOnce": 14,
+    "passedExactProjectRead": [
+      "Claude (Intrepid, selected)",
+      "Claude (Intrepid, work)",
+      "Claude Agent (Intrepid)",
+      "Codex (Intrepid, primary)",
+      "Codex (Intrepid, secondary)",
+      "Codex (Intrepid, selected)",
+      "Cursor (Intrepid)",
+      "Devin (Intrepid)",
+      "GLM (Intrepid)",
+      "Grok Build (Intrepid)",
+      "Kimi (Intrepid)"
+    ],
+    "externalUnavailable": {
+      "Claude (Intrepid, primary)": "capacity_or_rate_limit",
+      "Claude (Intrepid, secondary)": "authentication_expired",
+      "Google Antigravity (Intrepid)": "authentication_required"
+    },
+    "duplicateSessionGuardObserved": "a second same-connection primary selection was rejected before provider execution"
+  },
+  "restartAndReconnect": {
+    "appQuitConfirmed": true,
+    "appReopened": true,
+    "intrepidReconnected": true,
+    "completedThreadRestored": "Kimi (Intrepid)",
+    "restoredProjectResult": "STATUS - agent-lawyer",
+    "replayOrRebindingError": false
+  },
   "productErrorClassesObserved": {
     "exit127": 0,
     "exit0AsFailure": 0,
     "incomingTransportClosed": 0,
     "missingRegistration": 0,
-    "wrongProjectRead": 0
+    "wrongProjectRead": 0,
+    "durableJournalReplayFailure": 0
   },
   "cleanup": {
     "appRuntimeGone": true,
-    "exactRemoteServerGone": true,
     "directCanaryProcessGroupsGone": true,
-    "ownedLegacyUatPtyGroupsTerminated": [2920841, 2920843],
     "durableSessionHosts": "excluded_by_contract_sessions_survive_client_disconnect"
   },
   "remoteServerArtifacts": {
-    "linuxAarch64Sha256": "72608fa5336999f89f276acef9f4620ca9dbb88f670e190a3e5ac9b82a0824f2",
-    "macAarch64Sha256": "4513a28415aa63b61aa6e39f6c8c412b1332f02bf004aedf99b8a237242d0385",
-    "linuxX8664Sha256": "783c3d3e5787bbee327882a2da6cd60147f9c85e388fc68f630911319c2ea2a9"
+    "linuxAarch64Sha256": "c2f6b5c4d035f1e8765d5ead0fed23ec5d51510a84591253a1b62232822e622f",
+    "macAarch64Sha256": "44961a3803eab4790eb87f3c733bd74ac820d77dbbccd83af9b051f08cc5d6d5",
+    "linuxX8664Sha256": "865d9e7db84cc7d79a26b473578ea769698484fb3e8fa66f4cb8ecdd925a03a5"
   },
-  "settingsSha256": "8035a23520a88d8fde332cec7d47f4ac9d14c895bacbc2954be0201e213b77d9",
-  "logSha256AfterQuit": "32f698bd80abff690332c7a0332a1992ecd37ba39c320fe3876ec6df6e8f5106",
-  "permissionsApproved": 0,
+  "routeMatrixSha256": "90e4204e47aaa7a0ea0b5b321c343d4a19880e8c7baf5bd41680bcb8d0f71a03",
+  "permissionsApproved": 2,
+  "permissionsApprovedScope": "two exact read-only project-file commands; no write, shell mutation, credential, or broad permission",
   "sourceOrProjectMutation": false,
   "promptOrResponseContentRetained": false
 }

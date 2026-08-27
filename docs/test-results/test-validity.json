@@ -82,8 +82,8 @@
       "id": "PLAN-DIRECT-PROVIDER-ASSEMBLED-IMPERSONATION",
       "category": "process_bug",
       "symptom": "A direct ACP client could pass while the installed Zed picker, launch wrapper or session/new boundary failed.",
-      "fix": "Require assembled_product evidence for direct variant cells, exercise one installed-app representative of each stable execution class, and retain exact route evidence for every advertised entry.",
-      "regression": "shared validator rejects provider-only direct cells; Zed plan separates exhaustive route matrix from five-class installed picker UAT",
+      "fix": "Require assembled_product evidence for direct variant cells, exercise every visible installed picker entry, and retain exact route evidence for every configured entry including alias-collapsed routes.",
+      "regression": "shared validator rejects provider-only direct cells; Zed plan separates the exhaustive configured route matrix from exhaustive visible installed-picker UAT",
       "status": "fixed_and_executed"
     }
   ],
@@ -102,12 +102,12 @@
   "executionEvidence": {
     "advertisedRouteMatrix": {
       "path": "docs/test-results/advertised-agent-matrix.json",
-      "sha256": "7cecb6350dd3eea5c544665aa6d5ab5ec665b79211b7a646731fc36ae7fbe5b4",
+      "sha256": "90e4204e47aaa7a0ea0b5b321c343d4a19880e8c7baf5bd41680bcb8d0f71a03",
       "status": "passed"
     },
     "installedPickerJourney": {
       "path": "docs/test-results/installed-picker-uat.json",
-      "sha256": "fdbc937d1ae6bc02a0f9398b0c907620976c0a590cfc54d315aba568f7eef3b3",
+      "sha256": "00a3bf719784b5dc00851781202b56ae7c04435ec646433b3a68b73496212af7",
       "status": "passed"
     }
   }

@@ -1,9 +1,12 @@
 # Zed 10x Remote Execution Release Test Plan
 
-Status: execution reopened on 2026-08-27 for exhaustive selectable-variant
-coverage. Seventeen rows retain valid evidence; `ACP-JOURNEY-002` awaits the
-every-entry route matrix and `ACP-ASSEMBLED-019` awaits installed-app proof for
-the five distinct production launch implementations.
+Status: the exact pre-merge candidate is production-ready. All 19 rows have
+executed, digest-bound evidence. `ACP-JOURNEY-002` covers every configured route
+in the 12-entry Mac and 16-entry Intrepid inventories. `ACP-ASSEMBLED-019`
+separately exercises every visible installed picker entry (12 Mac and 14
+Intrepid), including real project-file reads or precise external
+authentication/capacity boundaries, followed by quit/reopen/reconnect and
+completed-thread restoration.
 
 Scope: installed Zed 10x external-agent and remote-execution journeys across a
 Mac-local project and a Mac-to-Intrepid POSIX SSH project. This is not a claim
@@ -38,7 +41,7 @@ privacy, failure, and cleanup surface.
 - Windows SSH, WSL, and Docker environment-bearing launches: explicit
   fail-closed contract until an equivalent private transport is implemented.
 
-The complete 30-cell matrix, including reasoned non-applicable cells, is in
+The complete 40-cell matrix, including reasoned non-applicable cells, is in
 `docs/discovery-ir.json` and `docs/test-plan.json`. Passing a component test or
 a sibling surface cannot satisfy an installed-product cell.
 
@@ -58,7 +61,7 @@ canonical managed-agent manifest before any entry starts.
 |---|---:|---|
 | ACP-SMOKE-001 | critical | ordering, reconnect, stale suppression, installed inventory |
 | ACP-JOURNEY-002 | critical | all 12 Mac-local and 16 Intrepid healthy picker entries, each with a project-aware terminal result or explicit external-readiness classification |
-| ACP-ASSEMBLED-019 | critical | installed Zed picker and `session/new` for Mac custom, Mac registry, Intrepid local, Intrepid persistent and Intrepid registry representatives; other entries require exact route evidence plus mechanical class equivalence |
+| ACP-ASSEMBLED-019 | critical | installed Zed picker and `session/new` for every visible Mac and Intrepid entry, plus restart/reconnect restoration; alias-collapsed Intrepid registry entries retain exact direct-route evidence |
 | ACP-NEG-003 | high | missing executable, auth, capacity, permission, timeout |
 | ACP-OPS-004 | high | normal and timeout cleanup |
 | ENV-FRAME-005 | critical | round-trip, partial read, malformed and boundary input |
@@ -88,8 +91,8 @@ inspection; the audit must never print them.
 
 ## Decision
 
-The release remains `not_ready` until all 19 rows are implemented, executed,
-and mapped to durable evidence; independent exact-candidate review is green;
-the installed app and matching Intrepid server pass every applicable journey;
-required CI passes; and protected merge plus post-merge installed verification
-complete.
+The exact pre-merge candidate is `production_ready`: all 19 rows are implemented,
+executed, and mapped to durable evidence; independent exact-candidate review is
+green; and the installed app plus matching Intrepid server pass every applicable
+journey. Release completion still requires required CI, protected exact-head
+merge, and a post-merge rebuild/install plus focused verification.
