@@ -325,6 +325,7 @@ enum AgentServerStoreState {
         project_environment: Entity<ProjectEnvironment>,
         downstream_client: Option<(u64, AnyProtoClient)>,
         downstream_ready: bool,
+        registry_ready: bool,
         settings: Option<AllAgentServersSettings>,
         http_client: Arc<dyn HttpClient>,
         _subscriptions: Vec<Subscription>,
@@ -348,10 +349,12 @@ struct RemoteAgentSnapshotRequest {
 struct RemoteAgentSnapshotOrdering {
     request_generation: u64,
     push_generation: u64,
+    authoritative_snapshot_received: bool,
 }
 
 impl RemoteAgentSnapshotOrdering {
     fn begin_request(&mut self) -> RemoteAgentSnapshotRequest {
+        self.authoritative_snapshot_received = false;
         self.request_generation = self
             .request_generation
             .checked_add(1)
@@ -378,6 +381,14 @@ impl RemoteAgentSnapshotOrdering {
         result?;
         self.observe_push();
         Ok(())
+    }
+
+    fn observe_authoritative_snapshot(&mut self) {
+        self.authoritative_snapshot_received = true;
+    }
+
+    fn is_pending(&self) -> bool {
+        !self.authoritative_snapshot_received
     }
 }
 
@@ -413,6 +424,13 @@ pub struct AgentServerStore {
 pub struct AgentServersUpdated;
 
 impl EventEmitter<AgentServersUpdated> for AgentServerStore {}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ExternalAgentAvailability {
+    Pending,
+    Available(AgentId),
+    Removed,
+}
 
 static EXTENSION_TO_REGISTRY_IDS: LazyLock<HashMap<&'static str, &'static str>> =
     LazyLock::new(|| {
@@ -484,6 +502,38 @@ impl AgentServerStore {
             .or_else(|| (resolved_name != *name).then(|| resolved_name.0))
     }
 
+    pub fn external_agent_availability(&self, name: &AgentId) -> ExternalAgentAvailability {
+        if let AgentServerStoreState::Remote {
+            snapshot_ordering, ..
+        } = &self.state
+            && snapshot_ordering.is_pending()
+        {
+            return ExternalAgentAvailability::Pending;
+        }
+
+        if let Some(canonical_id) = self.resolve_external_agent_id(name) {
+            return ExternalAgentAvailability::Available(canonical_id);
+        }
+
+        match &self.state {
+            AgentServerStoreState::Local {
+                registry_ready,
+                settings,
+                ..
+            } if !registry_ready
+                && settings.as_ref().is_some_and(|settings| {
+                    matches!(
+                        settings.get(name.0.as_ref()),
+                        Some(CustomAgentServerSettings::Registry { .. })
+                    )
+                }) =>
+            {
+                ExternalAgentAvailability::Pending
+            }
+            _ => ExternalAgentAvailability::Removed,
+        }
+    }
+
     pub fn init_remote(session: &AnyProtoClient) {
         session.add_entity_message_handler(Self::handle_external_agents_updated);
         session.add_entity_message_handler(Self::handle_loading_status_updated);
@@ -508,6 +558,7 @@ impl AgentServerStore {
         let project_id = *project_id;
         let upstream_client = upstream_client.clone();
         let snapshot_request = snapshot_ordering.begin_request();
+        cx.emit(AgentServersUpdated);
         let request = upstream_client
             .read(cx)
             .proto_client()
@@ -566,6 +617,7 @@ impl AgentServerStore {
             project_environment,
             downstream_client,
             downstream_ready,
+            registry_ready,
             settings: old_settings,
             http_client,
             ..
@@ -602,6 +654,10 @@ impl AgentServerStore {
                     .collect::<HashMap<_, _>>()
             })
             .unwrap_or_default();
+        *registry_ready = !new_settings.has_registry_agents()
+            || registry_store
+                .as_ref()
+                .is_some_and(|store| store.read(cx).has_resolved_initial_load());
 
         // Drain the existing versioned agents, extracting reconnect state
         // from any active connection so we can preserve it or trigger a
@@ -817,6 +873,7 @@ impl AgentServerStore {
                 http_client,
                 downstream_client: None,
                 downstream_ready: false,
+                registry_ready: false,
                 settings: None,
                 _subscriptions: subscriptions,
             },
@@ -877,6 +934,15 @@ impl AgentServerStore {
     }
 
     pub fn resolve_external_agent_id(&self, name: &AgentId) -> Option<AgentId> {
+        if matches!(
+            &self.state,
+            AgentServerStoreState::Remote {
+                snapshot_ordering,
+                ..
+            } if snapshot_ordering.is_pending()
+        ) {
+            return None;
+        }
         self.external_agent_aliases.get(name).cloned().or_else(|| {
             self.external_agents
                 .contains_key(name)
@@ -910,9 +976,16 @@ impl AgentServerStore {
     }
 
     pub fn external_agents(&self) -> impl Iterator<Item = &AgentId> {
+        let authoritative = !matches!(
+            &self.state,
+            AgentServerStoreState::Remote {
+                snapshot_ordering,
+                ..
+            } if snapshot_ordering.is_pending()
+        );
         self.external_agents
             .keys()
-            .filter(|name| !self.external_agent_aliases.contains_key(*name))
+            .filter(move |name| authoritative && !self.external_agent_aliases.contains_key(*name))
     }
 
     async fn handle_get_agent_server_command(
@@ -1149,6 +1222,12 @@ impl AgentServerStore {
                 .into_iter()
                 .map(|alias| (AgentId::new(alias.alias), AgentId::new(alias.name))),
         );
+        if let AgentServerStoreState::Remote {
+            snapshot_ordering, ..
+        } = &mut self.state
+        {
+            snapshot_ordering.observe_authoritative_snapshot();
+        }
         cx.emit(AgentServersUpdated);
         Ok(())
     }
@@ -2105,6 +2184,10 @@ mod tests {
         let request = ordering.begin_request();
 
         assert!(ordering.accepts_response(request));
+        assert!(ordering.is_pending());
+
+        ordering.observe_authoritative_snapshot();
+        assert!(!ordering.is_pending());
     }
 
     #[test]
@@ -2135,8 +2218,11 @@ mod tests {
     fn newest_remote_agent_snapshot_request_wins_after_reconnect() {
         let mut ordering = RemoteAgentSnapshotOrdering::default();
         let disconnected_request = ordering.begin_request();
+        ordering.observe_authoritative_snapshot();
+        assert!(!ordering.is_pending());
         let reconnected_request = ordering.begin_request();
 
+        assert!(ordering.is_pending());
         assert!(!ordering.accepts_response(disconnected_request));
         assert!(ordering.accepts_response(reconnected_request));
     }
@@ -2482,6 +2568,56 @@ mod tests {
                 store.external_agents().cloned().collect::<HashSet<_>>(),
                 [AgentId::new("Kimi Intrepid")].into_iter().collect(),
                 "the superseded registry entry must not remain selectable"
+            );
+        });
+    }
+
+    #[gpui::test]
+    fn configured_registry_agent_is_pending_until_catalog_resolves(cx: &mut TestAppContext) {
+        init_test_settings(cx);
+        let registry = init_registry(cx, Vec::new());
+        set_registry_settings(cx, &["test-agent"]);
+        let store = create_agent_server_store(cx);
+        let id = AgentId::new("test-agent");
+
+        store.read_with(cx, |store, _| {
+            assert_eq!(
+                store.external_agent_availability(&id),
+                ExternalAgentAvailability::Pending
+            );
+        });
+
+        registry.update(cx, |registry, cx| {
+            registry.set_fetch_error("temporary registry outage", cx);
+        });
+        cx.run_until_parked();
+        store.read_with(cx, |store, _| {
+            assert_eq!(
+                store.external_agent_availability(&id),
+                ExternalAgentAvailability::Pending,
+                "a catalog error without cached inventory is not proof of removal"
+            );
+        });
+
+        registry.update(cx, |registry, cx| {
+            registry.set_agents(vec![make_npx_agent("test-agent", "1.0.0")], cx);
+        });
+        cx.run_until_parked();
+        store.read_with(cx, |store, _| {
+            assert_eq!(
+                store.external_agent_availability(&id),
+                ExternalAgentAvailability::Available(id.clone())
+            );
+        });
+
+        cx.update(|cx| {
+            AllAgentServersSettings::override_global(AllAgentServersSettings::default(), cx);
+        });
+        cx.run_until_parked();
+        store.read_with(cx, |store, _| {
+            assert_eq!(
+                store.external_agent_availability(&id),
+                ExternalAgentAvailability::Removed
             );
         });
     }

@@ -182,6 +182,15 @@ impl AgentRegistryStore {
         cx.notify();
     }
 
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn set_fetch_error(&mut self, error: impl Into<SharedString>, cx: &mut Context<Self>) {
+        self.agents.clear();
+        self.is_fetching = false;
+        self.last_refresh = Some(Instant::now());
+        self.fetch_error = Some(error.into());
+        cx.notify();
+    }
+
     pub fn agents(&self) -> &[RegistryAgent] {
         &self.agents
     }
@@ -196,6 +205,14 @@ impl AgentRegistryStore {
 
     pub fn fetch_error(&self) -> Option<SharedString> {
         self.fetch_error.clone()
+    }
+
+    pub fn has_resolved_initial_load(&self) -> bool {
+        !self.is_fetching
+            && (!self.agents.is_empty()
+                || self
+                    .last_refresh
+                    .is_some_and(|_| self.fetch_error.is_none()))
     }
 
     /// Refresh the registry from the network.

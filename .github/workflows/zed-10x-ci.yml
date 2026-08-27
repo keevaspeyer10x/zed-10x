@@ -47,6 +47,7 @@ jobs:
           cargo test --locked -p project explicit_custom_alias_supersedes_colliding_registry_agent --lib
           cargo test --locked -p project registry_display_name --lib
           cargo test --locked -p project remote_agent_ --lib
+          cargo test --locked -p project configured_registry_agent_is_pending_until_catalog_resolves --lib
           cargo test --locked -p project remote_execution_host_ --lib
           cargo test --locked -p remote_server test_remote_external_agent_metadata_comes_from_execution_host --lib
           cargo test --locked -p remote_server test_remote_external_agent_server_reconnects_to_latest_inventory --lib
@@ -54,6 +55,16 @@ jobs:
           cargo test --locked -p agent_ui equivalent_cache_key_prefers_canonical_and_recognizes_legacy_aliases --lib
           cargo test --locked -p agent_ui test_store_update_agent_id_preserves_thread_identity --lib
           cargo test --locked -p agent_ui test_serialize_preserves_session_id_in_load_error --lib
+          cargo test --locked -p agent_ui test_new_workspace_ignores_unavailable_global_last_used_agent --lib
+          cargo test --locked -p agent_ui test_pending_registry_agent_waits_for_authoritative_inventory --lib
+          cargo test --locked -p agent_ui test_pending_session_restores_through_its_metadata_agent --lib
+          cargo test --locked -p agent_ui test_explicit_agent_selection_cancels_pending_session_restore --lib
+          cargo test --locked -p agent_ui test_pending_nonempty_draft_restores_through_its_metadata_agent --lib
+          cargo test --locked -p agent_ui test_explicit_agent_selection_cancels_pending_nonempty_draft_restore --lib
+          cargo test --locked -p agent_ui test_new_thread_replaces_removed_empty_draft --lib
+          cargo test --locked -p agent_ui test_new_thread_preserves_removed_draft_with_content --lib
+          cargo test --locked -p agent_ui test_removed_agent_keeps_submitted_session_visible --lib
+          cargo test --locked -p agent_ui test_cold_removed_draft_load_error_preserves_durable_prompt --lib
           cargo test --locked -p settings_ui rename_preserves_original_name_as_alias --lib
           cargo test --locked -p settings_ui rename_back_drops_the_new_canonical_name_from_aliases --lib
 

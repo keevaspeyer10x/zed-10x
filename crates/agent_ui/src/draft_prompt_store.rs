@@ -81,8 +81,12 @@ pub fn draft_has_user_content<'a>(
     if found_live_copy {
         false
     } else {
-        read(thread_id, cx).is_some_and(|blocks| blocks_have_user_content(&blocks))
+        persisted_draft_has_user_content(thread_id, cx)
     }
+}
+
+pub fn persisted_draft_has_user_content(thread_id: ThreadId, cx: &App) -> bool {
+    read(thread_id, cx).is_some_and(|blocks| blocks_have_user_content(&blocks))
 }
 
 fn blocks_have_user_content(blocks: &[acp::ContentBlock]) -> bool {

@@ -464,6 +464,22 @@ impl Agent {
         }
     }
 
+    pub fn availability(&self, project: &Entity<Project>, cx: &App) -> AgentAvailability {
+        match self {
+            Self::Custom { id } => {
+                let store = project.read(cx).agent_server_store().clone();
+                match store.read(cx).external_agent_availability(id) {
+                    project::ExternalAgentAvailability::Pending => AgentAvailability::Pending,
+                    project::ExternalAgentAvailability::Available(id) => {
+                        AgentAvailability::Available(Self::Custom { id })
+                    }
+                    project::ExternalAgentAvailability::Removed => AgentAvailability::Removed,
+                }
+            }
+            agent => AgentAvailability::Available(agent.clone()),
+        }
+    }
+
     pub fn id(&self) -> AgentId {
         match self {
             Self::NativeAgent => agent::ZED_AGENT_ID.clone(),
@@ -513,7 +529,15 @@ impl Agent {
     }
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum AgentAvailability {
+    Pending,
+    Available(Agent),
+    Removed,
+}
+
 /// Content to initialize new external agent with.
+#[derive(Clone)]
 pub enum AgentInitialContent {
     ThreadSummary {
         session_id: acp::SessionId,
