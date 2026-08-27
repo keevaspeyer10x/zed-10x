@@ -376,6 +376,9 @@ function sign_app_binaries() {
         local unsigned_entitlements_path="${app_path}/Contents/Resources/zed.entitlements"
         sed '/com.apple.developer.associated-domains/,+1d' \
             crates/zed/resources/zed.entitlements > "$unsigned_entitlements_path"
+        # The entitlements write is the final bundle mutation before ad-hoc signing.
+        # Clear file-provider metadata again here so it cannot invalidate codesign.
+        /usr/bin/xattr -cr "${app_path}"
         codesign --force --deep --entitlements "$unsigned_entitlements_path" --sign ${MACOS_SIGNING_KEY:- -} "${app_path}" -v
     fi
 
@@ -388,7 +391,7 @@ function sign_app_binaries() {
         # File-provider metadata may be stamped during the move into /Applications,
         # after the pre-signing cleanup above. Clear it again and prove the installed
         # bundle still satisfies the signature contract before reporting success.
-        xattr -cr "$installed_app_path"
+        /usr/bin/xattr -cr "$installed_app_path"
         codesign --verify --deep --strict "$installed_app_path"
         if [[ "$channel" == "dev" ]]; then
             script/zed-10x-register-installed-app "$installed_app_path"

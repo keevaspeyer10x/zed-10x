@@ -857,6 +857,26 @@ impl ConversationView {
         .detach();
 
         let thread_id = thread_id.unwrap_or_else(ThreadId::new);
+        let external_source_blocks = match initial_content.as_ref() {
+            Some(AgentInitialContent::FromExternalSource(prompt)) => {
+                Some(vec![acp::ContentBlock::Text(acp::TextContent::new(
+                    prompt.as_str().to_owned(),
+                ))])
+            }
+            Some(AgentInitialContent::FromExternalSourceBlocks(blocks)) if !blocks.is_empty() => {
+                Some(blocks.clone())
+            }
+            _ => None,
+        };
+        if let Some(blocks) = external_source_blocks {
+            crate::draft_prompt_store::write_with_provenance(
+                thread_id,
+                &blocks,
+                crate::draft_prompt_store::DraftPromptProvenance::ExternalSource,
+                cx,
+            )
+            .detach_and_log_err(cx);
+        }
 
         Self {
             agent: agent.clone(),
@@ -1883,7 +1903,14 @@ impl ConversationView {
                 Some(if snapshot.is_empty() {
                     crate::draft_prompt_store::delete(thread_id, cx)
                 } else {
-                    crate::draft_prompt_store::write(thread_id, &snapshot, cx)
+                    let provenance = this
+                        .root_thread_view()
+                        .is_some_and(|view| view.read(cx).show_external_source_prompt_warning)
+                        .then_some(crate::draft_prompt_store::DraftPromptProvenance::ExternalSource)
+                        .unwrap_or_default();
+                    crate::draft_prompt_store::write_with_provenance(
+                        thread_id, &snapshot, provenance, cx,
+                    )
                 })
             });
             if let Ok(Some(persist)) = persist {
@@ -3858,6 +3885,17 @@ pub(crate) mod tests {
             assert!(view.show_external_source_prompt_warning);
             assert_eq!(view.thread.read(cx).entries().len(), 0);
             assert_eq!(view.message_editor.read(cx).text(cx), "Write me a script");
+        });
+        cx.executor()
+            .advance_clock(DRAFT_PROMPT_PERSIST_DEBOUNCE * 2);
+        cx.run_until_parked();
+        conversation_view.read_with(cx, |view, cx| {
+            let stored = crate::draft_prompt_store::read_with_provenance(view.thread_id, cx)
+                .expect("external-source draft prompt should persist");
+            assert_eq!(
+                stored.provenance,
+                crate::draft_prompt_store::DraftPromptProvenance::ExternalSource
+            );
         });
     }
 

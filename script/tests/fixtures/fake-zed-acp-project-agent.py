@@ -42,16 +42,31 @@ def main() -> int:
         "--mode",
         choices=(
             "pass",
+            "pass-numbered-tab",
+            "pass-numbered-tab-compact",
+            "pass-numbered-arrow",
+            "pass-numbered-arrow-compact",
+            "pass-location-only",
+            "pass-output-only",
+            "replace-sentinel",
             "pass-without-close",
             "split-evidence",
             "prompt-echo",
             "marker-only",
             "wrong-cwd",
+            "wrong-location-only",
+            "wrong-cwd-close-error",
             "authentication",
+            "authentication-message",
             "capacity",
+            "session-limit",
             "permission-write",
             "permission-shell",
             "permission-unknown",
+            "client-read",
+            "client-read-missing-after-sentinel",
+            "client-read-outside",
+            "client-read-relative",
             "timeout",
         ),
         required=True,
@@ -106,12 +121,44 @@ def main() -> int:
                     }
                 )
                 continue
+            if args.mode == "authentication-message":
+                emit(
+                    session_update(
+                        {
+                            "sessionUpdate": "agent_message_chunk",
+                            "content": {
+                                "type": "text",
+                                "text": "Please login before using this route.",
+                            },
+                        }
+                    )
+                )
+                emit(
+                    {
+                        "jsonrpc": "2.0",
+                        "id": request_id,
+                        "result": {"stopReason": "end_turn"},
+                    }
+                )
+                continue
             if args.mode == "capacity":
                 emit(
                     {
                         "jsonrpc": "2.0",
                         "id": request_id,
                         "error": {"code": -32002, "message": "provider capacity exhausted"},
+                    }
+                )
+                continue
+            if args.mode == "session-limit":
+                emit(
+                    {
+                        "jsonrpc": "2.0",
+                        "id": request_id,
+                        "error": {
+                            "code": -32603,
+                            "message": "Internal error: You've hit your session limit",
+                        },
                     }
                 )
                 continue
@@ -156,14 +203,112 @@ def main() -> int:
                 )
                 return 0
 
-            observed_cwd = "/wrong/project" if args.mode == "wrong-cwd" else session_cwd
+            if args.mode in {
+                "client-read",
+                "client-read-missing-after-sentinel",
+                "client-read-outside",
+                "client-read-relative",
+            }:
+                requested_path = (
+                    "/etc/hosts"
+                    if args.mode == "client-read-outside"
+                    else "sentinel.txt"
+                    if args.mode == "client-read-relative"
+                    else str(Path(session_cwd) / "sentinel.txt")
+                )
+                emit(
+                    {
+                        "jsonrpc": "2.0",
+                        "id": 98,
+                        "method": "fs/read_text_file",
+                        "params": {
+                            "sessionId": "fixture-session",
+                            "path": requested_path,
+                        },
+                    }
+                )
+                response = json.loads(sys.stdin.readline())
+                content = response.get("result", {}).get("content", "")
+                sentinel_sha = hashlib.sha256(content.encode()).hexdigest()
+                if args.mode == "client-read-missing-after-sentinel":
+                    emit(
+                        {
+                            "jsonrpc": "2.0",
+                            "id": 97,
+                            "method": "fs/read_text_file",
+                            "params": {
+                                "sessionId": "fixture-session",
+                                "path": str(Path(session_cwd) / "missing.txt"),
+                            },
+                        }
+                    )
+                    missing_response = json.loads(sys.stdin.readline())
+                    if missing_response.get("error", {}).get("code") != -32002:
+                        return 3
+                emit(
+                    session_update(
+                        {
+                            "sessionUpdate": "agent_message_chunk",
+                            "content": {"type": "text", "text": marker},
+                        }
+                    )
+                )
+                emit(
+                    {
+                        "jsonrpc": "2.0",
+                        "id": request_id,
+                        "result": {
+                            "stopReason": (
+                                "end_turn" if sentinel_sha else "refusal"
+                            )
+                        },
+                    }
+                )
+                continue
+
+            sentinel_path = Path(session_cwd) / "sentinel.txt"
+            sentinel_content = sentinel_path.read_text(encoding="utf-8")
+            if args.mode == "replace-sentinel":
+                sentinel_path.unlink()
+                sentinel_path.write_text("replacement-owned-by-agent\n", encoding="utf-8")
+                sentinel_path.chmod(0o600)
+            if args.mode == "pass-numbered-tab":
+                sentinel_output = "".join(
+                    f"{line_number:>6}\t{line}"
+                    for line_number, line in enumerate(
+                        sentinel_content.splitlines(keepends=True), start=1
+                    )
+                )
+            elif args.mode == "pass-numbered-tab-compact":
+                sentinel_output = "".join(
+                    f"{line_number}\t{line}"
+                    for line_number, line in enumerate(
+                        sentinel_content.splitlines(keepends=True), start=1
+                    )
+                )
+            elif args.mode == "pass-numbered-arrow":
+                sentinel_output = "".join(
+                    f"{line_number:>6}→{line}"
+                    for line_number, line in enumerate(
+                        sentinel_content.splitlines(keepends=True), start=1
+                    )
+                )
+            elif args.mode == "pass-numbered-arrow-compact":
+                sentinel_output = "".join(
+                    f"{line_number}→{line}"
+                    for line_number, line in enumerate(
+                        sentinel_content.splitlines(keepends=True), start=1
+                    )
+                )
+            else:
+                sentinel_output = sentinel_content
+            observed_path = (
+                "/wrong/project/sentinel.txt"
+                if args.mode
+                in {"wrong-cwd", "wrong-location-only", "wrong-cwd-close-error"}
+                else "sentinel.txt"
+            )
             if args.mode != "marker-only":
-                if args.mode == "prompt-echo":
-                    sentinel_sha = hashlib.sha256(prompt.encode()).hexdigest()
-                else:
-                    sentinel_sha = hashlib.sha256(
-                        (Path(session_cwd) / "sentinel.txt").read_bytes()
-                    ).hexdigest()
                 emit(
                     session_update(
                         {
@@ -172,7 +317,21 @@ def main() -> int:
                             "title": "Read the project sentinel",
                             "kind": "read",
                             "status": "in_progress",
-                            "rawInput": {"path": "sentinel.txt", "expectedCwd": session_cwd},
+                            "rawInput": (
+                                None
+                                if args.mode
+                                in {
+                                    "pass-location-only",
+                                    "pass-output-only",
+                                    "wrong-location-only",
+                                }
+                                else {"path": observed_path}
+                            ),
+                            "locations": (
+                                [{"path": observed_path}]
+                                if args.mode in {"pass-location-only", "wrong-location-only"}
+                                else []
+                            ),
                         }
                     )
                 )
@@ -182,10 +341,10 @@ def main() -> int:
                             {
                                 "sessionUpdate": "tool_call",
                                 "toolCallId": "tool-2",
-                                "title": "Hash the project sentinel",
+                            "title": "Read unrelated output",
                                 "kind": "read",
                                 "status": "in_progress",
-                                "rawInput": {"path": "sentinel.txt"},
+                            "rawInput": {"path": "not-sentinel.txt"},
                             }
                         )
                     )
@@ -196,9 +355,11 @@ def main() -> int:
                             "toolCallId": "tool-1",
                             "status": "completed",
                             "rawOutput": (
-                                f"{observed_cwd}\n"
+                                "path observed\n"
                                 if args.mode == "split-evidence"
-                                else f"{observed_cwd}\n{sentinel_sha}\n"
+                                else prompt
+                                if args.mode == "prompt-echo"
+                                else sentinel_output
                             ),
                         }
                     )
@@ -210,7 +371,7 @@ def main() -> int:
                                 "sessionUpdate": "tool_call_update",
                                 "toolCallId": "tool-2",
                                 "status": "completed",
-                                "rawOutput": f"{sentinel_sha}\n",
+                                "rawOutput": sentinel_content,
                             }
                         )
                     )
@@ -230,7 +391,7 @@ def main() -> int:
                 }
             )
         elif method == "session/close":
-            if args.mode == "pass-without-close":
+            if args.mode in {"pass-without-close", "wrong-cwd-close-error"}:
                 emit(
                     {
                         "jsonrpc": "2.0",

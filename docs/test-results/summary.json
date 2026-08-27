@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-24T06:02:32+10:00",
+  "generatedAt": "2026-08-27T13:00:10Z",
   "decisionCandidate": "production_ready",
-  "plannedRows": 18,
-  "implementedRows": 18,
-  "executedRows": 18,
+  "plannedRows": 19,
+  "implementedRows": 19,
+  "executedRows": 19,
   "remainingPlannedRows": 0,
   "requirements": {
     "total": 8,
@@ -15,7 +15,7 @@
     "untested": 0
   },
   "uat": {
-    "status": "passed",
+    "status": "complete",
     "personas": [
       "Mac-local Zed 10x user",
       "Mac-to-Intrepid remote-project user"
@@ -29,10 +29,15 @@
       "launch, configure, and terminate remote stdio and TCP debug adapters",
       "read real project bytes through a Mac-local ACP route",
       "read real project bytes through an Intrepid ACP route",
-      "exercise noninteractive, PTY, and TCP secure environment transport"
+      "exercise noninteractive, PTY, and TCP secure environment transport",
+      "exercise every configured ACP route directly, select every visible Mac and Intrepid entry in the installed picker, and restore a completed Intrepid thread after restart"
     ],
     "unacceptableFriction": [],
-    "evidencePath": "docs/test-results/installed-uat.json"
+    "evidencePath": "docs/test-results/installed-picker-uat.json",
+    "evidencePaths": [
+      "docs/test-results/advertised-agent-matrix.json",
+      "docs/test-results/installed-picker-uat.json"
+    ]
   },
   "observability": {
     "status": "passed",
@@ -56,7 +61,7 @@
     "rerunCount": 2,
     "flakyTests": [],
     "criticalOrHighFlakes": 0,
-    "classification": "Seven deterministic harness defects and four assembled-product defects were fixed before clean reruns; no product-path flake remained."
+    "classification": "Nine deterministic harness defects and four assembled-product defects were fixed before clean reruns; no product-path flake remained."
   },
   "testValidity": {
     "status": "passed",
@@ -104,7 +109,7 @@
     "highOrCriticalFindings": []
   },
   "defectDiscovery": {
-    "bugsFound": 12,
+    "bugsFound": 15,
     "productDefects": [
       "Remote external-agent inventory relied on a fixed startup delay instead of receiver-driven snapshot and reconnect ordering.",
       "Captured directory environments replayed PROMPT_COMMAND without its non-exported shell function, producing an immediate broken prompt.",
@@ -113,21 +118,24 @@
     ],
     "testHarnessDefects": [
       "Live TCP port allocation sent python -c source to SSH without one remote-shell quoting boundary.",
-      "ACP project evidence was incorrectly required to coexist in one tool call instead of the union of completed calls.",
+      "ACP project evidence was initially coupled to one provider transcript shape; an interim union-based correction was later found capable of accepting unrelated prompt-shaped fragments.",
       "The terminal UAT fixture returned from signal.pause after SIGWINCH instead of remaining alive for Ctrl-C.",
       "The fake TCP adapter emitted an invalid empty ThreadsResponse.",
       "The terminal resize oracle compared only the first and last widths instead of requiring distinct observed widths.",
       "The synthetic directory environment was authorized after project open, so Zed had already cached the pre-authorization environment.",
-      "The cleanup census matched its own remote observer ancestors because their argv contained the fixture path."
+      "The cleanup census matched its own remote observer ancestors because their argv contained the fixture path.",
+      "The standalone ACP canary required an agent-computed digest and cwd transcript instead of proving the exact sentinel path and observed file bytes.",
+      "The ephemeral-sentinel cleanup closed its ownership file descriptor too early, allowing Linux to reuse the inode after route-driven replacement and falsely classify the replacement as owned."
     ],
     "infraOrToolingDefects": [],
     "processDefects": [
-      "Earlier release acceptance sampled components and marker responses without executing every changed assembled-product surface and user journey."
+      "Representative Mac and Intrepid ACP routes were accepted as coverage for independently selectable picker entries.",
+      "Direct ACP protocol execution was allowed to impersonate the installed Zed picker and session launch boundary."
     ],
     "fixedDuringRun": [
       "Replaced fixed-delay external-agent inventory with request/response snapshots, rejoin refresh, and stale-response suppression.",
       "Added a RED SSH argv-shape regression and one shell-quoted remote command.",
-      "Added a RED split-tool-evidence fixture and unioned only completed tool evidence.",
+      "Replaced transcript-shape evidence with an exact same-call sentinel path plus observed file bytes, or an exact project-confined ACP client read; prompt echo and unrelated split calls remain non-green.",
       "Kept the terminal fixture alive across resize until the intended interrupt.",
       "Removed captured PROMPT_COMMAND before explicit terminal or task settings are applied.",
       "Anchored remote Vim shell execution to the opened project directory.",
@@ -136,7 +144,10 @@
       "Required two distinct observed terminal widths rather than a brittle first-versus-last comparison.",
       "Authorized the exact synthetic direnv before opening the installed app.",
       "Excluded only the observer's reuse-safe ancestor identities from cleanup census while retaining sibling/descendant residue detection.",
-      "Retained marker-only, prompt-echo, permission, timeout, and cleanup negatives."
+      "Retained marker-only, prompt-echo, permission, timeout, and cleanup negatives.",
+      "Pinned the original ephemeral-sentinel file descriptor for the full route lifetime, compared that live identity with the pathname immediately before any unlink, and refused all unlinking while process-group cleanup remained unproven.",
+      "Separated every-route protocol evidence from installed assembled-product picker evidence and required one direct representative per stable execution class.",
+      "Replaced the prompt-visible digest contract with exact same-call path plus observed sentinel-content proof or a project-confined ACP client read; prompt echo and unrelated split calls remain non-green."
     ],
     "confidenceOnlyRows": [],
     "weakRows": [],
@@ -144,10 +155,12 @@
       "The installed 658ad7c7 remote server advertises both secure environment capabilities and passes real noninteractive, PTY, and TCP journeys.",
       "Zed 10x opens the populated Intrepid checkout and terminal/task processes inherit exact cwd, directory/surface environment, input, resize, interrupt, and cleanup behavior.",
       "Installed Vim, MCP, DAP stdio, and DAP TCP journeys run from the real project and complete their actual protocol or editor behavior.",
-      "Real ACP agents may establish cwd and digest through different completed tool calls.",
-      "Codex Mac primary and Intrepid GLM each complete a withheld-oracle project read with no approved permission request."
+      "Provider transcripts vary, so project-read authority is now the exact resource and observed bytes within one authoritative operation rather than any particular explanatory transcript.",
+      "Codex Mac primary and Intrepid GLM each complete a withheld-oracle project read with no approved permission request.",
+      "The final Mac and Intrepid projections expose exactly 12 and 16 healthy, consistently host-labelled routes, respectively.",
+      "All 12 visible Mac and all 14 visible Intrepid entries traversed the installed picker; seven Mac and eleven Intrepid entries completed exact project reads, the remainder stopped only at precise external authentication or capacity boundaries, and a completed Intrepid thread restored after restart."
     ],
-    "lowYieldAssessment": "high_confidence",
+    "lowYieldAssessment": "coverage_sufficient_after_full_variant_and_assembled_uat",
     "residualRisk": [
       "Public notarized distribution is intentionally out of scope; the installed private app uses a verified ad-hoc signature.",
       "The exact merged commit still requires a fresh post-merge bundle/install and focused repeat canary; the current installed binary identifies the pre-merge candidate."
@@ -170,18 +183,39 @@
     {
       "id": "ACP-JOURNEY-002",
       "status": "passed",
-      "command": "node --test script/tests/zed-acp-live-canary.test.mjs plus Mac-local and Intrepid live routes",
-      "evidencePath": "docs/test-results/installed-uat.json",
+      "command": "node --test script/tests/zed-acp-live-canary.test.mjs script/tests/zed-agent-picker-uat.test.mjs && script/zed-agent-picker-uat.py for Mac-local and Intrepid",
+      "evidencePath": "docs/test-results/advertised-agent-matrix.json",
       "evidenceStrength": "direct",
       "resourceLocks": [
         "ai-provider",
         "remote-intrepid"
       ],
-      "attempts": 3,
-      "failureCategory": "test_bug_fixed",
-      "defectMateriality": "high test-validity defect fixed inline",
+      "attempts": 1,
+      "failureCategory": null,
+      "defectMateriality": "every configured route was invoked and classified without a product failure",
       "cleanupStatus": "passed",
-      "newInformation": "Withheld-oracle evidence may legitimately be split across completed tool calls."
+      "newInformation": "All 12 Mac and 16 Intrepid healthy entries reached a project-bound result, a safely refused interaction, or an explicit external-readiness classification with no product-origin failure.",
+      "evidenceSha256": "90e4204e47aaa7a0ea0b5b321c343d4a19880e8c7baf5bd41680bcb8d0f71a03",
+      "exitCode": 0
+    },
+    {
+      "id": "ACP-ASSEMBLED-019",
+      "status": "passed",
+      "command": "computer-use the installed Zed 10x picker for every visible Mac and Intrepid entry, then quit, reopen, reconnect, restore a completed thread, and bind cleanup",
+      "evidencePath": "docs/test-results/installed-picker-uat.json",
+      "evidenceStrength": "direct",
+      "resourceLocks": [
+        "installed-zed-10x",
+        "ai-provider",
+        "remote-intrepid"
+      ],
+      "attempts": 1,
+      "failureCategory": null,
+      "defectMateriality": "all 12 Mac and all 14 visible Intrepid routes traversed the installed app with real project reads or precise external boundaries",
+      "cleanupStatus": "passed",
+      "newInformation": "The installed 12-entry Mac and 14-entry visible Intrepid pickers launched every selectable route without product-origin errors, and restart restoration preserved the completed Intrepid project result.",
+      "evidenceSha256": "00a3bf719784b5dc00851781202b56ae7c04435ec646433b3a68b73496212af7",
+      "exitCode": 0
     },
     {
       "id": "ACP-NEG-003",
@@ -405,5 +439,14 @@
       "cleanupStatus": "passed",
       "newInformation": "The installed app carries the matching Linux remote server and opens the populated Intrepid project."
     }
-  ]
+  ],
+  "evidenceBinding": {
+    "testedRevision": "c88d2217b1d2b546e18e2e6d6fee0b82425b6daa",
+    "loadBearingInputs": [
+      {
+        "path": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
+        "sha256": "98c97176c88e5b1930ce545330fbea074200f7d06359ff89de38f401da3ec16a"
+      }
+    ]
+  }
 }

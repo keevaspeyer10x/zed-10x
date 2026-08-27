@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "status": "passed",
+  "status": "valid",
   "flakyCriticalTests": [],
   "invalidTestsRemaining": [],
   "testHarnessDefects": [
@@ -16,8 +16,8 @@
       "id": "HARNESS-ACP-SPLIT-TOOL-EVIDENCE",
       "category": "test_bug",
       "symptom": "The live ACP canary required cwd and sentinel digest in one completed tool call even though real agents may establish them across multiple completed calls.",
-      "fix": "Evaluate the union of completed tool evidence while retaining the withheld digest and marker-only rejection.",
-      "regression": "project evidence may be established across multiple completed tool calls",
+      "fix": "Decouple successful project reads from one provider transcript shape, then require the exact sentinel path and observed file bytes in one completed read operation or an exact project-confined ACP client read.",
+      "regression": "exact project-file evidence passes without requiring a provider-computed digest, while unrelated split calls remain non-green",
       "status": "fixed"
     },
     {
@@ -59,6 +59,40 @@
       "fix": "Exclude only exact ancestor (PID,start-time) identities, recheck every scanned identity around cmdline access, and continue to report matching sibling and descendant processes.",
       "regression": "Linux procfs fixture excludes observer ancestry, reports the exact live matching sibling PID, then cleans that sibling up",
       "status": "fixed"
+    },
+    {
+      "id": "HARNESS-ACP-PROMPT-ORACLE-LEAK",
+      "category": "test_bug",
+      "symptom": "The standalone ACP canary exposed the expected digest in its prompt and could accept transcript-shaped evidence without proving that the project sentinel was read.",
+      "fix": "Keep expected sentinel bytes and digest oracle-side; accept only one completed read that binds the exact sentinel path to its observed bytes, or an exact project-confined ACP client read. Refuse every permission request.",
+      "regression": "prompt echo and unrelated split calls fail; exact sentinel path plus actual content passes; permission requests approve nothing",
+      "status": "fixed"
+    },
+    {
+      "id": "HARNESS-EPHEMERAL-SENTINEL-INODE-REUSE",
+      "category": "test_bug",
+      "symptom": "The cleanup guard closed the created sentinel file descriptor before the route ran, so Linux could immediately reuse its inode after route-driven replacement and make the replacement appear owned.",
+      "fix": "Keep the original file descriptor pinned for the full route lifetime, compare its live identity with the pathname immediately before unlink, never unlink while process-group cleanup is unproven, and close both ownership descriptors on every path.",
+      "regression": "ephemeral cleanup refuses a route-replaced sentinel across 100 consecutive Linux-shaped runs and never unlinks while route cleanup is unproven",
+      "status": "fixed"
+    }
+  ],
+  "coverageClosureDefects": [
+    {
+      "id": "PLAN-SELECTABLE-VARIANT-COLLAPSE",
+      "category": "process_bug",
+      "symptom": "One Mac route and one Intrepid route were treated as representative of 14 and 18 independently selectable picker entries.",
+      "fix": "Enumerate every selectable entry, bind the inventory to its canonical manifest, run each once, and require exact revision/input evidence before production readiness.",
+      "regression": "shared coverage validator plus the Zed every-entry matrix",
+      "status": "fixed_and_executed"
+    },
+    {
+      "id": "PLAN-DIRECT-PROVIDER-ASSEMBLED-IMPERSONATION",
+      "category": "process_bug",
+      "symptom": "A direct ACP client could pass while the installed Zed picker, launch wrapper or session/new boundary failed.",
+      "fix": "Require assembled_product evidence for direct variant cells, exercise every visible installed picker entry, and retain exact route evidence for every configured entry including alias-collapsed routes.",
+      "regression": "shared validator rejects provider-only direct cells; Zed plan separates the exhaustive configured route matrix from exhaustive visible installed-picker UAT",
+      "status": "fixed_and_executed"
     }
   ],
   "negativeControl": {
@@ -72,5 +106,17 @@
     "multimindsAudit": "invalid_zero_of_nine_after_outer_timeout",
     "usedAsAcceptanceEvidence": false,
     "independentExactDiffReview": "required_on_the_final_exact_candidate_before_merge"
+  },
+  "executionEvidence": {
+    "advertisedRouteMatrix": {
+      "path": "docs/test-results/advertised-agent-matrix.json",
+      "sha256": "90e4204e47aaa7a0ea0b5b321c343d4a19880e8c7baf5bd41680bcb8d0f71a03",
+      "status": "passed"
+    },
+    "installedPickerJourney": {
+      "path": "docs/test-results/installed-picker-uat.json",
+      "sha256": "00a3bf719784b5dc00851781202b56ae7c04435ec646433b3a68b73496212af7",
+      "status": "passed"
+    }
   }
 }

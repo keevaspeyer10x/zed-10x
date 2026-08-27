@@ -94,6 +94,8 @@ if [[ -f "$RUST_CI" ]]; then
         contains "$RUST_CI" "cargo test --locked -p project registry_display_name --lib"
     check "focused CI runs remote agent ordering tests" \
         contains "$RUST_CI" "cargo test --locked -p project remote_agent_ --lib"
+    check "focused CI protects pending registry inventory" \
+        contains "$RUST_CI" "cargo test --locked -p project configured_registry_agent_is_pending_until_catalog_resolves --lib"
     check "focused CI protects execution-host agent settings" \
         contains "$RUST_CI" "cargo test --locked -p project remote_execution_host_ --lib"
     check "focused CI runs authoritative remote agent metadata tests" \
@@ -108,6 +110,54 @@ if [[ -f "$RUST_CI" ]]; then
         contains "$RUST_CI" "cargo test --locked -p agent_ui test_store_update_agent_id_preserves_thread_identity --lib"
     check "focused CI runs restored thread load-error integration tests" \
         contains "$RUST_CI" "cargo test --locked -p agent_ui test_serialize_preserves_session_id_in_load_error --lib"
+    check "focused CI rejects unavailable global agent selections" \
+        contains "$RUST_CI" "cargo test --locked -p agent_ui test_new_workspace_ignores_unavailable_global_last_used_agent --lib"
+    check "focused CI waits for authoritative registry inventory" \
+        contains "$RUST_CI" "cargo test --locked -p agent_ui test_pending_registry_agent_waits_for_authoritative_inventory --lib"
+    check "focused CI prevents background thread creation from bypassing agent authority" \
+        contains "$RUST_CI" "cargo test --locked -p agent_ui test_create_thread_with_options_retains_thread_and_restores_agent --lib"
+    check "focused CI restores pending sessions through their bound agents" \
+        contains "$RUST_CI" "cargo test --locked -p agent_ui test_pending_session_restores_through_its_metadata_agent --lib"
+    check "focused CI preserves explicit selections over pending sessions" \
+        contains "$RUST_CI" "cargo test --locked -p agent_ui test_explicit_agent_selection_cancels_pending_session_restore --lib"
+    check "focused CI restores pending drafts through their bound agents" \
+        contains "$RUST_CI" "cargo test --locked -p agent_ui test_pending_nonempty_draft_restores_through_its_metadata_agent --lib"
+    check "focused CI preserves explicit selections over pending drafts" \
+        contains "$RUST_CI" "cargo test --locked -p agent_ui test_explicit_agent_selection_cancels_pending_nonempty_draft_restore --lib"
+    check "focused CI preserves pending external-source drafts durably" \
+        contains "$RUST_CI" "cargo test --locked -p agent_ui test_external_source_prompt_waits_for_pending_agent_and_restores_durably --lib"
+    check "focused CI persists external-source provenance at the draft boundary" \
+        contains "$RUST_CI" "cargo test --locked -p agent_ui test_external_source_prompt_requires_manual_send --lib"
+    check "focused CI preserves external-source provenance across reload" \
+        contains "$RUST_CI" "cargo test --locked -p agent_ui test_external_source_provenance_rehydrates_warning_without_auto_submit --lib"
+    check "focused CI protects the versioned draft storage contract" \
+        contains "$RUST_CI" "cargo test --locked -p agent_ui test_stored_draft_prompt_schema_is_backward_compatible_and_versioned --lib"
+    check "focused CI safely rebinds removed pending drafts" \
+        contains "$RUST_CI" "cargo test --locked -p agent_ui test_pending_explicit_draft_falls_back_to_native_when_agent_is_removed --lib"
+    check "focused CI protects explicit user actions from stale restorations" \
+        contains "$RUST_CI" "cargo test --locked -p agent_ui test_guarded_user_thread_supersedes_pending_restorations_and_preserves_them --lib"
+    check "focused CI protects summary actions from stale restorations" \
+        contains "$RUST_CI" "cargo test --locked -p agent_ui test_native_summary_action_cancels_pending_restoration_before_lookup --lib"
+    check "focused CI prevents manual loads from constructing pending agents" \
+        contains "$RUST_CI" "cargo test --locked -p agent_ui test_manual_pending_draft_load_waits_without_constructing_server --lib"
+    check "focused CI preserves explicit pending session activation after removal" \
+        contains "$RUST_CI" "cargo test --locked -p agent_ui test_manual_pending_session_activation_survives_removed_inventory --lib"
+    check "focused CI keeps cold submitted history visible after removal" \
+        contains "$RUST_CI" "cargo test --locked -p agent_ui test_cold_pending_submitted_session_removed_restores_visible_history --lib"
+    check "focused CI prevents stale draft provenance from rebinding submitted history" \
+        contains "$RUST_CI" "cargo test --locked -p agent_ui test_direct_removed_submitted_session_ignores_stale_external_draft --lib"
+    check "focused CI preserves normal cross-workspace draft transfer" \
+        contains "$RUST_CI" "cargo test --locked -p agent_ui test_initialize_from_source_transfers_draft_to_fresh_panel --lib"
+    check "focused CI enforces destination-host authority for copied drafts" \
+        contains "$RUST_CI" "cargo test --locked -p agent_ui test_initialize_from_source_waits_for_destination_agent_authority --lib"
+    check "focused CI removes empty drafts for removed agents" \
+        contains "$RUST_CI" "cargo test --locked -p agent_ui test_new_thread_replaces_removed_empty_draft --lib"
+    check "focused CI preserves non-empty drafts for removed agents" \
+        contains "$RUST_CI" "cargo test --locked -p agent_ui test_new_thread_preserves_removed_draft_with_content --lib"
+    check "focused CI preserves submitted sessions for removed agents" \
+        contains "$RUST_CI" "cargo test --locked -p agent_ui test_removed_agent_keeps_submitted_session_visible --lib"
+    check "focused CI preserves cold load-error draft content" \
+        contains "$RUST_CI" "cargo test --locked -p agent_ui test_cold_removed_draft_load_error_preserves_durable_prompt --lib"
     check "focused CI runs custom agent rename tests" \
         contains "$RUST_CI" "cargo test --locked -p settings_ui rename_preserves_original_name_as_alias --lib"
     check "focused CI runs custom agent rename-back tests" \

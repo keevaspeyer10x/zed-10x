@@ -15,6 +15,7 @@ use db::kvp::KeyValueStore;
 use gpui::{App, AppContext as _, Entity, Task};
 use itertools::Itertools;
 use project::AgentId;
+use serde::{Deserialize, Serialize};
 use ui::SharedString;
 use util::ResultExt as _;
 use workspace::Workspace;
@@ -23,18 +24,83 @@ use crate::AgentPanel;
 use crate::thread_metadata_store::ThreadId;
 
 const NAMESPACE: &str = "agent_draft_prompts";
+const STORED_DRAFT_VERSION: u32 = 1;
 
 /// Maximum length (in characters) of a draft label rendered in the sidebar.
 const MAX_LABEL_CHARS: usize = 250;
 
-pub fn read(thread_id: ThreadId, cx: &App) -> Option<Vec<acp::ContentBlock>> {
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DraftPromptProvenance {
+    #[default]
+    User,
+    ExternalSource,
+    DeferredInitialContent,
+    DeferredExternalSource,
+}
+
+impl DraftPromptProvenance {
+    pub fn is_deferred(self) -> bool {
+        matches!(
+            self,
+            Self::DeferredInitialContent | Self::DeferredExternalSource
+        )
+    }
+
+    pub fn is_external_source(self) -> bool {
+        matches!(self, Self::ExternalSource | Self::DeferredExternalSource)
+    }
+
+    pub fn may_rebind_when_agent_is_removed(self) -> bool {
+        self.is_deferred() || self.is_external_source()
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct StoredDraftPrompt {
+    version: u32,
+    pub blocks: Vec<acp::ContentBlock>,
+    #[serde(default)]
+    pub provenance: DraftPromptProvenance,
+}
+
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum StoredDraftPromptFormat {
+    Versioned(StoredDraftPrompt),
+    Legacy(Vec<acp::ContentBlock>),
+}
+
+pub fn read_with_provenance(thread_id: ThreadId, cx: &App) -> Option<StoredDraftPrompt> {
     let kvp = KeyValueStore::global(cx);
     let raw = kvp
         .scoped(NAMESPACE)
         .read(&thread_id.to_key_string())
         .log_err()
         .flatten()?;
-    serde_json::from_str(&raw).log_err()
+    decode_stored_draft(&raw).log_err().flatten()
+}
+
+fn decode_stored_draft(raw: &str) -> anyhow::Result<Option<StoredDraftPrompt>> {
+    Ok(match serde_json::from_str(raw)? {
+        StoredDraftPromptFormat::Versioned(stored) if stored.version == STORED_DRAFT_VERSION => {
+            Some(stored)
+        }
+        StoredDraftPromptFormat::Versioned(stored) => {
+            log::error!("unsupported stored draft prompt version {}", stored.version);
+            None
+        }
+        StoredDraftPromptFormat::Legacy(blocks) => Some(StoredDraftPrompt {
+            version: STORED_DRAFT_VERSION,
+            blocks,
+            provenance: DraftPromptProvenance::User,
+        }),
+    })
+}
+
+pub fn read(thread_id: ThreadId, cx: &App) -> Option<Vec<acp::ContentBlock>> {
+    read_with_provenance(thread_id, cx).map(|stored| stored.blocks)
 }
 
 pub fn write(
@@ -42,9 +108,26 @@ pub fn write(
     prompt: &[acp::ContentBlock],
     cx: &App,
 ) -> Task<anyhow::Result<()>> {
+    let provenance = read_with_provenance(thread_id, cx)
+        .map(|stored| stored.provenance)
+        .unwrap_or_default();
+    write_with_provenance(thread_id, prompt, provenance, cx)
+}
+
+pub fn write_with_provenance(
+    thread_id: ThreadId,
+    prompt: &[acp::ContentBlock],
+    provenance: DraftPromptProvenance,
+    cx: &App,
+) -> Task<anyhow::Result<()>> {
     let kvp = KeyValueStore::global(cx);
     let key = thread_id.to_key_string();
-    let payload = match serde_json::to_string(prompt).context("serializing draft prompt") {
+    let stored = StoredDraftPrompt {
+        version: STORED_DRAFT_VERSION,
+        blocks: prompt.to_vec(),
+        provenance,
+    };
+    let payload = match serde_json::to_string(&stored).context("serializing draft prompt") {
         Ok(payload) => payload,
         Err(err) => return Task::ready(Err(err)),
     };
@@ -81,8 +164,12 @@ pub fn draft_has_user_content<'a>(
     if found_live_copy {
         false
     } else {
-        read(thread_id, cx).is_some_and(|blocks| blocks_have_user_content(&blocks))
+        persisted_draft_has_user_content(thread_id, cx)
     }
+}
+
+pub fn persisted_draft_has_user_content(thread_id: ThreadId, cx: &App) -> bool {
+    read(thread_id, cx).is_some_and(|blocks| blocks_have_user_content(&blocks))
 }
 
 fn blocks_have_user_content(blocks: &[acp::ContentBlock]) -> bool {
@@ -186,6 +273,37 @@ pub fn empty_draft_placeholder_label(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_stored_draft_prompt_schema_is_backward_compatible_and_versioned() {
+        let blocks = vec![acp::ContentBlock::Text(acp::TextContent::new("draft"))];
+        let legacy = serde_json::to_string(&blocks).unwrap();
+        let decoded = decode_stored_draft(&legacy).unwrap().unwrap();
+        assert_eq!(decoded.blocks, blocks);
+        assert_eq!(decoded.provenance, DraftPromptProvenance::User);
+
+        let current = StoredDraftPrompt {
+            version: STORED_DRAFT_VERSION,
+            blocks: blocks.clone(),
+            provenance: DraftPromptProvenance::ExternalSource,
+        };
+        let current = serde_json::to_string(&current).unwrap();
+        assert_eq!(
+            decode_stored_draft(&current).unwrap(),
+            Some(StoredDraftPrompt {
+                version: STORED_DRAFT_VERSION,
+                blocks,
+                provenance: DraftPromptProvenance::ExternalSource,
+            })
+        );
+
+        assert_eq!(
+            decode_stored_draft(r#"{"version":2,"blocks":[],"provenance":"user"}"#).unwrap(),
+            None,
+            "unknown future storage versions must fail closed"
+        );
+        assert!(decode_stored_draft("not-json").is_err());
+    }
 
     #[test]
     fn test_clean_mention_links() {

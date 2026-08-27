@@ -1,0 +1,118 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-27T12:33:23Z",
+  "status": "passed",
+  "command": "Computer Use against the exact installed Zed 10x app: select every visible Mac and Intrepid route, require a real project-file result or precise external boundary, then quit, reopen, reconnect, and restore a completed Intrepid thread",
+  "exitCode": 0,
+  "attempts": 1,
+  "installedProduct": {
+    "path": "/Applications/Zed 10x.app",
+    "bundleIdentifier": "ai.10xlabs.Zed10x",
+    "bundleVersion": "20260827.114258",
+    "sourceRevision": "c88d2217b1d2b546e18e2e6d6fee0b82425b6daa",
+    "sourceTree": "b8609ee5970c7eb8df16008fd0180d4e41516203",
+    "runtimeSha256": "f244c6e18901ffb1f367889fbe96e214b91a09375b337f0847f1cc9b34a0051b",
+    "codeSignatureVerified": true,
+    "publicNotarization": "not_applicable_private_build"
+  },
+  "inventories": {
+    "mac": {
+      "configuredEndpoints": 12,
+      "selectableEntries": 12,
+      "observedSelectableEntries": 12,
+      "hostLabelsConsistent": true
+    },
+    "intrepid": {
+      "configuredEndpoints": 16,
+      "selectableEntries": 14,
+      "observedSelectableEntries": 14,
+      "hostLabelsConsistent": true,
+      "aliasCollapsedRegistryEntries": [
+        "glm-acp-agent",
+        "kimi"
+      ]
+    }
+  },
+  "projectOracles": {
+    "mac": {
+      "path": "crates/zed/Cargo.toml",
+      "sha256": "28e236ab27870a601bc07122e3dc9fead92f5c81d9c16599b0d5de8367a48de7"
+    },
+    "intrepid": {
+      "path": "STATUS.md",
+      "firstLine": "STATUS - agent-lawyer"
+    }
+  },
+  "mac": {
+    "selectedOnce": 12,
+    "passedExactProjectRead": [
+      "Claude (Mac, secondary)",
+      "Claude (Mac, work)",
+      "Codex (Mac)",
+      "Codex (Mac, secondary)",
+      "Codex (Mac, work)",
+      "Cursor (Mac)",
+      "Grok Build (Mac)"
+    ],
+    "externalUnavailable": {
+      "Claude (Mac, primary)": "capacity_or_rate_limit",
+      "Devin (Mac)": "authentication_required",
+      "GLM Agent (Mac)": "authentication_required",
+      "Google Antigravity (Mac)": "authentication_required",
+      "Kimi CLI (Mac)": "authentication_required"
+    }
+  },
+  "intrepid": {
+    "selectedOnce": 14,
+    "passedExactProjectRead": [
+      "Claude (Intrepid, selected)",
+      "Claude (Intrepid, work)",
+      "Claude Agent (Intrepid)",
+      "Codex (Intrepid, primary)",
+      "Codex (Intrepid, secondary)",
+      "Codex (Intrepid, selected)",
+      "Cursor (Intrepid)",
+      "Devin (Intrepid)",
+      "GLM (Intrepid)",
+      "Grok Build (Intrepid)",
+      "Kimi (Intrepid)"
+    ],
+    "externalUnavailable": {
+      "Claude (Intrepid, primary)": "capacity_or_rate_limit",
+      "Claude (Intrepid, secondary)": "authentication_expired",
+      "Google Antigravity (Intrepid)": "authentication_required"
+    },
+    "duplicateSessionGuardObserved": "a second same-connection primary selection was rejected before provider execution"
+  },
+  "restartAndReconnect": {
+    "appQuitConfirmed": true,
+    "appReopened": true,
+    "intrepidReconnected": true,
+    "completedThreadRestored": "Kimi (Intrepid)",
+    "restoredProjectResult": "STATUS - agent-lawyer",
+    "replayOrRebindingError": false
+  },
+  "productErrorClassesObserved": {
+    "exit127": 0,
+    "exit0AsFailure": 0,
+    "incomingTransportClosed": 0,
+    "missingRegistration": 0,
+    "wrongProjectRead": 0,
+    "durableJournalReplayFailure": 0
+  },
+  "cleanup": {
+    "appRuntimeGone": true,
+    "directCanaryProcessGroupsGone": true,
+    "durableSessionHosts": "excluded_by_contract_sessions_survive_client_disconnect"
+  },
+  "remoteServerArtifacts": {
+    "linuxAarch64Sha256": "c2f6b5c4d035f1e8765d5ead0fed23ec5d51510a84591253a1b62232822e622f",
+    "macAarch64Sha256": "44961a3803eab4790eb87f3c733bd74ac820d77dbbccd83af9b051f08cc5d6d5",
+    "linuxX8664Sha256": "865d9e7db84cc7d79a26b473578ea769698484fb3e8fa66f4cb8ecdd925a03a5"
+  },
+  "routeMatrixSha256": "90e4204e47aaa7a0ea0b5b321c343d4a19880e8c7baf5bd41680bcb8d0f71a03",
+  "permissionsApproved": 2,
+  "permissionsApprovedScope": "two exact read-only project-file commands; no write, shell mutation, credential, or broad permission",
+  "sourceOrProjectMutation": false,
+  "promptOrResponseContentRetained": false
+}

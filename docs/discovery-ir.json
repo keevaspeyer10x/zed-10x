@@ -1,12 +1,12 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "freshLifecycle": true,
-  "generatedAt": "2026-08-23T07:55:48Z",
+  "generatedAt": "2026-08-26T15:37:43.971Z",
   "repository": {
     "name": "zed-10x",
-    "head": "55fd544d514603c840c98d94e0ccb4983c34c864",
-    "tree": "5ec6879144a5b1ff84d414e9e973b197046609c4",
-    "branch": "test/zed-surface-journey-closure"
+    "head": "0dd865ff7093f443296bcad1b8a7084ab3e51097",
+    "tree": "e6292521943470cb9e5a629e6ea381b69ee2b7b7",
+    "branch": "codex/zed-picker-release-uat"
   },
   "scope": {
     "id": "zed-10x-remote-execution-release",
@@ -20,7 +20,12 @@
   },
   "stack": {
     "archetype": "native desktop application with a remote Linux server and external process integrations",
-    "languages": ["Rust", "JavaScript", "Python", "POSIX shell"],
+    "languages": [
+      "Rust",
+      "JavaScript",
+      "Python",
+      "POSIX shell"
+    ],
     "framework": "GPUI desktop application with protobuf remote transport, SSH subprocesses, PTYs, ACP, MCP, and DAP",
     "nativeCommands": [
       "cargo test using rustup toolchain 1.95.0-aarch64-apple-darwin",
@@ -29,83 +34,753 @@
     ]
   },
   "requirements": [
-    {"id":"REQ-ACP-001","text":"Every supported installed-product surface exposes the host-valid external-agent inventory after cold open and reconnect.","source":"prior_defect"},
-    {"id":"REQ-ACP-002","text":"A selected agent launches on the project execution host and reads exact project bytes through an ACP tool call.","source":"prior_defect"},
-    {"id":"REQ-ENV-001","text":"Caller-supplied remote environment values never appear in local executable paths, process arguments, command debug output, or logs.","source":"observation"},
-    {"id":"REQ-ENV-002","text":"Remote terminals, tasks, shell commands, ACP, context servers, and stdio/TCP debug adapters retain their resolved directory, configured, and task-specific environment semantics.","source":"code"},
-    {"id":"REQ-ENV-003","text":"A private environment frame is completely consumed before the first application stdin or protocol byte, without echoing through a PTY.","source":"risk"},
-    {"id":"REQ-ENV-004","text":"Missing capability, malformed or incomplete frame, oversize input, timeout, replacement, or unsupported backend fails closed without command-line fallback.","source":"risk"},
-    {"id":"REQ-ENV-005","text":"Completion, cancellation, and timeout leave no owned SSH, bootstrap, terminal, agent, context-server, or debug-adapter process residue.","source":"risk"},
-    {"id":"REQ-PACKAGE-001","text":"The normal user entry point resolves to the canonical installed app, whose matching remote server advertises both secure environment capabilities and launches from its home-anchored location after changing to the project directory.","source":"prior_defect"}
+    {
+      "id": "REQ-ACP-001",
+      "text": "Every supported installed-product surface exposes the host-valid external-agent inventory after cold open and reconnect.",
+      "source": "prior_defect"
+    },
+    {
+      "id": "REQ-ACP-002",
+      "text": "A selected agent launches on the project execution host and reads exact project bytes through an ACP tool call.",
+      "source": "prior_defect"
+    },
+    {
+      "id": "REQ-ENV-001",
+      "text": "Caller-supplied remote environment values never appear in local executable paths, process arguments, command debug output, or logs.",
+      "source": "observation"
+    },
+    {
+      "id": "REQ-ENV-002",
+      "text": "Remote terminals, tasks, shell commands, ACP, context servers, and stdio/TCP debug adapters retain their resolved directory, configured, and task-specific environment semantics.",
+      "source": "code"
+    },
+    {
+      "id": "REQ-ENV-003",
+      "text": "A private environment frame is completely consumed before the first application stdin or protocol byte, without echoing through a PTY.",
+      "source": "risk"
+    },
+    {
+      "id": "REQ-ENV-004",
+      "text": "Missing capability, malformed or incomplete frame, oversize input, timeout, replacement, or unsupported backend fails closed without command-line fallback.",
+      "source": "risk"
+    },
+    {
+      "id": "REQ-ENV-005",
+      "text": "Completion, cancellation, and timeout leave no owned SSH, bootstrap, terminal, agent, context-server, or debug-adapter process residue.",
+      "source": "risk"
+    },
+    {
+      "id": "REQ-PACKAGE-001",
+      "text": "The normal user entry point resolves to the canonical installed app, whose matching remote server advertises both secure environment capabilities and launches from its home-anchored location after changing to the project directory.",
+      "source": "prior_defect"
+    }
   ],
   "architecture": {
     "components": [
-      {"id":"remote-command-contract","file":"crates/remote/src/remote_client.rs","role":"Environment frame, redacted command template, and fail-closed remote trait"},
-      {"id":"ssh-command-builder","file":"crates/remote/src/transport/ssh.rs","role":"Capability negotiation, home-anchored bootstrap, PTY and non-PTY SSH commands"},
-      {"id":"remote-bootstrap","file":"crates/remote_server/src/server.rs","role":"Bounded frame validation, PTY no-echo readiness, terminal restoration, and exec"},
-      {"id":"terminal-consumer","file":"crates/project/src/terminals.rs","role":"Remote terminal, task, and shell-command environment resolution"},
-      {"id":"terminal-handshake","file":"crates/terminal/src/terminal.rs","role":"Withholds UI and input until readiness and completion"},
-      {"id":"acp-consumer","file":"crates/agent_servers/src/acp.rs","role":"Writes private prelude before ACP messages"},
-      {"id":"mcp-consumer","file":"crates/context_server/src/transport/stdio_transport.rs","role":"Writes private prelude before MCP messages"},
-      {"id":"dap-consumer","file":"crates/dap/src/transport.rs","role":"Writes private prelude before stdio DAP or before TCP connection"}
+      {
+        "id": "remote-command-contract",
+        "file": "crates/remote/src/remote_client.rs",
+        "role": "Environment frame, redacted command template, and fail-closed remote trait"
+      },
+      {
+        "id": "ssh-command-builder",
+        "file": "crates/remote/src/transport/ssh.rs",
+        "role": "Capability negotiation, home-anchored bootstrap, PTY and non-PTY SSH commands"
+      },
+      {
+        "id": "remote-bootstrap",
+        "file": "crates/remote_server/src/server.rs",
+        "role": "Bounded frame validation, PTY no-echo readiness, terminal restoration, and exec"
+      },
+      {
+        "id": "terminal-consumer",
+        "file": "crates/project/src/terminals.rs",
+        "role": "Remote terminal, task, and shell-command environment resolution"
+      },
+      {
+        "id": "terminal-handshake",
+        "file": "crates/terminal/src/terminal.rs",
+        "role": "Withholds UI and input until readiness and completion"
+      },
+      {
+        "id": "acp-consumer",
+        "file": "crates/agent_servers/src/acp.rs",
+        "role": "Writes private prelude before ACP messages"
+      },
+      {
+        "id": "mcp-consumer",
+        "file": "crates/context_server/src/transport/stdio_transport.rs",
+        "role": "Writes private prelude before MCP messages"
+      },
+      {
+        "id": "dap-consumer",
+        "file": "crates/dap/src/transport.rs",
+        "role": "Writes private prelude before stdio DAP or before TCP connection"
+      }
     ],
     "durableContract": "docs/src/development/secure-remote-environment-transport.md"
   },
   "productSurfaces": [
-    {"id":"SURFACE-MAC-LOCAL","name":"Installed Zed 10x with a Mac-local project","executionHost":"darwin-local","promise":"Host-valid external agents and unchanged local execution behavior","liveCanary":"installed app inventory and representative project-aware ACP route"},
-    {"id":"SURFACE-MAC-REMOTE-INTREPID","name":"Installed Zed 10x on Mac with an Intrepid POSIX SSH project","executionHost":"linux-remote","promise":"All remote execution consumers run in the real project with private environment delivery","liveCanary":"installed app terminal, task, shell, ACP, MCP, DAP stdio/TCP, privacy, and cleanup journeys"},
-    {"id":"SURFACE-UNSUPPORTED-ENV-BACKENDS","name":"Windows SSH, WSL, and Docker environment-bearing command backends","executionHost":"unsupported-for-private-environment","promise":"Fail closed instead of exposing values","liveCanary":null}
+    {
+      "id": "SURFACE-MAC-LOCAL-ACP",
+      "name": "Installed Zed 10x Mac-local ACP picker",
+      "executionHost": "darwin-local",
+      "promise": "Every host-valid Mac ACP entry launches from the real project, fails explicitly, and cleans up",
+      "liveCanary": "exact installed picker inventory and every advertised project-aware Mac ACP route"
+    },
+    {
+      "id": "SURFACE-MAC-REMOTE-INTREPID",
+      "name": "Installed Zed 10x on Mac with an Intrepid POSIX SSH project",
+      "executionHost": "linux-remote",
+      "promise": "All remote execution consumers run in the real project with private environment delivery",
+      "liveCanary": "installed app terminal, task, shell, ACP, MCP, DAP stdio/TCP, privacy, and cleanup journeys"
+    },
+    {
+      "id": "SURFACE-MAC-REMOTE-INTREPID-ACP",
+      "name": "Installed Zed 10x Intrepid ACP picker through Mac remote editing",
+      "executionHost": "linux-remote",
+      "promise": "Every host-valid Intrepid ACP entry launches from the remote project, fails explicitly, and cleans up",
+      "liveCanary": "exact installed remote picker inventory and every advertised project-aware Intrepid ACP route"
+    },
+    {
+      "id": "SURFACE-UNSUPPORTED-ENV-BACKENDS",
+      "name": "Windows SSH, WSL, and Docker environment-bearing command backends",
+      "executionHost": "unsupported-for-private-environment",
+      "promise": "Fail closed instead of exposing values",
+      "liveCanary": null
+    }
+  ],
+  "selectableVariants": [
+    {
+      "id": "VAR-MAC-CLAUDE-PRIMARY",
+      "surfaceId": "SURFACE-MAC-LOCAL-ACP",
+      "journeyIds": [
+        "JOURNEY-ACP",
+        "JOURNEY-PRIVACY-FAILURE",
+        "JOURNEY-CLEANUP"
+      ],
+      "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json"
+    },
+    {
+      "id": "VAR-MAC-CLAUDE-SECONDARY",
+      "surfaceId": "SURFACE-MAC-LOCAL-ACP",
+      "journeyIds": [
+        "JOURNEY-ACP",
+        "JOURNEY-PRIVACY-FAILURE",
+        "JOURNEY-CLEANUP"
+      ],
+      "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json"
+    },
+    {
+      "id": "VAR-MAC-CLAUDE-WORK",
+      "surfaceId": "SURFACE-MAC-LOCAL-ACP",
+      "journeyIds": [
+        "JOURNEY-ACP",
+        "JOURNEY-PRIVACY-FAILURE",
+        "JOURNEY-CLEANUP"
+      ],
+      "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json"
+    },
+    {
+      "id": "VAR-MAC-CODEX-PRIMARY",
+      "surfaceId": "SURFACE-MAC-LOCAL-ACP",
+      "journeyIds": [
+        "JOURNEY-ACP",
+        "JOURNEY-PRIVACY-FAILURE",
+        "JOURNEY-CLEANUP"
+      ],
+      "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json"
+    },
+    {
+      "id": "VAR-MAC-CODEX-SECONDARY",
+      "surfaceId": "SURFACE-MAC-LOCAL-ACP",
+      "journeyIds": [
+        "JOURNEY-ACP",
+        "JOURNEY-PRIVACY-FAILURE",
+        "JOURNEY-CLEANUP"
+      ],
+      "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json"
+    },
+    {
+      "id": "VAR-MAC-CODEX-WORK",
+      "surfaceId": "SURFACE-MAC-LOCAL-ACP",
+      "journeyIds": [
+        "JOURNEY-ACP",
+        "JOURNEY-PRIVACY-FAILURE",
+        "JOURNEY-CLEANUP"
+      ],
+      "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json"
+    },
+    {
+      "id": "VAR-MAC-ANTIGRAVITY",
+      "surfaceId": "SURFACE-MAC-LOCAL-ACP",
+      "journeyIds": [
+        "JOURNEY-ACP",
+        "JOURNEY-PRIVACY-FAILURE",
+        "JOURNEY-CLEANUP"
+      ],
+      "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json"
+    },
+    {
+      "id": "VAR-MAC-CLAUDE-REGISTRY",
+      "surfaceId": "SURFACE-MAC-LOCAL-ACP",
+      "journeyIds": [
+        "JOURNEY-ACP",
+        "JOURNEY-PRIVACY-FAILURE",
+        "JOURNEY-CLEANUP"
+      ],
+      "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json"
+    },
+    {
+      "id": "VAR-MAC-CODEX-REGISTRY",
+      "surfaceId": "SURFACE-MAC-LOCAL-ACP",
+      "journeyIds": [
+        "JOURNEY-ACP",
+        "JOURNEY-PRIVACY-FAILURE",
+        "JOURNEY-CLEANUP"
+      ],
+      "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json"
+    },
+    {
+      "id": "VAR-MAC-CURSOR",
+      "surfaceId": "SURFACE-MAC-LOCAL-ACP",
+      "journeyIds": [
+        "JOURNEY-ACP",
+        "JOURNEY-PRIVACY-FAILURE",
+        "JOURNEY-CLEANUP"
+      ],
+      "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json"
+    },
+    {
+      "id": "VAR-MAC-DEVIN",
+      "surfaceId": "SURFACE-MAC-LOCAL-ACP",
+      "journeyIds": [
+        "JOURNEY-ACP",
+        "JOURNEY-PRIVACY-FAILURE",
+        "JOURNEY-CLEANUP"
+      ],
+      "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json"
+    },
+    {
+      "id": "VAR-MAC-GLM-REGISTRY",
+      "surfaceId": "SURFACE-MAC-LOCAL-ACP",
+      "journeyIds": [
+        "JOURNEY-ACP",
+        "JOURNEY-PRIVACY-FAILURE",
+        "JOURNEY-CLEANUP"
+      ],
+      "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json"
+    },
+    {
+      "id": "VAR-MAC-GROK",
+      "surfaceId": "SURFACE-MAC-LOCAL-ACP",
+      "journeyIds": [
+        "JOURNEY-ACP",
+        "JOURNEY-PRIVACY-FAILURE",
+        "JOURNEY-CLEANUP"
+      ],
+      "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json"
+    },
+    {
+      "id": "VAR-MAC-KIMI-REGISTRY",
+      "surfaceId": "SURFACE-MAC-LOCAL-ACP",
+      "journeyIds": [
+        "JOURNEY-ACP",
+        "JOURNEY-PRIVACY-FAILURE",
+        "JOURNEY-CLEANUP"
+      ],
+      "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json"
+    },
+    {
+      "id": "VAR-INTREPID-GLM",
+      "surfaceId": "SURFACE-MAC-REMOTE-INTREPID-ACP",
+      "journeyIds": [
+        "JOURNEY-ACP",
+        "JOURNEY-PRIVACY-FAILURE",
+        "JOURNEY-CLEANUP"
+      ],
+      "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json"
+    },
+    {
+      "id": "VAR-INTREPID-KIMI",
+      "surfaceId": "SURFACE-MAC-REMOTE-INTREPID-ACP",
+      "journeyIds": [
+        "JOURNEY-ACP",
+        "JOURNEY-PRIVACY-FAILURE",
+        "JOURNEY-CLEANUP"
+      ],
+      "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json"
+    },
+    {
+      "id": "VAR-INTREPID-CLAUDE-SELECTED",
+      "surfaceId": "SURFACE-MAC-REMOTE-INTREPID-ACP",
+      "journeyIds": [
+        "JOURNEY-ACP",
+        "JOURNEY-PRIVACY-FAILURE",
+        "JOURNEY-CLEANUP"
+      ],
+      "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json"
+    },
+    {
+      "id": "VAR-INTREPID-CLAUDE-PRIMARY",
+      "surfaceId": "SURFACE-MAC-REMOTE-INTREPID-ACP",
+      "journeyIds": [
+        "JOURNEY-ACP",
+        "JOURNEY-PRIVACY-FAILURE",
+        "JOURNEY-CLEANUP"
+      ],
+      "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json"
+    },
+    {
+      "id": "VAR-INTREPID-CLAUDE-SECONDARY",
+      "surfaceId": "SURFACE-MAC-REMOTE-INTREPID-ACP",
+      "journeyIds": [
+        "JOURNEY-ACP",
+        "JOURNEY-PRIVACY-FAILURE",
+        "JOURNEY-CLEANUP"
+      ],
+      "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json"
+    },
+    {
+      "id": "VAR-INTREPID-CLAUDE-WORK",
+      "surfaceId": "SURFACE-MAC-REMOTE-INTREPID-ACP",
+      "journeyIds": [
+        "JOURNEY-ACP",
+        "JOURNEY-PRIVACY-FAILURE",
+        "JOURNEY-CLEANUP"
+      ],
+      "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json"
+    },
+    {
+      "id": "VAR-INTREPID-CODEX-SELECTED",
+      "surfaceId": "SURFACE-MAC-REMOTE-INTREPID-ACP",
+      "journeyIds": [
+        "JOURNEY-ACP",
+        "JOURNEY-PRIVACY-FAILURE",
+        "JOURNEY-CLEANUP"
+      ],
+      "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json"
+    },
+    {
+      "id": "VAR-INTREPID-CODEX-PRIMARY",
+      "surfaceId": "SURFACE-MAC-REMOTE-INTREPID-ACP",
+      "journeyIds": [
+        "JOURNEY-ACP",
+        "JOURNEY-PRIVACY-FAILURE",
+        "JOURNEY-CLEANUP"
+      ],
+      "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json"
+    },
+    {
+      "id": "VAR-INTREPID-CODEX-SECONDARY",
+      "surfaceId": "SURFACE-MAC-REMOTE-INTREPID-ACP",
+      "journeyIds": [
+        "JOURNEY-ACP",
+        "JOURNEY-PRIVACY-FAILURE",
+        "JOURNEY-CLEANUP"
+      ],
+      "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json"
+    },
+    {
+      "id": "VAR-INTREPID-CODEX-WORK",
+      "surfaceId": "SURFACE-MAC-REMOTE-INTREPID-ACP",
+      "journeyIds": [
+        "JOURNEY-ACP",
+        "JOURNEY-PRIVACY-FAILURE",
+        "JOURNEY-CLEANUP"
+      ],
+      "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json"
+    },
+    {
+      "id": "VAR-INTREPID-ANTIGRAVITY",
+      "surfaceId": "SURFACE-MAC-REMOTE-INTREPID-ACP",
+      "journeyIds": [
+        "JOURNEY-ACP",
+        "JOURNEY-PRIVACY-FAILURE",
+        "JOURNEY-CLEANUP"
+      ],
+      "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json"
+    },
+    {
+      "id": "VAR-INTREPID-CLAUDE-REGISTRY",
+      "surfaceId": "SURFACE-MAC-REMOTE-INTREPID-ACP",
+      "journeyIds": [
+        "JOURNEY-ACP",
+        "JOURNEY-PRIVACY-FAILURE",
+        "JOURNEY-CLEANUP"
+      ],
+      "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json"
+    },
+    {
+      "id": "VAR-INTREPID-CODEX-REGISTRY",
+      "surfaceId": "SURFACE-MAC-REMOTE-INTREPID-ACP",
+      "journeyIds": [
+        "JOURNEY-ACP",
+        "JOURNEY-PRIVACY-FAILURE",
+        "JOURNEY-CLEANUP"
+      ],
+      "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json"
+    },
+    {
+      "id": "VAR-INTREPID-CURSOR",
+      "surfaceId": "SURFACE-MAC-REMOTE-INTREPID-ACP",
+      "journeyIds": [
+        "JOURNEY-ACP",
+        "JOURNEY-PRIVACY-FAILURE",
+        "JOURNEY-CLEANUP"
+      ],
+      "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json"
+    },
+    {
+      "id": "VAR-INTREPID-DEVIN",
+      "surfaceId": "SURFACE-MAC-REMOTE-INTREPID-ACP",
+      "journeyIds": [
+        "JOURNEY-ACP",
+        "JOURNEY-PRIVACY-FAILURE",
+        "JOURNEY-CLEANUP"
+      ],
+      "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json"
+    },
+    {
+      "id": "VAR-INTREPID-GLM-REGISTRY",
+      "surfaceId": "SURFACE-MAC-REMOTE-INTREPID-ACP",
+      "journeyIds": [
+        "JOURNEY-ACP",
+        "JOURNEY-PRIVACY-FAILURE",
+        "JOURNEY-CLEANUP"
+      ],
+      "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json"
+    },
+    {
+      "id": "VAR-INTREPID-GROK",
+      "surfaceId": "SURFACE-MAC-REMOTE-INTREPID-ACP",
+      "journeyIds": [
+        "JOURNEY-ACP",
+        "JOURNEY-PRIVACY-FAILURE",
+        "JOURNEY-CLEANUP"
+      ],
+      "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json"
+    },
+    {
+      "id": "VAR-INTREPID-KIMI-REGISTRY",
+      "surfaceId": "SURFACE-MAC-REMOTE-INTREPID-ACP",
+      "journeyIds": [
+        "JOURNEY-ACP",
+        "JOURNEY-PRIVACY-FAILURE",
+        "JOURNEY-CLEANUP"
+      ],
+      "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json"
+    }
   ],
   "criticalJourneys": [
-    {"id":"JOURNEY-ACP","name":"External-agent inventory, reconnect, launch, project read, failure classification, and cleanup","terminalObservable":"host-valid inventory and completed project-bound ACP tool call"},
-    {"id":"JOURNEY-TERMINAL","name":"Open and use a remote interactive terminal","terminalObservable":"correct cwd and environment, usable stdin, resize and interrupt"},
-    {"id":"JOURNEY-TASK","name":"Run and cancel a remote task","terminalObservable":"directory and task environment survive, output is terminal, cancellation cleans up"},
-    {"id":"JOURNEY-SHELL","name":"Run a remote non-interactive shell command from Vim","terminalObservable":"correct cwd and environment plus application stdin and output"},
-    {"id":"JOURNEY-CONTEXT","name":"Start a remote stdio context server","terminalObservable":"MCP initializes after the private prelude and serves one request"},
-    {"id":"JOURNEY-DAP-STDIO","name":"Start a remote stdio debug adapter","terminalObservable":"DAP initialize occurs after the private prelude"},
-    {"id":"JOURNEY-DAP-TCP","name":"Start a remote TCP debug adapter with port forwarding","terminalObservable":"bootstrap completes before TCP connect and a DAP exchange succeeds"},
-    {"id":"JOURNEY-CAPABILITY","name":"Install, negotiate, and reuse matching secure remote-server capabilities","terminalObservable":"both capabilities advertised and used from the home-anchored binary"},
-    {"id":"JOURNEY-PRIVACY-FAILURE","name":"Malformed, missing, unsupported, or timed-out private transport remains non-green without leakage","terminalObservable":"content-free error and no argv or log sentinel"},
-    {"id":"JOURNEY-CLEANUP","name":"Normal completion, cancellation, and timeout leave no owned process residue","terminalObservable":"captured process identities are gone"}
+    {
+      "id": "JOURNEY-ACP",
+      "name": "External-agent inventory, reconnect, launch, project read, failure classification, and cleanup",
+      "terminalObservable": "host-valid inventory and completed project-bound ACP tool call"
+    },
+    {
+      "id": "JOURNEY-TERMINAL",
+      "name": "Open and use a remote interactive terminal",
+      "terminalObservable": "correct cwd and environment, usable stdin, resize and interrupt"
+    },
+    {
+      "id": "JOURNEY-TASK",
+      "name": "Run and cancel a remote task",
+      "terminalObservable": "directory and task environment survive, output is terminal, cancellation cleans up"
+    },
+    {
+      "id": "JOURNEY-SHELL",
+      "name": "Run a remote non-interactive shell command from Vim",
+      "terminalObservable": "correct cwd and environment plus application stdin and output"
+    },
+    {
+      "id": "JOURNEY-CONTEXT",
+      "name": "Start a remote stdio context server",
+      "terminalObservable": "MCP initializes after the private prelude and serves one request"
+    },
+    {
+      "id": "JOURNEY-DAP-STDIO",
+      "name": "Start a remote stdio debug adapter",
+      "terminalObservable": "DAP initialize occurs after the private prelude"
+    },
+    {
+      "id": "JOURNEY-DAP-TCP",
+      "name": "Start a remote TCP debug adapter with port forwarding",
+      "terminalObservable": "bootstrap completes before TCP connect and a DAP exchange succeeds"
+    },
+    {
+      "id": "JOURNEY-CAPABILITY",
+      "name": "Install, negotiate, and reuse matching secure remote-server capabilities",
+      "terminalObservable": "both capabilities advertised and used from the home-anchored binary"
+    },
+    {
+      "id": "JOURNEY-PRIVACY-FAILURE",
+      "name": "Malformed, missing, unsupported, or timed-out private transport remains non-green without leakage",
+      "terminalObservable": "content-free error and no argv or log sentinel"
+    },
+    {
+      "id": "JOURNEY-CLEANUP",
+      "name": "Normal completion, cancellation, and timeout leave no owned process residue",
+      "terminalObservable": "captured process identities are gone"
+    }
   ],
   "surfaceJourneyMatrix": [
-    {"surfaceId":"SURFACE-MAC-LOCAL","journeyId":"JOURNEY-ACP","applicability":"applicable"},
-    {"surfaceId":"SURFACE-MAC-LOCAL","journeyId":"JOURNEY-TERMINAL","applicability":"not_applicable","reason":"The secure SSH environment protocol is not crossed by a local terminal; local regression is covered by affected native suites."},
-    {"surfaceId":"SURFACE-MAC-LOCAL","journeyId":"JOURNEY-TASK","applicability":"not_applicable","reason":"The secure SSH environment protocol is not crossed by a local task; local regression is covered by affected native suites."},
-    {"surfaceId":"SURFACE-MAC-LOCAL","journeyId":"JOURNEY-SHELL","applicability":"not_applicable","reason":"The secure SSH environment protocol is not crossed by a local shell command."},
-    {"surfaceId":"SURFACE-MAC-LOCAL","journeyId":"JOURNEY-CONTEXT","applicability":"not_applicable","reason":"This release changes only the remote context-server command path."},
-    {"surfaceId":"SURFACE-MAC-LOCAL","journeyId":"JOURNEY-DAP-STDIO","applicability":"not_applicable","reason":"This release changes only the remote debug-adapter command path."},
-    {"surfaceId":"SURFACE-MAC-LOCAL","journeyId":"JOURNEY-DAP-TCP","applicability":"not_applicable","reason":"This release changes only the remote debug-adapter command path."},
-    {"surfaceId":"SURFACE-MAC-LOCAL","journeyId":"JOURNEY-CAPABILITY","applicability":"not_applicable","reason":"Capability negotiation exists only on the SSH remote."},
-    {"surfaceId":"SURFACE-MAC-LOCAL","journeyId":"JOURNEY-PRIVACY-FAILURE","applicability":"applicable"},
-    {"surfaceId":"SURFACE-MAC-LOCAL","journeyId":"JOURNEY-CLEANUP","applicability":"applicable"},
-    {"surfaceId":"SURFACE-MAC-REMOTE-INTREPID","journeyId":"JOURNEY-ACP","applicability":"applicable"},
-    {"surfaceId":"SURFACE-MAC-REMOTE-INTREPID","journeyId":"JOURNEY-TERMINAL","applicability":"applicable"},
-    {"surfaceId":"SURFACE-MAC-REMOTE-INTREPID","journeyId":"JOURNEY-TASK","applicability":"applicable"},
-    {"surfaceId":"SURFACE-MAC-REMOTE-INTREPID","journeyId":"JOURNEY-SHELL","applicability":"applicable"},
-    {"surfaceId":"SURFACE-MAC-REMOTE-INTREPID","journeyId":"JOURNEY-CONTEXT","applicability":"applicable"},
-    {"surfaceId":"SURFACE-MAC-REMOTE-INTREPID","journeyId":"JOURNEY-DAP-STDIO","applicability":"applicable"},
-    {"surfaceId":"SURFACE-MAC-REMOTE-INTREPID","journeyId":"JOURNEY-DAP-TCP","applicability":"applicable"},
-    {"surfaceId":"SURFACE-MAC-REMOTE-INTREPID","journeyId":"JOURNEY-CAPABILITY","applicability":"applicable"},
-    {"surfaceId":"SURFACE-MAC-REMOTE-INTREPID","journeyId":"JOURNEY-PRIVACY-FAILURE","applicability":"applicable"},
-    {"surfaceId":"SURFACE-MAC-REMOTE-INTREPID","journeyId":"JOURNEY-CLEANUP","applicability":"applicable"},
-    {"surfaceId":"SURFACE-UNSUPPORTED-ENV-BACKENDS","journeyId":"JOURNEY-ACP","applicability":"not_applicable","reason":"No supported private environment channel exists on these backends."},
-    {"surfaceId":"SURFACE-UNSUPPORTED-ENV-BACKENDS","journeyId":"JOURNEY-TERMINAL","applicability":"not_applicable","reason":"Environment-bearing launch is deliberately unsupported until an equivalent private channel exists."},
-    {"surfaceId":"SURFACE-UNSUPPORTED-ENV-BACKENDS","journeyId":"JOURNEY-TASK","applicability":"not_applicable","reason":"Environment-bearing launch is deliberately unsupported until an equivalent private channel exists."},
-    {"surfaceId":"SURFACE-UNSUPPORTED-ENV-BACKENDS","journeyId":"JOURNEY-SHELL","applicability":"not_applicable","reason":"Environment-bearing launch is deliberately unsupported until an equivalent private channel exists."},
-    {"surfaceId":"SURFACE-UNSUPPORTED-ENV-BACKENDS","journeyId":"JOURNEY-CONTEXT","applicability":"not_applicable","reason":"Environment-bearing launch is deliberately unsupported until an equivalent private channel exists."},
-    {"surfaceId":"SURFACE-UNSUPPORTED-ENV-BACKENDS","journeyId":"JOURNEY-DAP-STDIO","applicability":"not_applicable","reason":"Environment-bearing launch is deliberately unsupported until an equivalent private channel exists."},
-    {"surfaceId":"SURFACE-UNSUPPORTED-ENV-BACKENDS","journeyId":"JOURNEY-DAP-TCP","applicability":"not_applicable","reason":"Environment-bearing launch is deliberately unsupported until an equivalent private channel exists."},
-    {"surfaceId":"SURFACE-UNSUPPORTED-ENV-BACKENDS","journeyId":"JOURNEY-CAPABILITY","applicability":"not_applicable","reason":"The POSIX SSH capability is not advertised for these backends."},
-    {"surfaceId":"SURFACE-UNSUPPORTED-ENV-BACKENDS","journeyId":"JOURNEY-PRIVACY-FAILURE","applicability":"applicable"},
-    {"surfaceId":"SURFACE-UNSUPPORTED-ENV-BACKENDS","journeyId":"JOURNEY-CLEANUP","applicability":"not_applicable","reason":"Fail-closed construction starts no remote process."}
+    {
+      "surfaceId": "SURFACE-MAC-LOCAL-ACP",
+      "journeyId": "JOURNEY-ACP",
+      "applicability": "applicable"
+    },
+    {
+      "surfaceId": "SURFACE-MAC-LOCAL-ACP",
+      "journeyId": "JOURNEY-TERMINAL",
+      "applicability": "not_applicable",
+      "reason": "The secure SSH environment protocol is not crossed by a local terminal; local regression is covered by affected native suites."
+    },
+    {
+      "surfaceId": "SURFACE-MAC-LOCAL-ACP",
+      "journeyId": "JOURNEY-TASK",
+      "applicability": "not_applicable",
+      "reason": "The secure SSH environment protocol is not crossed by a local task; local regression is covered by affected native suites."
+    },
+    {
+      "surfaceId": "SURFACE-MAC-LOCAL-ACP",
+      "journeyId": "JOURNEY-SHELL",
+      "applicability": "not_applicable",
+      "reason": "The secure SSH environment protocol is not crossed by a local shell command."
+    },
+    {
+      "surfaceId": "SURFACE-MAC-LOCAL-ACP",
+      "journeyId": "JOURNEY-CONTEXT",
+      "applicability": "not_applicable",
+      "reason": "This release changes only the remote context-server command path."
+    },
+    {
+      "surfaceId": "SURFACE-MAC-LOCAL-ACP",
+      "journeyId": "JOURNEY-DAP-STDIO",
+      "applicability": "not_applicable",
+      "reason": "This release changes only the remote debug-adapter command path."
+    },
+    {
+      "surfaceId": "SURFACE-MAC-LOCAL-ACP",
+      "journeyId": "JOURNEY-DAP-TCP",
+      "applicability": "not_applicable",
+      "reason": "This release changes only the remote debug-adapter command path."
+    },
+    {
+      "surfaceId": "SURFACE-MAC-LOCAL-ACP",
+      "journeyId": "JOURNEY-CAPABILITY",
+      "applicability": "not_applicable",
+      "reason": "Capability negotiation exists only on the SSH remote."
+    },
+    {
+      "surfaceId": "SURFACE-MAC-LOCAL-ACP",
+      "journeyId": "JOURNEY-PRIVACY-FAILURE",
+      "applicability": "applicable"
+    },
+    {
+      "surfaceId": "SURFACE-MAC-LOCAL-ACP",
+      "journeyId": "JOURNEY-CLEANUP",
+      "applicability": "applicable"
+    },
+    {
+      "surfaceId": "SURFACE-MAC-REMOTE-INTREPID",
+      "journeyId": "JOURNEY-ACP",
+      "applicability": "not_applicable",
+      "reason": "ACP picker selection is owned by the separate Intrepid ACP surface so it is not inferred from terminal, task, MCP, or DAP evidence."
+    },
+    {
+      "surfaceId": "SURFACE-MAC-REMOTE-INTREPID",
+      "journeyId": "JOURNEY-TERMINAL",
+      "applicability": "applicable"
+    },
+    {
+      "surfaceId": "SURFACE-MAC-REMOTE-INTREPID",
+      "journeyId": "JOURNEY-TASK",
+      "applicability": "applicable"
+    },
+    {
+      "surfaceId": "SURFACE-MAC-REMOTE-INTREPID",
+      "journeyId": "JOURNEY-SHELL",
+      "applicability": "applicable"
+    },
+    {
+      "surfaceId": "SURFACE-MAC-REMOTE-INTREPID",
+      "journeyId": "JOURNEY-CONTEXT",
+      "applicability": "applicable"
+    },
+    {
+      "surfaceId": "SURFACE-MAC-REMOTE-INTREPID",
+      "journeyId": "JOURNEY-DAP-STDIO",
+      "applicability": "applicable"
+    },
+    {
+      "surfaceId": "SURFACE-MAC-REMOTE-INTREPID",
+      "journeyId": "JOURNEY-DAP-TCP",
+      "applicability": "applicable"
+    },
+    {
+      "surfaceId": "SURFACE-MAC-REMOTE-INTREPID",
+      "journeyId": "JOURNEY-CAPABILITY",
+      "applicability": "applicable"
+    },
+    {
+      "surfaceId": "SURFACE-MAC-REMOTE-INTREPID",
+      "journeyId": "JOURNEY-PRIVACY-FAILURE",
+      "applicability": "applicable"
+    },
+    {
+      "surfaceId": "SURFACE-MAC-REMOTE-INTREPID",
+      "journeyId": "JOURNEY-CLEANUP",
+      "applicability": "applicable"
+    },
+    {
+      "surfaceId": "SURFACE-UNSUPPORTED-ENV-BACKENDS",
+      "journeyId": "JOURNEY-ACP",
+      "applicability": "not_applicable",
+      "reason": "No supported private environment channel exists on these backends."
+    },
+    {
+      "surfaceId": "SURFACE-UNSUPPORTED-ENV-BACKENDS",
+      "journeyId": "JOURNEY-TERMINAL",
+      "applicability": "not_applicable",
+      "reason": "Environment-bearing launch is deliberately unsupported until an equivalent private channel exists."
+    },
+    {
+      "surfaceId": "SURFACE-UNSUPPORTED-ENV-BACKENDS",
+      "journeyId": "JOURNEY-TASK",
+      "applicability": "not_applicable",
+      "reason": "Environment-bearing launch is deliberately unsupported until an equivalent private channel exists."
+    },
+    {
+      "surfaceId": "SURFACE-UNSUPPORTED-ENV-BACKENDS",
+      "journeyId": "JOURNEY-SHELL",
+      "applicability": "not_applicable",
+      "reason": "Environment-bearing launch is deliberately unsupported until an equivalent private channel exists."
+    },
+    {
+      "surfaceId": "SURFACE-UNSUPPORTED-ENV-BACKENDS",
+      "journeyId": "JOURNEY-CONTEXT",
+      "applicability": "not_applicable",
+      "reason": "Environment-bearing launch is deliberately unsupported until an equivalent private channel exists."
+    },
+    {
+      "surfaceId": "SURFACE-UNSUPPORTED-ENV-BACKENDS",
+      "journeyId": "JOURNEY-DAP-STDIO",
+      "applicability": "not_applicable",
+      "reason": "Environment-bearing launch is deliberately unsupported until an equivalent private channel exists."
+    },
+    {
+      "surfaceId": "SURFACE-UNSUPPORTED-ENV-BACKENDS",
+      "journeyId": "JOURNEY-DAP-TCP",
+      "applicability": "not_applicable",
+      "reason": "Environment-bearing launch is deliberately unsupported until an equivalent private channel exists."
+    },
+    {
+      "surfaceId": "SURFACE-UNSUPPORTED-ENV-BACKENDS",
+      "journeyId": "JOURNEY-CAPABILITY",
+      "applicability": "not_applicable",
+      "reason": "The POSIX SSH capability is not advertised for these backends."
+    },
+    {
+      "surfaceId": "SURFACE-UNSUPPORTED-ENV-BACKENDS",
+      "journeyId": "JOURNEY-PRIVACY-FAILURE",
+      "applicability": "applicable"
+    },
+    {
+      "surfaceId": "SURFACE-UNSUPPORTED-ENV-BACKENDS",
+      "journeyId": "JOURNEY-CLEANUP",
+      "applicability": "not_applicable",
+      "reason": "Fail-closed construction starts no remote process."
+    },
+    {
+      "surfaceId": "SURFACE-MAC-REMOTE-INTREPID-ACP",
+      "journeyId": "JOURNEY-ACP",
+      "applicability": "applicable"
+    },
+    {
+      "surfaceId": "SURFACE-MAC-REMOTE-INTREPID-ACP",
+      "journeyId": "JOURNEY-TERMINAL",
+      "applicability": "not_applicable",
+      "reason": "This picker variant changes only ACP launch, failure/privacy handling, and session cleanup; the broader remote execution surface owns this journey."
+    },
+    {
+      "surfaceId": "SURFACE-MAC-REMOTE-INTREPID-ACP",
+      "journeyId": "JOURNEY-TASK",
+      "applicability": "not_applicable",
+      "reason": "This picker variant changes only ACP launch, failure/privacy handling, and session cleanup; the broader remote execution surface owns this journey."
+    },
+    {
+      "surfaceId": "SURFACE-MAC-REMOTE-INTREPID-ACP",
+      "journeyId": "JOURNEY-SHELL",
+      "applicability": "not_applicable",
+      "reason": "This picker variant changes only ACP launch, failure/privacy handling, and session cleanup; the broader remote execution surface owns this journey."
+    },
+    {
+      "surfaceId": "SURFACE-MAC-REMOTE-INTREPID-ACP",
+      "journeyId": "JOURNEY-CONTEXT",
+      "applicability": "not_applicable",
+      "reason": "This picker variant changes only ACP launch, failure/privacy handling, and session cleanup; the broader remote execution surface owns this journey."
+    },
+    {
+      "surfaceId": "SURFACE-MAC-REMOTE-INTREPID-ACP",
+      "journeyId": "JOURNEY-DAP-STDIO",
+      "applicability": "not_applicable",
+      "reason": "This picker variant changes only ACP launch, failure/privacy handling, and session cleanup; the broader remote execution surface owns this journey."
+    },
+    {
+      "surfaceId": "SURFACE-MAC-REMOTE-INTREPID-ACP",
+      "journeyId": "JOURNEY-DAP-TCP",
+      "applicability": "not_applicable",
+      "reason": "This picker variant changes only ACP launch, failure/privacy handling, and session cleanup; the broader remote execution surface owns this journey."
+    },
+    {
+      "surfaceId": "SURFACE-MAC-REMOTE-INTREPID-ACP",
+      "journeyId": "JOURNEY-CAPABILITY",
+      "applicability": "not_applicable",
+      "reason": "This picker variant changes only ACP launch, failure/privacy handling, and session cleanup; the broader remote execution surface owns this journey."
+    },
+    {
+      "surfaceId": "SURFACE-MAC-REMOTE-INTREPID-ACP",
+      "journeyId": "JOURNEY-PRIVACY-FAILURE",
+      "applicability": "applicable"
+    },
+    {
+      "surfaceId": "SURFACE-MAC-REMOTE-INTREPID-ACP",
+      "journeyId": "JOURNEY-CLEANUP",
+      "applicability": "applicable"
+    }
   ],
   "knownDefects": [
-    {"id":"DEFECT-ACP-INITIAL-INVENTORY-RACE","classification":"product_defect","status":"fixed_in_candidate","evidence":"Initial inventory could arrive before the client handler and was not replayed."},
-    {"id":"DEFECT-ACP-CANARY-BYPASS","classification":"test_harness_defect","status":"fixed_in_candidate","evidence":"The original route canary did not cross the installed Zed client/server seam."},
-    {"id":"DEFECT-SSH-ENV-ARGV-LEAK","classification":"product_defect","status":"fix_in_progress","evidence":"A live restored remote terminal exposed resolved project environment values in the local SSH process argv."},
-    {"id":"DEFECT-PLAN-SURFACE-OMISSION","classification":"process_defect","status":"fixed_in_plan","evidence":"The prior release plan covered ACP but omitted sibling terminal, task, shell, MCP, and DAP consumers and cited a nonexistent repository ADR path."},
-    {"id":"DEFECT-STALE-BUNDLE-LAUNCH","classification":"product_delivery_defect","status":"fixed_in_candidate","evidence":"A normal Zed 10x restart reopened a stale same-identifier source bundle even though the canonical installed app contained the remote bootstrap correction."}
+    {
+      "id": "DEFECT-ACP-INITIAL-INVENTORY-RACE",
+      "classification": "product_defect",
+      "status": "fixed_in_candidate",
+      "evidence": "Initial inventory could arrive before the client handler and was not replayed."
+    },
+    {
+      "id": "DEFECT-ACP-CANARY-BYPASS",
+      "classification": "test_harness_defect",
+      "status": "fixed_in_candidate",
+      "evidence": "The original route canary did not cross the installed Zed client/server seam."
+    },
+    {
+      "id": "DEFECT-SSH-ENV-ARGV-LEAK",
+      "classification": "product_defect",
+      "status": "fix_in_progress",
+      "evidence": "A live restored remote terminal exposed resolved project environment values in the local SSH process argv."
+    },
+    {
+      "id": "DEFECT-PLAN-SURFACE-OMISSION",
+      "classification": "process_defect",
+      "status": "fixed_in_plan",
+      "evidence": "The prior release plan covered ACP but omitted sibling terminal, task, shell, MCP, and DAP consumers and cited a nonexistent repository ADR path."
+    },
+    {
+      "id": "DEFECT-STALE-BUNDLE-LAUNCH",
+      "classification": "product_delivery_defect",
+      "status": "fixed_in_candidate",
+      "evidence": "A normal Zed 10x restart reopened a stale same-identifier source bundle even though the canonical installed app contained the remote bootstrap correction."
+    }
   ],
   "existingCoverage": {
     "direct": [
@@ -123,22 +798,70 @@
     ]
   },
   "testFamilyGapReview": {
-    "propertyAndInputMutation":"applicable: bounded frame parser and command builder",
-    "statefulAndConcurrency":"applicable: PTY readiness/completion, reconnect ordering, cancellation",
-    "contractCompatibility":"applicable: versioned remote-server capabilities and ACP/MCP/DAP first-byte ordering",
-    "securityPrivacy":"critical: argv, Debug, error, log, echo, and residue leakage",
-    "performanceSoak":"not_applicable: bounded launch transport; repeated lifecycle and timeout tests replace load testing",
-    "visualAccessibility":"not_applicable to the transport correction; installed user-visible error states are checked in UAT",
-    "mutationTooling":"cargo-mutants and cargo-fuzz are unavailable; deterministic table/property and negative controls are used"
+    "propertyAndInputMutation": "applicable: bounded frame parser and command builder",
+    "statefulAndConcurrency": "applicable: PTY readiness/completion, reconnect ordering, cancellation",
+    "contractCompatibility": "applicable: versioned remote-server capabilities and ACP/MCP/DAP first-byte ordering",
+    "securityPrivacy": "critical: argv, Debug, error, log, echo, and residue leakage",
+    "performanceSoak": "not_applicable: bounded launch transport; repeated lifecycle and timeout tests replace load testing",
+    "visualAccessibility": "not_applicable to the transport correction; installed user-visible error states are checked in UAT",
+    "mutationTooling": "cargo-mutants and cargo-fuzz are unavailable; deterministic table/property and negative controls are used"
   },
   "negativeSpaceAudit": [
-    {"category":"observability","outcome":"covered","rowIds":["ENV-PRIVACY-016"]},
-    {"category":"device-and-client-matrix","outcome":"covered","rowIds":["ENV-PLATFORM-017","ENV-PACKAGE-018"]},
-    {"category":"support-and-debug","outcome":"covered","rowIds":["ENV-PRIVACY-016"]},
-    {"category":"rollback","outcome":"covered","rowIds":["ENV-PACKAGE-018"]},
-    {"category":"account-data-lifecycle","outcome":"not_applicable","reason":"No account or persisted user-data behavior changes."},
-    {"category":"billing","outcome":"not_applicable","reason":"Provider spend and account repair are outside this transport slice."}
+    {
+      "category": "observability",
+      "outcome": "covered",
+      "rowIds": [
+        "ENV-PRIVACY-016"
+      ]
+    },
+    {
+      "category": "device-and-client-matrix",
+      "outcome": "covered",
+      "rowIds": [
+        "ENV-PLATFORM-017",
+        "ENV-PACKAGE-018"
+      ]
+    },
+    {
+      "category": "support-and-debug",
+      "outcome": "covered",
+      "rowIds": [
+        "ENV-PRIVACY-016"
+      ]
+    },
+    {
+      "category": "rollback",
+      "outcome": "covered",
+      "rowIds": [
+        "ENV-PACKAGE-018"
+      ]
+    },
+    {
+      "category": "account-data-lifecycle",
+      "outcome": "not_applicable",
+      "reason": "No account or persisted user-data behavior changes."
+    },
+    {
+      "category": "billing",
+      "outcome": "not_applicable",
+      "reason": "Provider spend and account repair are outside this transport slice."
+    }
   ],
-  "toolAvailability": {"rustupCargo":true,"node":true,"minds":true,"docker":true,"semgrep":false,"mutationRunner":false,"installedAppControl":"authorized_for_this_release"},
-  "freshnessDelta": {"priorSurfaceCount":2,"newSurfaceCount":3,"priorJourneyCount":6,"newJourneyCount":10,"materialChange":"Expanded from ACP-only evidence to the complete remote execution environment transport and removed nonexistent provenance."}
+  "toolAvailability": {
+    "rustupCargo": true,
+    "node": true,
+    "minds": true,
+    "docker": true,
+    "semgrep": false,
+    "mutationRunner": false,
+    "installedAppControl": "authorized_for_this_release"
+  },
+  "freshnessDelta": {
+    "priorSurfaceCount": 2,
+    "newSurfaceCount": 4,
+    "priorJourneyCount": 6,
+    "newJourneyCount": 10,
+    "materialChange": "Expanded from ACP-only evidence to the complete remote execution environment transport and removed nonexistent provenance."
+  },
+  "coverageClosureVersion": 2
 }
