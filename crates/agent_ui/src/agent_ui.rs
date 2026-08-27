@@ -548,6 +548,7 @@ pub enum AgentInitialContent {
         auto_submit: bool,
     },
     FromExternalSource(ExternalSourcePrompt),
+    FromExternalSourceBlocks(Vec<acp::ContentBlock>),
 }
 
 impl From<ExternalSourcePrompt> for AgentInitialContent {

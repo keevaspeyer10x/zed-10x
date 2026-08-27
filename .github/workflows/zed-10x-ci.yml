@@ -57,10 +57,21 @@ jobs:
           cargo test --locked -p agent_ui test_serialize_preserves_session_id_in_load_error --lib
           cargo test --locked -p agent_ui test_new_workspace_ignores_unavailable_global_last_used_agent --lib
           cargo test --locked -p agent_ui test_pending_registry_agent_waits_for_authoritative_inventory --lib
+          cargo test --locked -p agent_ui test_create_thread_with_options_retains_thread_and_restores_agent --lib
           cargo test --locked -p agent_ui test_pending_session_restores_through_its_metadata_agent --lib
           cargo test --locked -p agent_ui test_explicit_agent_selection_cancels_pending_session_restore --lib
           cargo test --locked -p agent_ui test_pending_nonempty_draft_restores_through_its_metadata_agent --lib
           cargo test --locked -p agent_ui test_explicit_agent_selection_cancels_pending_nonempty_draft_restore --lib
+          cargo test --locked -p agent_ui test_external_source_prompt_waits_for_pending_agent_and_restores_durably --lib
+          cargo test --locked -p agent_ui test_external_source_prompt_requires_manual_send --lib
+          cargo test --locked -p agent_ui test_external_source_provenance_rehydrates_warning_without_auto_submit --lib
+          cargo test --locked -p agent_ui test_stored_draft_prompt_schema_is_backward_compatible_and_versioned --lib
+          cargo test --locked -p agent_ui test_pending_explicit_draft_falls_back_to_native_when_agent_is_removed --lib
+          cargo test --locked -p agent_ui test_guarded_user_thread_supersedes_pending_restorations_and_preserves_them --lib
+          cargo test --locked -p agent_ui test_native_summary_action_cancels_pending_restoration_before_lookup --lib
+          cargo test --locked -p agent_ui test_manual_pending_draft_load_waits_without_constructing_server --lib
+          cargo test --locked -p agent_ui test_initialize_from_source_transfers_draft_to_fresh_panel --lib
+          cargo test --locked -p agent_ui test_initialize_from_source_waits_for_destination_agent_authority --lib
           cargo test --locked -p agent_ui test_new_thread_replaces_removed_empty_draft --lib
           cargo test --locked -p agent_ui test_new_thread_preserves_removed_draft_with_content --lib
           cargo test --locked -p agent_ui test_removed_agent_keeps_submitted_session_visible --lib

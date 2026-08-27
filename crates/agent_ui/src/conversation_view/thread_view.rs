@@ -840,6 +840,11 @@ impl ThreadView {
                             cx,
                         );
                     }
+                    AgentInitialContent::FromExternalSourceBlocks(blocks) => {
+                        show_external_source_prompt_warning = true;
+                        should_auto_submit = false;
+                        editor.set_message(blocks, window, cx);
+                    }
                 }
             } else if let Some(draft) = thread.read(cx).draft_prompt() {
                 editor.set_message(draft.to_vec(), window, cx);

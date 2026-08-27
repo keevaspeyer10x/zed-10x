@@ -2003,9 +2003,16 @@ impl AgentPanel {
                                 pending.thread_id,
                                 cx,
                             );
-                        if has_content && matches!(self.base_view, BaseView::Uninitialized) {
+                        let deferred_initial_content =
+                            crate::draft_prompt_store::read_with_provenance(pending.thread_id, cx)
+                                .is_some_and(|stored| {
+                                    stored.provenance.may_rebind_when_agent_is_removed()
+                                });
+                        if deferred_initial_content
+                            && matches!(self.base_view, BaseView::Uninitialized)
+                        {
                             self.load_agent_thread_without_canceling_pending(
-                                pending.agent,
+                                Agent::NativeAgent,
                                 pending.thread_id,
                                 Some(metadata.folder_paths().clone()),
                                 metadata.title.clone(),
@@ -2014,6 +2021,8 @@ impl AgentPanel {
                                 window,
                                 cx,
                             );
+                            blocks_selected_reconciliation = true;
+                        } else if has_content {
                             blocks_selected_reconciliation = true;
                         } else if !has_content
                             && let Some(store) = ThreadMetadataStore::try_global(cx)
@@ -2050,10 +2059,10 @@ impl AgentPanel {
                             cx,
                         )
                     {
+                        let should_activate = has_initial_content
+                            || matches!(self.base_view, BaseView::Uninitialized);
                         self.restore_new_draft(pending.thread_id, window, cx);
-                        if self.pending_active_thread_restore.is_none()
-                            && matches!(self.base_view, BaseView::Uninitialized)
-                        {
+                        if self.pending_active_thread_restore.is_none() && should_activate {
                             self.activate_draft(false, AgentThreadSource::AgentPanel, window, cx);
                         }
                         blocks_selected_reconciliation = true;
@@ -2116,11 +2125,23 @@ impl AgentPanel {
             .as_ref()
             .filter(|draft| draft.thread_id == thread_id)
             .map(|draft| draft.initial_content.clone());
+        let persisted_draft = crate::draft_prompt_store::read_with_provenance(thread_id, cx);
+        let deferred_initial_content = self
+            .pending_initial_draft
+            .as_ref()
+            .is_some_and(|draft| draft.thread_id == thread_id)
+            || persisted_draft
+                .as_ref()
+                .is_some_and(|stored| stored.provenance.may_rebind_when_agent_is_removed());
         let initial_content = pending_initial_content.or_else(|| {
-            crate::draft_prompt_store::read(thread_id, cx).map(|blocks| {
-                AgentInitialContent::ContentBlock {
-                    blocks,
-                    auto_submit: false,
+            persisted_draft.map(|stored| {
+                if stored.provenance.is_external_source() {
+                    AgentInitialContent::FromExternalSourceBlocks(stored.blocks)
+                } else {
+                    AgentInitialContent::ContentBlock {
+                        blocks: stored.blocks,
+                        auto_submit: false,
+                    }
                 }
             })
         });
@@ -2128,6 +2149,7 @@ impl AgentPanel {
             .as_ref()
             .is_some_and(|content| match content {
                 AgentInitialContent::ContentBlock { blocks, .. } => !blocks.is_empty(),
+                AgentInitialContent::FromExternalSourceBlocks(blocks) => !blocks.is_empty(),
                 _ => true,
             });
         let agent = if self.project.read(cx).is_via_collab() {
@@ -2144,6 +2166,7 @@ impl AgentPanel {
                     return;
                 }
                 AgentAvailability::Available(agent) => agent,
+                AgentAvailability::Removed if deferred_initial_content => Agent::NativeAgent,
                 AgentAvailability::Removed if has_content => persisted,
                 AgentAvailability::Removed => Agent::NativeAgent,
             }
@@ -3479,13 +3502,34 @@ impl AgentPanel {
         source: AgentThreadSource,
         window: &mut Window,
         cx: &mut Context<Self>,
-    ) -> ThreadId {
+    ) -> Result<(ThreadId, Agent)> {
+        let CreateThreadOptions {
+            title,
+            initial_content,
+            agent: agent_override,
+            model,
+            work_dirs,
+        } = options;
         let (agent, override_used) = if self.project.read(cx).is_via_collab() {
             (Agent::NativeAgent, false)
-        } else if let Some(override_agent) = options.agent {
+        } else if let Some(override_agent) = agent_override {
             (override_agent, true)
         } else {
             (self.selected_agent.clone(), false)
+        };
+        let agent = match agent.availability(&self.project, cx) {
+            AgentAvailability::Pending => {
+                return Err(anyhow!(
+                    "Agent inventory is still loading. Retry `create_thread` after `list_agents_and_models` reports the requested agent."
+                ));
+            }
+            AgentAvailability::Available(agent) => agent,
+            AgentAvailability::Removed if override_used => {
+                return Err(anyhow!(
+                    "The requested agent is no longer available. Call `list_agents_and_models` before retrying `create_thread`."
+                ));
+            }
+            AgentAvailability::Removed => Agent::NativeAgent,
         };
         // If the caller explicitly overrode the agent (e.g., the `create_thread`
         // tool wants to spawn a sibling thread using a specific agent), we
@@ -3493,13 +3537,13 @@ impl AgentPanel {
         // last-used-agent preference. Snapshot and restore both.
         let saved_selected_agent = override_used.then(|| self.selected_agent.clone());
         let thread = self.create_agent_thread_with_server(
-            agent,
+            agent.clone(),
             None,
             None,
-            options.work_dirs,
-            options.title.clone(),
-            options.initial_content,
-            options.model,
+            work_dirs,
+            title,
+            initial_content,
+            model,
             source,
             window,
             cx,
@@ -3510,7 +3554,7 @@ impl AgentPanel {
         let thread_id = thread.conversation_view.read(cx).thread_id;
         self.retained_threads
             .insert(thread_id, thread.conversation_view);
-        thread_id
+        Ok((thread_id, agent))
     }
 
     pub fn activate_retained_thread(
@@ -3823,11 +3867,21 @@ impl AgentPanel {
         initial_content: AgentInitialContent,
         cx: &mut Context<Self>,
     ) {
-        let blocks = match &initial_content {
-            AgentInitialContent::ContentBlock { blocks, .. } => blocks.clone(),
-            AgentInitialContent::FromExternalSource(prompt) => vec![acp::ContentBlock::Text(
-                acp::TextContent::new(prompt.as_str().to_owned()),
-            )],
+        let (blocks, provenance) = match &initial_content {
+            AgentInitialContent::ContentBlock { blocks, .. } => (
+                blocks.clone(),
+                crate::draft_prompt_store::DraftPromptProvenance::DeferredInitialContent,
+            ),
+            AgentInitialContent::FromExternalSource(prompt) => (
+                vec![acp::ContentBlock::Text(acp::TextContent::new(
+                    prompt.as_str().to_owned(),
+                ))],
+                crate::draft_prompt_store::DraftPromptProvenance::DeferredExternalSource,
+            ),
+            AgentInitialContent::FromExternalSourceBlocks(blocks) => (
+                blocks.clone(),
+                crate::draft_prompt_store::DraftPromptProvenance::DeferredExternalSource,
+            ),
             AgentInitialContent::ThreadSummary { .. } => {
                 log::error!("cannot defer a thread summary without an available native agent");
                 return;
@@ -3859,7 +3913,8 @@ impl AgentPanel {
         ThreadMetadataStore::global(cx).update(cx, |store, cx| {
             store.save(metadata, cx);
         });
-        crate::draft_prompt_store::write(thread_id, &blocks, cx).detach_and_log_err(cx);
+        crate::draft_prompt_store::write_with_provenance(thread_id, &blocks, provenance, cx)
+            .detach_and_log_err(cx);
 
         self.set_selected_agent_and_persist(agent.clone(), cx);
         self.pending_initial_draft = Some(PendingInitialDraft {
@@ -4757,7 +4812,44 @@ impl AgentPanel {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        let already_in_memory = matches!(
+            &self.base_view,
+            BaseView::AgentThread { conversation_view }
+                if conversation_view.read(cx).thread_id == thread_id
+        ) || self
+            .draft_thread
+            .as_ref()
+            .is_some_and(|draft| draft.read(cx).thread_id == thread_id)
+            || self.retained_threads.contains_key(&thread_id);
+
         self.cancel_pending_agent_restorations();
+        let agent = if already_in_memory {
+            agent
+        } else {
+            match agent.availability(&self.project, cx) {
+                AgentAvailability::Pending => {
+                    if let Some(store) = ThreadMetadataStore::try_global(cx) {
+                        store.update(cx, |store, cx| store.unarchive(thread_id, cx));
+                    }
+                    self.set_selected_agent_and_persist(agent.clone(), cx);
+                    self.pending_active_thread_restore =
+                        Some(PendingThreadRestore { thread_id, agent });
+                    self.serialize(cx);
+                    cx.notify();
+                    return;
+                }
+                AgentAvailability::Available(agent) => agent,
+                AgentAvailability::Removed
+                    if crate::draft_prompt_store::read_with_provenance(thread_id, cx)
+                        .is_some_and(|stored| {
+                            stored.provenance.may_rebind_when_agent_is_removed()
+                        }) =>
+                {
+                    Agent::NativeAgent
+                }
+                AgentAvailability::Removed => agent,
+            }
+        };
         self.load_agent_thread_without_canceling_pending(
             agent, thread_id, work_dirs, title, focus, source, window, cx,
         );
@@ -4823,11 +4915,17 @@ impl AgentPanel {
             .and_then(|store| store.read(cx).entry(thread_id).map(|m| m.is_draft()))
             .unwrap_or(false);
         let initial_content = is_draft
-            .then(|| crate::draft_prompt_store::read(thread_id, cx))
+            .then(|| crate::draft_prompt_store::read_with_provenance(thread_id, cx))
             .flatten()
-            .map(|blocks| AgentInitialContent::ContentBlock {
-                blocks,
-                auto_submit: false,
+            .map(|stored| {
+                if stored.provenance.is_external_source() {
+                    AgentInitialContent::FromExternalSourceBlocks(stored.blocks)
+                } else {
+                    AgentInitialContent::ContentBlock {
+                        blocks: stored.blocks,
+                        auto_submit: false,
+                    }
+                }
             });
 
         self.external_thread(
@@ -5248,17 +5346,14 @@ impl agent::SiblingThreadHost for AgentPanelSiblingHost {
             // just introduce a race for no benefit.
             let resolved_agent_id = target_window.update(cx, |_root, window, cx| {
                 target_panel.update(cx, |panel, cx| {
-                    panel.create_thread_with_options(
+                    let (_, resolved_agent) = panel.create_thread_with_options(
                         options,
                         AgentThreadSource::AgentPanel,
                         window,
                         cx,
-                    );
-                    let resolved_agent = agent_choice
-                        .clone()
-                        .unwrap_or_else(|| panel.selected_agent.clone());
-                    resolved_agent.id()
-                })
+                    )?;
+                    Ok::<AgentId, anyhow::Error>(resolved_agent.id())
+                })?
             })??;
 
             Ok(agent::SiblingThreadInfo {
@@ -5634,10 +5729,14 @@ impl AgentPanel {
         if blocks.is_empty() {
             return None;
         }
-        Some(AgentInitialContent::ContentBlock {
-            blocks,
-            auto_submit: false,
-        })
+        if thread_view.show_external_source_prompt_warning {
+            Some(AgentInitialContent::FromExternalSourceBlocks(blocks))
+        } else {
+            Some(AgentInitialContent::ContentBlock {
+                blocks,
+                auto_submit: false,
+            })
+        }
     }
 
     fn source_panel_initialization(
@@ -5671,16 +5770,31 @@ impl AgentPanel {
             return false;
         };
 
+        let requested_agent = initialization.agent;
+        let agent = match requested_agent.availability(&self.project, cx) {
+            AgentAvailability::Pending => {
+                if let Some(initial_content) = initialization.initial_content {
+                    self.persist_pending_initial_draft(requested_agent, initial_content, cx);
+                } else {
+                    self.set_selected_agent_and_persist(requested_agent, cx);
+                    cx.notify();
+                }
+                return true;
+            }
+            AgentAvailability::Available(agent) => agent,
+            AgentAvailability::Removed => Agent::NativeAgent,
+        };
+
         let mut initialized = false;
-        if self.selected_agent != initialization.agent {
-            self.selected_agent = initialization.agent.clone();
+        if self.selected_agent != agent {
+            self.selected_agent = agent.clone();
             self.serialize(cx);
             initialized = true;
         }
 
         if let Some(initial_content) = initialization.initial_content {
             let thread = self.create_agent_thread_with_server(
-                initialization.agent,
+                agent,
                 None,
                 None,
                 None,
@@ -7294,10 +7408,14 @@ mod tests {
     }
 
     fn test_registry_agent() -> RegistryAgent {
+        test_registry_agent_named("Test Registry")
+    }
+
+    fn test_registry_agent_named(id: &str) -> RegistryAgent {
         RegistryAgent::Npx(RegistryNpxAgent {
             metadata: RegistryAgentMetadata {
-                id: AgentId::new("Test Registry"),
-                name: "Test Registry".into(),
+                id: AgentId::new(id),
+                name: id.to_owned().into(),
                 description: "".into(),
                 version: "1.0.0".into(),
                 repository: None,
@@ -11913,6 +12031,20 @@ mod tests {
 
         panel.update_in(cx, |panel, window, cx| {
             panel.selected_agent = pending_agent.clone();
+            let result = panel.create_thread_with_options(
+                CreateThreadOptions {
+                    agent: Some(pending_agent.clone()),
+                    ..CreateThreadOptions::default()
+                },
+                AgentThreadSource::AgentPanel,
+                window,
+                cx,
+            );
+            assert!(
+                result.is_err(),
+                "background thread creation must wait for authoritative inventory"
+            );
+            assert!(panel.retained_threads.is_empty());
             panel.activate_draft(false, AgentThreadSource::AgentPanel, window, cx);
         });
         cx.run_until_parked();
@@ -12115,13 +12247,52 @@ mod tests {
             .expect("pending external prompt should be serialized");
         assert_eq!(serialized.new_draft_thread_id, Some(pending_thread_id));
 
+        drop(panel);
+        let async_cx = cx.update(|window, cx| window.to_async(cx));
+        let panel = AgentPanel::load(workspace.downgrade(), async_cx)
+            .await
+            .expect("pending external prompt panel should reload");
+        cx.run_until_parked();
+        panel.read_with(cx, |panel, _cx| {
+            assert!(matches!(panel.base_view, BaseView::Uninitialized));
+            assert_eq!(
+                panel
+                    .pending_new_draft_restore
+                    .as_ref()
+                    .map(|pending| pending.thread_id),
+                Some(pending_thread_id)
+            );
+            assert!(
+                panel.pending_initial_draft.is_none(),
+                "the reload must restore provenance from durable storage, not memory"
+            );
+        });
+        cx.update(|_, cx| {
+            let stored = crate::draft_prompt_store::read_with_provenance(pending_thread_id, cx)
+                .expect("pending external prompt should remain durable");
+            assert_eq!(
+                stored.provenance,
+                crate::draft_prompt_store::DraftPromptProvenance::DeferredExternalSource
+            );
+        });
+
         registry.update(cx, |registry, cx| {
             registry.set_agents(vec![test_registry_agent()], cx);
         });
         cx.run_until_parked();
 
         panel.read_with(cx, |panel, cx| {
-            assert_eq!(panel.active_thread_id(cx), Some(pending_thread_id));
+            assert_eq!(
+                panel.active_thread_id(cx),
+                Some(pending_thread_id),
+                "draft slot={:?}, retained_pending={}, selected={:?}",
+                panel
+                    .draft_thread
+                    .as_ref()
+                    .map(|draft| draft.read(cx).thread_id),
+                panel.retained_threads.contains_key(&pending_thread_id),
+                panel.selected_agent
+            );
             assert_eq!(panel.selected_agent, pending_agent);
             assert!(panel.pending_new_draft_restore.is_none());
             assert!(panel.pending_initial_draft.is_none());
@@ -12134,6 +12305,205 @@ mod tests {
                 ),
                 "restored external prompt should retain durable user content"
             );
+        });
+    }
+
+    #[gpui::test]
+    async fn test_external_source_provenance_rehydrates_warning_without_auto_submit(
+        cx: &mut TestAppContext,
+    ) {
+        init_test(cx);
+        let fs = FakeFs::new(cx.executor());
+        cx.update(|cx| {
+            agent::ThreadStore::init_global(cx);
+            language_model::LanguageModelRegistry::test(cx);
+            <dyn fs::Fs>::set_global(fs.clone(), cx);
+        });
+        crate::test_support::set_stub_agent_connection(StubAgentConnection::new());
+
+        fs.insert_tree("/project", json!({ "file.txt": "" })).await;
+        let project = Project::test(fs, [Path::new("/project")], cx).await;
+        let multi_workspace =
+            cx.add_window(|window, cx| MultiWorkspace::test_new(project, window, cx));
+        let workspace = multi_workspace
+            .read_with(cx, |multi_workspace, _cx| {
+                multi_workspace.workspace().clone()
+            })
+            .unwrap();
+        workspace.update(cx, |workspace, _cx| workspace.set_random_database_id());
+        let workspace_id = workspace
+            .read_with(cx, |workspace, _cx| workspace.database_id())
+            .expect("workspace should have a database id");
+        let thread_id = ThreadId::new();
+        let prompt = vec![acp::ContentBlock::Text(acp::TextContent::new(
+            "review this untrusted prompt before sending",
+        ))];
+        cx.update(|cx| {
+            save_test_thread_metadata(thread_id, None, &Agent::Stub, cx);
+        });
+        cx.update(|cx| {
+            crate::draft_prompt_store::write_with_provenance(
+                thread_id,
+                &prompt,
+                crate::draft_prompt_store::DraftPromptProvenance::ExternalSource,
+                cx,
+            )
+        })
+        .await
+        .expect("external prompt should persist");
+        let kvp = cx.update(|cx| KeyValueStore::global(cx));
+        cx.background_spawn(async move {
+            save_serialized_panel(
+                workspace_id,
+                SerializedAgentPanel {
+                    selected_agent: Some(Agent::Stub),
+                    last_created_entry_kind: AgentPanelEntryKind::Thread,
+                    last_active_thread: None,
+                    last_active_terminal_id: None,
+                    new_draft_thread_id: Some(thread_id),
+                },
+                kvp,
+            )
+            .await
+        })
+        .await
+        .expect("panel state should persist");
+
+        let cx = &mut VisualTestContext::from_window(multi_workspace.into(), cx);
+        let async_cx = cx.update(|window, cx| window.to_async(cx));
+        let panel = AgentPanel::load(workspace.downgrade(), async_cx)
+            .await
+            .expect("panel should reload");
+        cx.run_until_parked();
+        panel.read_with(cx, |panel, cx| {
+            let conversation = panel
+                .draft_thread
+                .as_ref()
+                .expect("persisted external prompt should restore");
+            let thread_view = conversation
+                .read(cx)
+                .root_thread_view()
+                .expect("persisted external prompt should have a thread view");
+            assert!(
+                thread_view.read(cx).show_external_source_prompt_warning,
+                "external-source security provenance must survive panel re-instantiation"
+            );
+            assert!(
+                !conversation.read(cx).has_user_submitted_prompt(cx),
+                "restoring an external prompt must never submit it automatically"
+            );
+            assert_eq!(
+                panel.editor_text(thread_id, cx).as_deref(),
+                Some("review this untrusted prompt before sending")
+            );
+        });
+    }
+
+    #[gpui::test]
+    async fn test_pending_explicit_draft_falls_back_to_native_when_agent_is_removed(
+        cx: &mut TestAppContext,
+    ) {
+        init_test(cx);
+        let fs = FakeFs::new(cx.executor());
+        let registry = cx.update(|cx| AgentRegistryStore::init_test_global(cx, Vec::new()));
+        cx.update(|cx| {
+            agent::ThreadStore::init_global(cx);
+            language_model::LanguageModelRegistry::test(cx);
+            <dyn fs::Fs>::set_global(fs.clone(), cx);
+            set_test_registry_agent_settings(cx);
+        });
+
+        fs.insert_tree("/project", json!({ "file.txt": "" })).await;
+        let project = Project::test(fs, [Path::new("/project")], cx).await;
+        let multi_workspace =
+            cx.add_window(|window, cx| MultiWorkspace::test_new(project, window, cx));
+        let workspace = multi_workspace
+            .read_with(cx, |multi_workspace, _cx| {
+                multi_workspace.workspace().clone()
+            })
+            .unwrap();
+        let cx = &mut VisualTestContext::from_window(multi_workspace.into(), cx);
+        let panel = workspace.update_in(cx, |workspace, window, cx| {
+            cx.new(|cx| AgentPanel::new(workspace, window, cx))
+        });
+        let pending_agent = Agent::Custom {
+            id: "Test Registry".into(),
+        };
+        panel.update(cx, |panel, _cx| {
+            panel.selected_agent = pending_agent.clone();
+        });
+
+        panel.update_in(cx, |panel, window, cx| {
+            panel.start_user_agent_thread(
+                Some(pending_agent.clone()),
+                Some(AgentInitialContent::ContentBlock {
+                    blocks: vec![acp::ContentBlock::Text(acp::TextContent::new(
+                        "preserve this prompt after removal",
+                    ))],
+                    auto_submit: false,
+                }),
+                true,
+                AgentThreadSource::AgentPanel,
+                window,
+                cx,
+            );
+        });
+        cx.run_until_parked();
+        let pending_thread_id = panel.read_with(cx, |panel, _cx| {
+            panel
+                .pending_new_draft_restore
+                .as_ref()
+                .expect("explicit prompt should wait for registry authority")
+                .thread_id
+        });
+
+        registry.update(cx, |registry, cx| {
+            registry.set_agents(
+                vec![test_registry_agent_named("Different Registry Agent")],
+                cx,
+            )
+        });
+        cx.run_until_parked();
+
+        panel.read_with(cx, |panel, cx| {
+            assert_eq!(
+                panel.active_thread_id(cx),
+                Some(pending_thread_id),
+                "selected={:?}, pending_initial={}, pending_new={:?}, draft={:?}",
+                panel.selected_agent,
+                panel.pending_initial_draft.is_some(),
+                panel
+                    .pending_new_draft_restore
+                    .as_ref()
+                    .map(|pending| pending.thread_id),
+                panel
+                    .draft_thread
+                    .as_ref()
+                    .map(|draft| draft.read(cx).thread_id)
+            );
+            assert_eq!(panel.selected_agent, Agent::NativeAgent);
+            assert_eq!(
+                *panel
+                    .active_conversation_view()
+                    .expect("preserved prompt should be visible")
+                    .read(cx)
+                    .agent_key(),
+                Agent::NativeAgent,
+                "a removed external agent must never be constructed"
+            );
+            assert!(panel.pending_new_draft_restore.is_none());
+        });
+        cx.update(|_, cx| {
+            let metadata = ThreadMetadataStore::global(cx)
+                .read(cx)
+                .entry(pending_thread_id)
+                .cloned()
+                .expect("preserved prompt metadata should remain");
+            assert_eq!(metadata.agent_id, Agent::NativeAgent.id());
+            assert!(crate::draft_prompt_store::persisted_draft_has_user_content(
+                pending_thread_id,
+                cx
+            ));
         });
     }
 
@@ -12467,6 +12837,91 @@ mod tests {
                 crate::draft_prompt_store::read(pending_thread_id, cx),
                 Some(prompt)
             );
+        });
+    }
+
+    #[gpui::test]
+    async fn test_manual_pending_draft_load_waits_without_constructing_server(
+        cx: &mut TestAppContext,
+    ) {
+        init_test(cx);
+        let fs = FakeFs::new(cx.executor());
+        let registry = cx.update(|cx| AgentRegistryStore::init_test_global(cx, Vec::new()));
+        cx.update(|cx| {
+            agent::ThreadStore::init_global(cx);
+            language_model::LanguageModelRegistry::test(cx);
+            <dyn fs::Fs>::set_global(fs.clone(), cx);
+            set_test_registry_agent_settings(cx);
+        });
+
+        fs.insert_tree("/project", json!({ "file.txt": "" })).await;
+        let project = Project::test(fs, [Path::new("/project")], cx).await;
+        let multi_workspace =
+            cx.add_window(|window, cx| MultiWorkspace::test_new(project, window, cx));
+        let workspace = multi_workspace
+            .read_with(cx, |multi_workspace, _cx| {
+                multi_workspace.workspace().clone()
+            })
+            .unwrap();
+        let cx = &mut VisualTestContext::from_window(multi_workspace.into(), cx);
+        let panel = workspace.update_in(cx, |workspace, window, cx| {
+            cx.new(|cx| AgentPanel::new(workspace, window, cx))
+        });
+        let pending_agent = Agent::Custom {
+            id: "Test Registry".into(),
+        };
+        let thread_id = ThreadId::new();
+        let prompt = vec![acp::ContentBlock::Text(acp::TextContent::new(
+            "open this draft after authority arrives",
+        ))];
+        cx.update(|_, cx| {
+            save_test_thread_metadata(thread_id, None, &pending_agent, cx);
+        });
+        cx.update(|_, cx| {
+            crate::draft_prompt_store::write_with_provenance(
+                thread_id,
+                &prompt,
+                crate::draft_prompt_store::DraftPromptProvenance::DeferredInitialContent,
+                cx,
+            )
+        })
+        .await
+        .expect("pending draft should persist");
+
+        panel.update_in(cx, |panel, window, cx| {
+            panel.load_agent_thread(
+                pending_agent.clone(),
+                thread_id,
+                None,
+                None,
+                true,
+                AgentThreadSource::AgentPanel,
+                window,
+                cx,
+            );
+        });
+        cx.run_until_parked();
+        panel.read_with(cx, |panel, _cx| {
+            assert!(matches!(panel.base_view, BaseView::Uninitialized));
+            assert!(panel.draft_thread.is_none());
+            assert_eq!(
+                panel
+                    .pending_active_thread_restore
+                    .as_ref()
+                    .map(|pending| pending.thread_id),
+                Some(thread_id),
+                "manual activation must wait rather than constructing a pending agent server"
+            );
+        });
+
+        registry.update(cx, |registry, cx| {
+            registry.set_agents(vec![test_registry_agent()], cx);
+        });
+        cx.run_until_parked();
+        panel.read_with(cx, |panel, cx| {
+            assert_eq!(panel.active_thread_id(cx), Some(thread_id));
+            assert_eq!(panel.selected_agent, pending_agent);
+            assert!(panel.pending_active_thread_restore.is_none());
         });
     }
 
@@ -14488,12 +14943,13 @@ mod tests {
     #[gpui::test]
     async fn test_initialize_from_source_transfers_draft_to_fresh_panel(cx: &mut TestAppContext) {
         init_test(cx);
+        let fs = FakeFs::new(cx.executor());
         cx.update(|cx| {
             agent::ThreadStore::init_global(cx);
             language_model::LanguageModelRegistry::test(cx);
+            <dyn fs::Fs>::set_global(fs.clone(), cx);
         });
 
-        let fs = FakeFs::new(cx.executor());
         fs.insert_tree("/project_a", json!({ "file.txt": "" }))
             .await;
         fs.insert_tree("/project_b", json!({ "file.txt": "" }))
@@ -14573,6 +15029,119 @@ mod tests {
             assert!(
                 panel.draft_thread.is_some(),
                 "panel_b should have a draft_thread set after initialization"
+            );
+        });
+    }
+
+    #[gpui::test]
+    async fn test_initialize_from_source_waits_for_destination_agent_authority(
+        cx: &mut TestAppContext,
+    ) {
+        init_test(cx);
+        let fs = FakeFs::new(cx.executor());
+        let registry = cx.update(|cx| AgentRegistryStore::init_test_global(cx, Vec::new()));
+        cx.update(|cx| {
+            agent::ThreadStore::init_global(cx);
+            language_model::LanguageModelRegistry::test(cx);
+            <dyn fs::Fs>::set_global(fs.clone(), cx);
+            set_test_registry_agent_settings(cx);
+        });
+
+        fs.insert_tree("/project_a", json!({ "file.txt": "" }))
+            .await;
+        fs.insert_tree("/project_b", json!({ "file.txt": "" }))
+            .await;
+        let project_a = Project::test(fs.clone(), [Path::new("/project_a")], cx).await;
+        let project_b = Project::test(fs, [Path::new("/project_b")], cx).await;
+        let multi_workspace =
+            cx.add_window(|window, cx| MultiWorkspace::test_new(project_a, window, cx));
+        let workspace_a = multi_workspace
+            .read_with(cx, |multi_workspace, _cx| {
+                multi_workspace.workspace().clone()
+            })
+            .unwrap();
+        let workspace_b = multi_workspace
+            .update(cx, |multi_workspace, window, cx| {
+                multi_workspace.test_add_workspace(project_b, window, cx)
+            })
+            .unwrap();
+        let cx = &mut VisualTestContext::from_window(multi_workspace.into(), cx);
+
+        let panel_a = workspace_a.update_in(cx, |workspace, window, cx| {
+            let panel = cx.new(|cx| AgentPanel::new(workspace, window, cx));
+            workspace.add_panel(panel.clone(), window, cx);
+            panel
+        });
+        panel_a.update_in(cx, |panel, window, cx| {
+            panel.open_external_thread_with_server(
+                Rc::new(StubAgentServer::default_response()),
+                window,
+                cx,
+            );
+        });
+        cx.run_until_parked();
+        let thread_view = panel_a.read_with(cx, |panel, cx| panel.active_thread_view(cx).unwrap());
+        let editor =
+            thread_view.read_with(cx, |thread_view, _cx| thread_view.message_editor.clone());
+        editor.update_in(cx, |editor, window, cx| {
+            editor.set_text("copy safely", window, cx);
+        });
+        let pending_agent = Agent::Custom {
+            id: "Test Registry".into(),
+        };
+        panel_a.update(cx, |panel, _cx| {
+            panel.selected_agent = pending_agent.clone();
+        });
+
+        let panel_b = workspace_b.update_in(cx, |workspace, window, cx| {
+            let panel = cx.new(|cx| AgentPanel::new(workspace, window, cx));
+            workspace.add_panel(panel.clone(), window, cx);
+            panel
+        });
+        let initialized = panel_b.update_in(cx, |panel, window, cx| {
+            panel.initialize_from_source_workspace_if_needed(workspace_a.downgrade(), window, cx)
+        });
+        assert!(initialized);
+        cx.run_until_parked();
+        let pending_thread_id = panel_b.read_with(cx, |panel, _cx| {
+            assert!(matches!(panel.base_view, BaseView::Uninitialized));
+            assert!(panel.active_conversation_view().is_none());
+            let pending = panel
+                .pending_new_draft_restore
+                .as_ref()
+                .expect("the copied draft should wait for destination authority");
+            assert_eq!(
+                pending.agent,
+                pending_agent.clone(),
+                "the destination host must authorize the copied agent before construction"
+            );
+            pending.thread_id
+        });
+
+        registry.update(cx, |registry, cx| {
+            registry.set_agents(vec![test_registry_agent()], cx);
+        });
+        cx.run_until_parked();
+        panel_b.read_with(cx, |panel, cx| {
+            assert_eq!(panel.selected_agent, pending_agent);
+            let conversation = panel
+                .active_conversation_view()
+                .expect("copied draft should restore after destination authority arrives");
+            assert_eq!(
+                conversation.read(cx).agent_key().id().as_ref(),
+                "Test Registry"
+            );
+            assert_eq!(
+                conversation.read(cx).thread_id,
+                pending_thread_id,
+                "the authorized destination must restore the exact deferred draft"
+            );
+            assert_eq!(
+                crate::draft_prompt_store::read(pending_thread_id, cx),
+                Some(vec![acp::ContentBlock::Text(acp::TextContent::new(
+                    "copy safely"
+                ))]),
+                "the copied prompt must remain durable until the external server session is ready"
             );
         });
     }
@@ -14853,12 +15422,15 @@ mod tests {
         // Case 1: no agent override. The new thread should land in
         // `retained_threads` and `selected_agent` should be unchanged.
         let no_override_id = panel.update_in(&mut cx, |panel, window, cx| {
-            panel.create_thread_with_options(
-                CreateThreadOptions::default(),
-                AgentThreadSource::AgentPanel,
-                window,
-                cx,
-            )
+            panel
+                .create_thread_with_options(
+                    CreateThreadOptions::default(),
+                    AgentThreadSource::AgentPanel,
+                    window,
+                    cx,
+                )
+                .expect("available selected agent should create a retained thread")
+                .0
         });
 
         panel.read_with(&cx, |panel, _cx| {
@@ -14878,19 +15450,20 @@ mod tests {
         // side effect; `create_thread_with_options` must restore it so the
         // user's last-used agent isn't silently flipped by an agent-initiated
         // call.
-        let override_agent = Agent::Custom {
-            id: "override-agent".into(),
-        };
+        let override_agent = Agent::NativeAgent;
         let override_id = panel.update_in(&mut cx, |panel, window, cx| {
-            panel.create_thread_with_options(
-                CreateThreadOptions {
-                    agent: Some(override_agent.clone()),
-                    ..CreateThreadOptions::default()
-                },
-                AgentThreadSource::AgentPanel,
-                window,
-                cx,
-            )
+            panel
+                .create_thread_with_options(
+                    CreateThreadOptions {
+                        agent: Some(override_agent.clone()),
+                        ..CreateThreadOptions::default()
+                    },
+                    AgentThreadSource::AgentPanel,
+                    window,
+                    cx,
+                )
+                .expect("available override should create a retained thread")
+                .0
         });
 
         panel.read_with(&cx, |panel, _cx| {
@@ -14907,6 +15480,32 @@ mod tests {
                 Agent::Stub,
                 "selected_agent should be restored to the original after an agent override"
             );
+        });
+
+        let removed_result = panel.update_in(&mut cx, |panel, window, cx| {
+            panel.create_thread_with_options(
+                CreateThreadOptions {
+                    agent: Some(Agent::Custom {
+                        id: "removed-agent".into(),
+                    }),
+                    ..CreateThreadOptions::default()
+                },
+                AgentThreadSource::AgentPanel,
+                window,
+                cx,
+            )
+        });
+        assert!(
+            removed_result.is_err(),
+            "an explicit removed-agent override must not reach the low-level constructor"
+        );
+        panel.read_with(&cx, |panel, _cx| {
+            assert_eq!(
+                panel.retained_threads.len(),
+                2,
+                "a rejected override must not create a retained thread"
+            );
+            assert_eq!(panel.selected_agent, Agent::Stub);
         });
     }
 }
