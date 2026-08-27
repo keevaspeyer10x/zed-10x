@@ -47,6 +47,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--surface", required=True)
     parser.add_argument("--cwd", required=True, type=Path)
     parser.add_argument("--sentinel", required=True, type=Path)
+    parser.add_argument("--ephemeral-sentinel", action="store_true")
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--timeout-seconds", type=float, default=180)
     parser.add_argument("--termination-grace-seconds", type=float, default=5)
@@ -121,6 +122,104 @@ def read_sentinel(root: Path, relative: Path) -> tuple[Path, str, str]:
     except UnicodeDecodeError as exc:
         raise CanaryFailure("invalid_sentinel_file") from exc
     return sentinel, content, sha256_bytes(content_bytes)
+
+
+class OwnedEphemeralSentinel:
+    def __init__(self, root: Path, relative: Path) -> None:
+        if (
+            relative.is_absolute()
+            or relative.parent != Path(".")
+            or relative.name in {"", ".", ".."}
+        ):
+            raise CanaryFailure("invalid_sentinel_path")
+        self.relative = relative
+        self.directory_fd = os.open(root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        self.identity: tuple[int, int] | None = None
+        file_fd: int | None = None
+        try:
+            try:
+                file_fd = os.open(
+                    relative.name,
+                    os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                    0o600,
+                    dir_fd=self.directory_fd,
+                )
+            except FileExistsError as exc:
+                raise CanaryFailure("sentinel_collision") from exc
+            metadata = os.fstat(file_fd)
+            self.identity = (metadata.st_dev, metadata.st_ino)
+            os.fchmod(file_fd, 0o600)
+            payload = f"zed-acp-project-canary-v1:{os.urandom(32).hex()}\n".encode()
+            view = memoryview(payload)
+            while view:
+                written = os.write(file_fd, view)
+                if written <= 0:
+                    raise OSError("ephemeral sentinel write made no progress")
+                view = view[written:]
+            os.fsync(file_fd)
+            metadata = os.fstat(file_fd)
+            if (
+                not stat.S_ISREG(metadata.st_mode)
+                or stat.S_IMODE(metadata.st_mode) != 0o600
+                or metadata.st_uid != os.getuid()
+            ):
+                raise CanaryFailure("invalid_sentinel_file")
+            os.fsync(self.directory_fd)
+        except Exception:
+            if file_fd is not None:
+                os.close(file_fd)
+                file_fd = None
+            self._remove_if_owned()
+            self.close()
+            raise
+        finally:
+            if file_fd is not None:
+                os.close(file_fd)
+
+    def _remove_if_owned(self) -> bool:
+        if self.identity is None:
+            return False
+        try:
+            file_fd = os.open(
+                self.relative.name,
+                os.O_RDONLY | os.O_NOFOLLOW,
+                dir_fd=self.directory_fd,
+            )
+        except OSError:
+            return False
+        try:
+            metadata = os.fstat(file_fd)
+            if (metadata.st_dev, metadata.st_ino) != self.identity:
+                return False
+        finally:
+            os.close(file_fd)
+        try:
+            os.unlink(self.relative.name, dir_fd=self.directory_fd)
+            os.fsync(self.directory_fd)
+        except OSError:
+            return False
+        try:
+            os.stat(
+                self.relative.name,
+                dir_fd=self.directory_fd,
+                follow_symlinks=False,
+            )
+        except FileNotFoundError:
+            return True
+        except OSError:
+            return False
+        return False
+
+    def remove(self) -> bool:
+        removed = self._remove_if_owned()
+        if removed:
+            self.identity = None
+        return removed
+
+    def close(self) -> None:
+        if self.directory_fd >= 0:
+            os.close(self.directory_fd)
+            self.directory_fd = -1
 
 
 def nested_strings(value: Any) -> list[str]:
@@ -638,6 +737,7 @@ class Journey:
         sentinel: Path,
         sentinel_content: str,
         sentinel_sha256: str,
+        sentinel_is_ephemeral: bool,
         timeout_seconds: float,
     ) -> None:
         self.transport = transport
@@ -645,6 +745,7 @@ class Journey:
         self.sentinel = sentinel
         self.sentinel_content = sentinel_content
         self.sentinel_sha256 = sentinel_sha256
+        self.sentinel_is_ephemeral = sentinel_is_ephemeral
         self.deadline = time.monotonic() + timeout_seconds
         self.nonce = os.urandom(16).hex()
         self.cwd_sha256 = sha256_text(str(cwd))
@@ -833,13 +934,23 @@ class Journey:
             for path_matches, output_format in zip(
                 tool_path_matches, tool_output_formats
             )
-            if path_matches and output_format is not None
+            if (path_matches or self.sentinel_is_ephemeral)
+            and output_format is not None
         ]
         tool_evidence_format = (
             tool_evidence_formats[0]
             if tool_evidence_formats
             else "client_read_exact"
             if self.client_read_sentinel_matched
+            else None
+        )
+        tool_evidence_basis = (
+            "client_read_exact"
+            if self.client_read_sentinel_matched
+            else "ephemeral_output"
+            if tool_evidence_formats and self.sentinel_is_ephemeral
+            else "bound_path_output"
+            if tool_evidence_formats
             else None
         )
         return {
@@ -855,6 +966,7 @@ class Journey:
                 bool(tool_evidence_formats) or self.client_read_sentinel_matched
             ),
             "toolEvidenceFormat": tool_evidence_format,
+            "toolEvidenceBasis": tool_evidence_basis,
             "terminalMarkerObserved": self.marker in self.agent_text,
             "stopReason": stop_reason if stop_reason is not None else self.stop_reason,
             "providerErrorCode": self.provider_error_code,
@@ -957,6 +1069,9 @@ def main() -> int:
     sentinel: Path | None = None
     sentinel_content = ""
     sentinel_sha256 = ""
+    owned_sentinel: OwnedEphemeralSentinel | None = None
+    sentinel_created = False
+    sentinel_removed = False
     process_group_gone = True
     try:
         if not 0.5 <= args.timeout_seconds <= 900:
@@ -968,6 +1083,9 @@ def main() -> int:
         cwd = args.cwd.resolve(strict=True)
         if not cwd.is_dir():
             raise CanaryFailure("invalid_project_directory")
+        if args.ephemeral_sentinel:
+            owned_sentinel = OwnedEphemeralSentinel(cwd, args.sentinel)
+            sentinel_created = True
         sentinel, sentinel_content, sentinel_sha256 = read_sentinel(cwd, args.sentinel)
         command, argv, endpoint, environment = load_command(args)
         transport = Transport(command, argv, cwd, environment)
@@ -977,6 +1095,7 @@ def main() -> int:
             sentinel,
             sentinel_content,
             sentinel_sha256,
+            args.ephemeral_sentinel,
             args.timeout_seconds,
         )
         journey_evidence = journey.run()
@@ -999,6 +1118,11 @@ def main() -> int:
                     failure_class = classes[0]
             if not process_group_gone and failure_class is None:
                 failure_class = "process_cleanup_failed"
+        if owned_sentinel is not None:
+            sentinel_removed = owned_sentinel.remove()
+            owned_sentinel.close()
+            if not sentinel_removed:
+                failure_class = "sentinel_cleanup_failed"
 
     status = "pass" if failure_class is None else "failed"
     receipt: dict[str, Any] = {
@@ -1013,6 +1137,9 @@ def main() -> int:
             else None
         ),
         "sentinelSha256": sentinel_sha256 or None,
+        "ephemeralSentinel": args.ephemeral_sentinel,
+        "sentinelCreated": sentinel_created,
+        "sentinelRemoved": sentinel_removed,
         "commandArgvSha256": (
             sha256_bytes(b"\0".join(item.encode() for item in [command, *argv]))
             if command
@@ -1041,6 +1168,7 @@ def main() -> int:
         ),
         "toolEvidenceMatched": journey_evidence.get("toolEvidenceMatched", False),
         "toolEvidenceFormat": journey_evidence.get("toolEvidenceFormat"),
+        "toolEvidenceBasis": journey_evidence.get("toolEvidenceBasis"),
         "terminalMarkerObserved": journey_evidence.get("terminalMarkerObserved", False),
         "permissionRequestsObserved": journey_evidence.get(
             "permissionRequestsObserved", journey.permission_requests if journey else 0

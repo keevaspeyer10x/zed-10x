@@ -47,6 +47,8 @@ def main() -> int:
             "pass-numbered-arrow",
             "pass-numbered-arrow-compact",
             "pass-location-only",
+            "pass-output-only",
+            "replace-sentinel",
             "pass-without-close",
             "split-evidence",
             "prompt-echo",
@@ -242,6 +244,10 @@ def main() -> int:
 
             sentinel_path = Path(session_cwd) / "sentinel.txt"
             sentinel_content = sentinel_path.read_text(encoding="utf-8")
+            if args.mode == "replace-sentinel":
+                sentinel_path.unlink()
+                sentinel_path.write_text("replacement-owned-by-agent\n", encoding="utf-8")
+                sentinel_path.chmod(0o600)
             if args.mode == "pass-numbered-tab":
                 sentinel_output = "".join(
                     f"{line_number:>6}\t{line}"
@@ -289,7 +295,12 @@ def main() -> int:
                             "status": "in_progress",
                             "rawInput": (
                                 None
-                                if args.mode in {"pass-location-only", "wrong-location-only"}
+                                if args.mode
+                                in {
+                                    "pass-location-only",
+                                    "pass-output-only",
+                                    "wrong-location-only",
+                                }
                                 else {"path": observed_path}
                             ),
                             "locations": (

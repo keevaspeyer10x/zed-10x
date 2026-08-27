@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import {
   chmodSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -23,12 +24,21 @@ const fakeNpm = path.join(
   "script/tests/fixtures/fake-npm-exec.py",
 );
 
-function runCanary(mode, extraArgs = []) {
+function runCanary(
+  mode,
+  extraArgs = [],
+  { ephemeral = false, preexistingSentinel = false } = {},
+) {
   const project = mkdtempSync(path.join(tmpdir(), "zed-acp-project-"));
-  writeFileSync(
-    path.join(project, "sentinel.txt"),
-    "assembled-product-evidence\nsecond-hidden-line\nthird-hidden-line\n",
-  );
+  const sentinel = path.join(project, "sentinel.txt");
+  if (!ephemeral || preexistingSentinel) {
+    writeFileSync(
+      sentinel,
+      preexistingSentinel
+        ? "preexisting-project-content\n"
+        : "assembled-product-evidence\nsecond-hidden-line\nthird-hidden-line\n",
+    );
+  }
   const output = path.join(project, `${mode}.json`);
   const childPid = path.join(project, "child.pid");
   const result = spawnSync(
@@ -41,6 +51,7 @@ function runCanary(mode, extraArgs = []) {
       project,
       "--sentinel",
       "sentinel.txt",
+      ...(ephemeral ? ["--ephemeral-sentinel"] : []),
       "--output",
       output,
       "--timeout-seconds",
@@ -61,6 +72,7 @@ function runCanary(mode, extraArgs = []) {
   );
   return {
     childPid,
+    sentinel,
     output,
     process: result,
     receipt: JSON.parse(readFileSync(output, "utf8")),
@@ -286,6 +298,52 @@ test("a wrong ACP location cannot borrow exact output as project evidence", () =
   assert.equal(result.receipt.toolLocationSentinelMatched, false);
   assert.equal(result.receipt.toolPathSentinelMatched, false);
   assert.equal(result.receipt.toolOutputSentinelMatched, true);
+});
+
+test("output without path metadata cannot authorize a static project sentinel", () => {
+  const result = runCanary("pass-output-only");
+  assert.equal(result.process.status, 1, result.process.stderr);
+  assert.equal(result.receipt.failureClass, "project_evidence_mismatch");
+  assert.equal(result.receipt.toolPathSentinelMatched, false);
+  assert.equal(result.receipt.toolOutputSentinelMatched, true);
+});
+
+test("exact output proves a prompt-hidden ephemeral project sentinel", () => {
+  const result = runCanary("pass-output-only", [], { ephemeral: true });
+  assert.equal(result.process.status, 0, result.process.stderr);
+  assert.equal(result.receipt.status, "pass");
+  assert.equal(result.receipt.ephemeralSentinel, true);
+  assert.equal(result.receipt.sentinelCreated, true);
+  assert.equal(result.receipt.sentinelRemoved, true);
+  assert.equal(result.receipt.toolPathSentinelMatched, false);
+  assert.equal(result.receipt.toolOutputSentinelMatched, true);
+  assert.equal(result.receipt.toolEvidenceMatched, true);
+  assert.equal(result.receipt.toolEvidenceBasis, "ephemeral_output");
+  assert.equal(result.receipt.promptOrResponseContentRetained, false);
+  assert.equal(existsSync(result.sentinel), false);
+});
+
+test("ephemeral canary refuses an existing project path without overwriting it", () => {
+  const result = runCanary(
+    "pass-output-only",
+    [],
+    { ephemeral: true, preexistingSentinel: true },
+  );
+  assert.equal(result.process.status, 1, result.process.stderr);
+  assert.equal(result.receipt.failureClass, "sentinel_collision");
+  assert.equal(result.receipt.processStarted, false);
+  assert.equal(result.receipt.sentinelCreated, false);
+  assert.equal(result.receipt.sentinelRemoved, false);
+  assert.equal(readFileSync(result.sentinel, "utf8"), "preexisting-project-content\n");
+});
+
+test("ephemeral cleanup refuses to delete a route-replaced sentinel", () => {
+  const result = runCanary("replace-sentinel", [], { ephemeral: true });
+  assert.equal(result.process.status, 1, result.process.stderr);
+  assert.equal(result.receipt.failureClass, "sentinel_cleanup_failed");
+  assert.equal(result.receipt.sentinelCreated, true);
+  assert.equal(result.receipt.sentinelRemoved, false);
+  assert.equal(readFileSync(result.sentinel, "utf8"), "replacement-owned-by-agent\n");
 });
 
 test("project-aware journey succeeds when the agent does not advertise session close", () => {

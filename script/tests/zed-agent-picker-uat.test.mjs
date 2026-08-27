@@ -28,6 +28,7 @@ function runMatrix({
   sourceExclusions = { Darwin: [], Linux: [] },
   inventoryExclusions = { Darwin: [], Linux: [] },
   sentinel = "sentinel.txt",
+  ephemeral = false,
 }) {
   const root = mkdtempSync(path.join(tmpdir(), "zed-picker-matrix-"));
   const project = path.join(root, "project");
@@ -37,7 +38,9 @@ function runMatrix({
   mkdirSync(outputDir, { mode: 0o700 });
   chmodSync(outputDir, 0o700);
   mkdirSync(registry);
-  writeFileSync(path.join(project, "sentinel.txt"), "picker-matrix\n");
+  if (!ephemeral) {
+    writeFileSync(path.join(project, "sentinel.txt"), "picker-matrix\n");
+  }
   writeFileSync(path.join(registry, "registry.json"), JSON.stringify({ agents: [] }));
   const macCustom = expected.filter((name) => !registryEntries.includes(name));
   const macRegistry = registryEntries.filter(
@@ -140,6 +143,7 @@ function runMatrix({
       project,
       "--sentinel",
       sentinel,
+      ...(ephemeral ? ["--ephemeral-sentinel"] : []),
       "--output-dir",
       outputDir,
       "--summary",
@@ -220,6 +224,18 @@ test("an invalid sentinel fails once before any route starts", () => {
   assert.deepEqual(result.calls, []);
   assert.equal(result.summary.failureClass, "invalid_sentinel");
   assert.equal(result.summary.productFailureCount, 0);
+});
+
+test("picker matrix permits one canary-owned ephemeral sentinel per route", () => {
+  const result = runMatrix({
+    expected: ["Alpha", "Beta"],
+    ephemeral: true,
+  });
+  assert.equal(result.process.status, 0, result.process.stderr);
+  assert.deepEqual(result.calls, ["Alpha", "Beta"]);
+  assert.equal(result.summary.status, "pass");
+  assert.equal(result.summary.ephemeralSentinel, true);
+  assert.equal(result.summary.passedCount, 2);
 });
 
 test("omitted or stale managed picker entries fail before any route starts", () => {

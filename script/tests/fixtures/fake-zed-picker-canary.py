@@ -10,6 +10,7 @@ from pathlib import Path
 parser = argparse.ArgumentParser()
 parser.add_argument("--endpoint", required=True)
 parser.add_argument("--output", required=True, type=Path)
+parser.add_argument("--ephemeral-sentinel", action="store_true")
 args, _ = parser.parse_known_args()
 
 failure = None
@@ -29,6 +30,9 @@ receipt = {
     "failureClass": failure,
     "processGroupGone": True,
     "promptOrResponseContentRetained": False,
+    "ephemeralSentinel": args.ephemeral_sentinel,
+    "sentinelCreated": args.ephemeral_sentinel,
+    "sentinelRemoved": args.ephemeral_sentinel,
     "permissionRequestsObserved": 1 if failure == "permission_requested" else 0,
     "permissionRequestsApproved": 0,
     "elapsedMs": 1,

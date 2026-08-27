@@ -43,6 +43,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--npm-command", required=True, type=Path)
     parser.add_argument("--cwd", required=True, type=Path)
     parser.add_argument("--sentinel", required=True, type=Path)
+    parser.add_argument("--ephemeral-sentinel", action="store_true")
     parser.add_argument("--output-dir", required=True, type=Path)
     parser.add_argument("--summary", required=True, type=Path)
     parser.add_argument(
@@ -288,10 +289,19 @@ def main() -> int:
                 raise MatrixFailure("invalid_project_directory")
         except OSError as exc:
             raise MatrixFailure("invalid_project_directory") from exc
-        try:
-            canary.read_sentinel(project_cwd, args.sentinel)
-        except (OSError, ValueError, canary.CanaryFailure) as exc:
-            raise MatrixFailure("invalid_sentinel") from exc
+        if args.ephemeral_sentinel:
+            if (
+                args.sentinel.is_absolute()
+                or args.sentinel.parent != Path(".")
+                or args.sentinel.name in {"", ".", ".."}
+                or (project_cwd / args.sentinel).exists()
+            ):
+                raise MatrixFailure("invalid_sentinel")
+        else:
+            try:
+                canary.read_sentinel(project_cwd, args.sentinel)
+            except (OSError, ValueError, canary.CanaryFailure) as exc:
+                raise MatrixFailure("invalid_sentinel") from exc
         inventory, expected, managed = load_inventory(args.inventory, args.surface)
         validate_source_manifest(args.source_manifest, inventory)
         settings = load_settings(args.settings, canary)
@@ -311,6 +321,7 @@ def main() -> int:
                 str(args.cwd),
                 "--sentinel",
                 str(args.sentinel),
+                *(["--ephemeral-sentinel"] if args.ephemeral_sentinel else []),
                 "--output",
                 str(receipt_path),
                 "--timeout-seconds",
@@ -345,6 +356,15 @@ def main() -> int:
                 or receipt.get("endpoint") != endpoint
                 or receipt.get("processGroupGone") is not True
                 or receipt.get("promptOrResponseContentRetained") is not False
+                or (
+                    args.ephemeral_sentinel
+                    and (
+                        receipt.get("ephemeralSentinel") is not True
+                        or receipt.get("sentinelCreated") is not True
+                        or receipt.get("sentinelRemoved") is not True
+                        or (project_cwd / args.sentinel).exists()
+                    )
+                )
             ):
                 raise MatrixFailure("invalid_endpoint_receipt")
             endpoint_failure = receipt.get("failureClass")
@@ -407,6 +427,7 @@ def main() -> int:
         ),
         "canarySha256": sha256_file(args.canary) if args.canary.is_file() else None,
         "cwdSha256": sha256_text(str(args.cwd.resolve(strict=False))),
+        "ephemeralSentinel": args.ephemeral_sentinel,
         "results": results,
         "passedCount": sum(result["classification"] == "passed" for result in results),
         "externalUnavailableCount": sum(
