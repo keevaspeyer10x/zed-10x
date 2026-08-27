@@ -380,13 +380,38 @@ test("ACP client read capability proves the real project without agent-supplied 
   assert.equal(result.receipt.terminalMarkerObserved, true);
 });
 
+test("ACP client read capability mirrors Zed resource-not-found responses and continues", () => {
+  const result = runCanary("client-read-missing-after-sentinel");
+  assert.equal(result.process.status, 0, result.process.stderr);
+  assert.equal(result.receipt.status, "pass");
+  assert.equal(result.receipt.clientReadRequestCount, 2);
+  assert.equal(result.receipt.clientReadCompletedCount, 1);
+  assert.equal(result.receipt.clientReadErrorResponseCount, 1);
+  assert.equal(result.receipt.clientReadSentinelMatched, true);
+  assert.equal(result.receipt.clientReadFailureReason, null);
+  assert.equal(result.receipt.toolEvidenceMatched, true);
+  assert.equal(result.receipt.terminalMarkerObserved, true);
+});
+
 test("ACP client read capability refuses paths outside the test project", () => {
   const result = runCanary("client-read-outside");
   assert.equal(result.process.status, 1, result.process.stderr);
   assert.equal(result.receipt.failureClass, "client_read_outside_project");
+  assert.equal(result.receipt.clientReadFailureReason, "outside_project");
   assert.equal(result.receipt.clientReadRequestCount, 1);
   assert.equal(result.receipt.clientReadCompletedCount, 0);
   assert.equal(result.receipt.clientReadSentinelMatched, false);
+  assert.equal(result.receipt.processGroupGone, true);
+});
+
+test("ACP client read diagnostics classify invalid requests without retaining paths", () => {
+  const result = runCanary("client-read-relative");
+  assert.equal(result.process.status, 1, result.process.stderr);
+  assert.equal(result.receipt.failureClass, "invalid_client_read_request");
+  assert.equal(result.receipt.clientReadFailureReason, "path_not_absolute");
+  assert.equal(result.receipt.clientReadRequestCount, 1);
+  assert.equal(result.receipt.clientReadCompletedCount, 0);
+  assert.equal(result.receipt.sentinelPath, undefined);
   assert.equal(result.receipt.processGroupGone, true);
 });
 

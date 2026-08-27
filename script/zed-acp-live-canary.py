@@ -763,7 +763,9 @@ class Journey:
         self.provider_error_message_sha256: str | None = None
         self.client_read_requests = 0
         self.client_read_completed = 0
+        self.client_read_error_responses = 0
         self.client_read_sentinel_matched = False
+        self.client_read_failure_reason: str | None = None
 
     def observe(self, message: dict[str, Any]) -> None:
         if message.get("method") != "session/update":
@@ -789,36 +791,66 @@ class Journey:
         self.permission_requests += 1
         raise CanaryFailure("permission_requested")
 
+    def fail_invalid_client_read(
+        self, reason: str, cause: BaseException | None = None
+    ) -> None:
+        """Fail with a content-free reason while retaining no requested path."""
+        self.client_read_failure_reason = reason
+        if cause is None:
+            raise CanaryFailure("invalid_client_read_request")
+        raise CanaryFailure("invalid_client_read_request") from cause
+
     def handle_read_text_file(self, message: dict[str, Any]) -> None:
         self.client_read_requests += 1
         request_id = message.get("id")
         params = message.get("params")
         if not isinstance(request_id, (int, str)) or not isinstance(params, dict):
-            raise CanaryFailure("invalid_client_read_request")
+            self.fail_invalid_client_read("invalid_envelope")
         if params.get("sessionId") != self.session_id:
-            raise CanaryFailure("invalid_client_read_request")
+            self.fail_invalid_client_read("session_mismatch")
         raw_path = params.get("path")
         line = params.get("line")
         limit = params.get("limit")
-        if (
-            not isinstance(raw_path, str)
-            or not Path(raw_path).is_absolute()
-            or (line is not None and (not isinstance(line, int) or line < 1))
-            or (limit is not None and (not isinstance(limit, int) or limit < 0))
-        ):
-            raise CanaryFailure("invalid_client_read_request")
+        if not isinstance(raw_path, str):
+            self.fail_invalid_client_read("invalid_path_type")
+        if not Path(raw_path).is_absolute():
+            self.fail_invalid_client_read("path_not_absolute")
+        if line is not None and (not isinstance(line, int) or line < 1):
+            self.fail_invalid_client_read("invalid_line")
+        if limit is not None and (not isinstance(limit, int) or limit < 0):
+            self.fail_invalid_client_read("invalid_limit")
         try:
             path = Path(raw_path).resolve(strict=True)
+        except FileNotFoundError:
+            try:
+                unresolved_path = Path(raw_path).resolve(strict=False)
+            except OSError as exc:
+                self.fail_invalid_client_read("path_unresolvable", exc)
+            if not unresolved_path.is_relative_to(self.cwd):
+                self.client_read_failure_reason = "outside_project"
+                raise CanaryFailure("client_read_outside_project")
+            self.client_read_error_responses += 1
+            self.transport.send(
+                {
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "error": {"code": -32002, "message": "Resource not found"},
+                }
+            )
+            return
         except OSError as exc:
-            raise CanaryFailure("invalid_client_read_request") from exc
+            self.fail_invalid_client_read("path_unresolvable", exc)
         if not path.is_relative_to(self.cwd):
+            self.client_read_failure_reason = "outside_project"
             raise CanaryFailure("client_read_outside_project")
         try:
             fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
             try:
                 metadata = os.fstat(fd)
-                if not stat.S_ISREG(metadata.st_mode) or metadata.st_size > 8 * 1024 * 1024:
-                    raise CanaryFailure("invalid_client_read_request")
+                if not stat.S_ISREG(metadata.st_mode):
+                    self.fail_invalid_client_read("not_regular_file")
+                if metadata.st_size > 8 * 1024 * 1024:
+                    self.fail_invalid_client_read("file_too_large")
                 chunks: list[bytes] = []
                 total = 0
                 while True:
@@ -827,13 +859,15 @@ class Journey:
                         break
                     total += len(chunk)
                     if total > 8 * 1024 * 1024:
-                        raise CanaryFailure("invalid_client_read_request")
+                        self.fail_invalid_client_read("file_too_large")
                     chunks.append(chunk)
             finally:
                 os.close(fd)
             content = b"".join(chunks).decode("utf-8")
-        except (OSError, UnicodeDecodeError) as exc:
-            raise CanaryFailure("invalid_client_read_request") from exc
+        except OSError as exc:
+            self.fail_invalid_client_read("read_failed", exc)
+        except UnicodeDecodeError as exc:
+            self.fail_invalid_client_read("invalid_utf8", exc)
 
         lines = content.splitlines(keepends=True)
         start = (line - 1) if line is not None else 0
@@ -973,7 +1007,9 @@ class Journey:
             "providerErrorMessageSha256": self.provider_error_message_sha256,
             "clientReadRequestCount": self.client_read_requests,
             "clientReadCompletedCount": self.client_read_completed,
+            "clientReadErrorResponseCount": self.client_read_error_responses,
             "clientReadSentinelMatched": self.client_read_sentinel_matched,
+            "clientReadFailureReason": self.client_read_failure_reason,
             "agentMessageSha256": sha256_text(self.agent_text) if self.agent_text else None,
             "agentMessageClassification": (
                 classify_error(self.agent_text) if self.agent_text else None
@@ -1191,8 +1227,14 @@ def main() -> int:
         "clientReadCompletedCount": journey_evidence.get(
             "clientReadCompletedCount", 0
         ),
+        "clientReadErrorResponseCount": journey_evidence.get(
+            "clientReadErrorResponseCount", 0
+        ),
         "clientReadSentinelMatched": journey_evidence.get(
             "clientReadSentinelMatched", False
+        ),
+        "clientReadFailureReason": journey_evidence.get(
+            "clientReadFailureReason"
         ),
         "agentMessageSha256": journey_evidence.get("agentMessageSha256"),
         "agentMessageClassification": journey_evidence.get(

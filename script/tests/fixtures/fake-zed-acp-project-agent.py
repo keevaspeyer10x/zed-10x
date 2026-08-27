@@ -64,7 +64,9 @@ def main() -> int:
             "permission-shell",
             "permission-unknown",
             "client-read",
+            "client-read-missing-after-sentinel",
             "client-read-outside",
+            "client-read-relative",
             "timeout",
         ),
         required=True,
@@ -201,10 +203,17 @@ def main() -> int:
                 )
                 return 0
 
-            if args.mode in {"client-read", "client-read-outside"}:
+            if args.mode in {
+                "client-read",
+                "client-read-missing-after-sentinel",
+                "client-read-outside",
+                "client-read-relative",
+            }:
                 requested_path = (
                     "/etc/hosts"
                     if args.mode == "client-read-outside"
+                    else "sentinel.txt"
+                    if args.mode == "client-read-relative"
                     else str(Path(session_cwd) / "sentinel.txt")
                 )
                 emit(
@@ -221,6 +230,21 @@ def main() -> int:
                 response = json.loads(sys.stdin.readline())
                 content = response.get("result", {}).get("content", "")
                 sentinel_sha = hashlib.sha256(content.encode()).hexdigest()
+                if args.mode == "client-read-missing-after-sentinel":
+                    emit(
+                        {
+                            "jsonrpc": "2.0",
+                            "id": 97,
+                            "method": "fs/read_text_file",
+                            "params": {
+                                "sessionId": "fixture-session",
+                                "path": str(Path(session_cwd) / "missing.txt"),
+                            },
+                        }
+                    )
+                    missing_response = json.loads(sys.stdin.readline())
+                    if missing_response.get("error", {}).get("code") != -32002:
+                        return 3
                 emit(
                     session_update(
                         {
