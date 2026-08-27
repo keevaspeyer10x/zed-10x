@@ -23,7 +23,6 @@ EXTERNAL_FAILURES = {
     "authentication_expired",
     "authentication_required",
     "capacity_or_rate_limit",
-    "unsupported_route",
 }
 INTERACTION_FAILURES = {"permission_requested"}
 

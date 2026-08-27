@@ -202,6 +202,14 @@ test("a product-origin route failure blocks the matrix", () => {
   assert.equal(result.summary.productFailureCount, 1);
 });
 
+test("unsupported client behavior is not reclassified as external unavailability", () => {
+  const result = runMatrix({ expected: ["Alpha", "Unsupported Route"] });
+  assert.equal(result.process.status, 1);
+  assert.deepEqual(result.calls, ["Alpha", "Unsupported Route"]);
+  assert.equal(result.summary.failureClass, "picker_product_failure");
+  assert.equal(result.summary.productFailureCount, 1);
+});
+
 test("omitted or stale managed picker entries fail before any route starts", () => {
   const result = runMatrix({ expected: ["Alpha", "Beta"], configured: ["Alpha"] });
   assert.equal(result.process.status, 1);

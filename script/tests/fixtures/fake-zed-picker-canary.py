@@ -19,6 +19,8 @@ elif "Permission" in args.endpoint:
     failure = "permission_requested"
 elif "Product" in args.endpoint:
     failure = "missing_executable"
+elif "Unsupported" in args.endpoint:
+    failure = "unsupported_client_request"
 
 receipt = {
     "schema": "zed-acp-project-canary-v1",
