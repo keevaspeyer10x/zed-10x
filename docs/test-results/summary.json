@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-27T09:16:59+10:00",
+  "generatedAt": "2026-08-27T12:51:23Z",
   "decisionCandidate": "production_ready",
   "plannedRows": 19,
   "implementedRows": 19,
@@ -61,7 +61,7 @@
     "rerunCount": 2,
     "flakyTests": [],
     "criticalOrHighFlakes": 0,
-    "classification": "Seven deterministic harness defects and four assembled-product defects were fixed before clean reruns; no product-path flake remained."
+    "classification": "Eight deterministic harness defects and four assembled-product defects were fixed before clean reruns; no product-path flake remained."
   },
   "testValidity": {
     "status": "passed",
@@ -128,7 +128,6 @@
     ],
     "infraOrToolingDefects": [],
     "processDefects": [
-      "Earlier release acceptance sampled components and marker responses without executing every changed assembled-product surface and user journey.",
       "Representative Mac and Intrepid ACP routes were accepted as coverage for independently selectable picker entries.",
       "Direct ACP protocol execution was allowed to impersonate the installed Zed picker and session launch boundary."
     ],
