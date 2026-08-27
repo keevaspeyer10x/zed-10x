@@ -268,6 +268,26 @@ test("project-aware ACP canary accepts byte-faithful numbered read output", () =
   }
 });
 
+test("standard ACP locations can bind the exact project read without rawInput", () => {
+  const result = runCanary("pass-location-only");
+  assert.equal(result.process.status, 0, result.process.stderr);
+  assert.equal(result.receipt.toolInputSentinelMatched, false);
+  assert.equal(result.receipt.toolLocationSentinelMatched, true);
+  assert.equal(result.receipt.toolPathSentinelMatched, true);
+  assert.equal(result.receipt.toolEvidenceMatched, true);
+  assert.equal(result.receipt.toolEvidenceFormat, "exact");
+});
+
+test("a wrong ACP location cannot borrow exact output as project evidence", () => {
+  const result = runCanary("wrong-location-only");
+  assert.equal(result.process.status, 1, result.process.stderr);
+  assert.equal(result.receipt.failureClass, "project_evidence_mismatch");
+  assert.equal(result.receipt.toolInputSentinelMatched, false);
+  assert.equal(result.receipt.toolLocationSentinelMatched, false);
+  assert.equal(result.receipt.toolPathSentinelMatched, false);
+  assert.equal(result.receipt.toolOutputSentinelMatched, true);
+});
+
 test("project-aware journey succeeds when the agent does not advertise session close", () => {
   const result = runCanary("pass-without-close");
   assert.equal(result.process.status, 0, result.process.stderr);

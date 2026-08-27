@@ -147,6 +147,16 @@ def tool_input_names_sentinel(value: Any, absolute: Path, relative: Path) -> boo
     return False
 
 
+def tool_locations_name_sentinel(value: Any, absolute: Path, relative: Path) -> bool:
+    if not isinstance(value, list):
+        return False
+    expected = {str(absolute), str(relative), f"./{relative}"}
+    return any(
+        isinstance(location, dict) and location.get("path") in expected
+        for location in value
+    )
+
+
 def rendered_sentinel_variants(sentinel_content: str) -> tuple[tuple[str, str], ...]:
     if not sentinel_content:
         return ()
@@ -796,6 +806,18 @@ class Journey:
             )
             for fields in completed
         ]
+        tool_location_matches = [
+            tool_locations_name_sentinel(
+                fields.get("locations"), self.sentinel, relative_sentinel
+            )
+            for fields in completed
+        ]
+        tool_path_matches = [
+            input_matches or location_matches
+            for input_matches, location_matches in zip(
+                tool_input_matches, tool_location_matches
+            )
+        ]
         tool_output_formats = [
             tool_output_sentinel_format(
                 {
@@ -808,10 +830,10 @@ class Journey:
         ]
         tool_evidence_formats = [
             output_format
-            for input_matches, output_format in zip(
-                tool_input_matches, tool_output_formats
+            for path_matches, output_format in zip(
+                tool_path_matches, tool_output_formats
             )
-            if input_matches and output_format is not None
+            if path_matches and output_format is not None
         ]
         tool_evidence_format = (
             tool_evidence_formats[0]
@@ -824,6 +846,8 @@ class Journey:
             "toolCallStarted": bool(self.tool_calls) or self.client_read_requests > 0,
             "toolCallCompleted": bool(completed) or self.client_read_completed > 0,
             "toolInputSentinelMatched": any(tool_input_matches),
+            "toolLocationSentinelMatched": any(tool_location_matches),
+            "toolPathSentinelMatched": any(tool_path_matches),
             "toolOutputSentinelMatched": any(
                 output_format is not None for output_format in tool_output_formats
             ),
@@ -1005,6 +1029,12 @@ def main() -> int:
         "toolCallCompleted": journey_evidence.get("toolCallCompleted", False),
         "toolInputSentinelMatched": journey_evidence.get(
             "toolInputSentinelMatched", False
+        ),
+        "toolLocationSentinelMatched": journey_evidence.get(
+            "toolLocationSentinelMatched", False
+        ),
+        "toolPathSentinelMatched": journey_evidence.get(
+            "toolPathSentinelMatched", False
         ),
         "toolOutputSentinelMatched": journey_evidence.get(
             "toolOutputSentinelMatched", False

@@ -46,11 +46,13 @@ def main() -> int:
             "pass-numbered-tab-compact",
             "pass-numbered-arrow",
             "pass-numbered-arrow-compact",
+            "pass-location-only",
             "pass-without-close",
             "split-evidence",
             "prompt-echo",
             "marker-only",
             "wrong-cwd",
+            "wrong-location-only",
             "wrong-cwd-close-error",
             "authentication",
             "authentication-message",
@@ -272,7 +274,8 @@ def main() -> int:
                 sentinel_output = sentinel_content
             observed_path = (
                 "/wrong/project/sentinel.txt"
-                if args.mode in {"wrong-cwd", "wrong-cwd-close-error"}
+                if args.mode
+                in {"wrong-cwd", "wrong-location-only", "wrong-cwd-close-error"}
                 else "sentinel.txt"
             )
             if args.mode != "marker-only":
@@ -284,7 +287,16 @@ def main() -> int:
                             "title": "Read the project sentinel",
                             "kind": "read",
                             "status": "in_progress",
-                            "rawInput": {"path": observed_path},
+                            "rawInput": (
+                                None
+                                if args.mode in {"pass-location-only", "wrong-location-only"}
+                                else {"path": observed_path}
+                            ),
+                            "locations": (
+                                [{"path": observed_path}]
+                                if args.mode in {"pass-location-only", "wrong-location-only"}
+                                else []
+                            ),
                         }
                     )
                 )
