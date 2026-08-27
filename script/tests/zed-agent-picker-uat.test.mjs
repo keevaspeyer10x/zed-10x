@@ -26,6 +26,8 @@ function runMatrix({
   driftSource = false,
   registryEntries = [],
   sourceExclusions = { Darwin: [], Linux: [] },
+  sourceHostExclusions = { Darwin: [], Linux: [] },
+  catalogHostExclusions = sourceHostExclusions,
   inventoryExclusions = { Darwin: [], Linux: [] },
   sentinel = "sentinel.txt",
   ephemeral = false,
@@ -50,8 +52,24 @@ function runMatrix({
     (name) => !inventoryExclusions.Linux.includes(name),
   );
   const linuxLocal = ["Other Surface"];
+  const sourceMac = [
+    ...new Set([...macCustom, ...(catalogHostExclusions?.Darwin ?? [])]),
+  ];
+  const sourcePersistent = Object.fromEntries(
+    (catalogHostExclusions?.Linux ?? []).map((name, index) => [
+      name,
+      `excluded-${index}`,
+    ]),
+  );
   const managed = [
-    ...new Set([...expected, ...configured, ...registryEntries, "Other Surface"]),
+    ...new Set([
+      ...expected,
+      ...configured,
+      ...registryEntries,
+      ...sourceMac,
+      ...Object.keys(sourcePersistent),
+      "Other Surface",
+    ]),
   ];
   const inventory = path.join(root, "inventory.json");
   writeFileSync(
@@ -98,11 +116,12 @@ function runMatrix({
     JSON.stringify({
       schemaVersion: 2,
       managedNames: sourceManaged,
-      macLanes: macCustom,
+      macLanes: sourceMac,
       linuxLocalLanes: sourceLinuxLocal,
-      persistentLanes: {},
+      persistentLanes: sourcePersistent,
       projectHostRegistryLanes: registryEntries,
       projectHostRegistryExclusions: sourceExclusions,
+      hostRouteExclusions: sourceHostExclusions,
       agentServers: Object.fromEntries(
         sourceManaged.map((name) => [
           name,
@@ -264,16 +283,67 @@ test("source manifest host exclusions drive the exact picker inventory", () => {
   assert.equal(result.summary.expectedEndpoints.length, 2);
 });
 
-test("source manifest rejects missing or cross-host registry exclusions", () => {
+test("source manifest custom-route exclusions drive the exact picker inventory", () => {
+  const result = runMatrix({
+    expected: ["Mac Route"],
+    sourceHostExclusions: {
+      Darwin: ["Mac Route Excluded"],
+      Linux: ["Intrepid Route Excluded"],
+    },
+  });
+  assert.equal(result.process.status, 0, result.process.stderr);
+  assert.deepEqual(result.calls, ["Mac Route"]);
+  assert.deepEqual(result.summary.expectedEndpoints, ["Mac Route"]);
+});
+
+test("source manifest permits one registry route to be excluded on both hosts", () => {
+  const result = runMatrix({
+    expected: ["Mac Route"],
+    registryEntries: ["Registry Route"],
+    sourceExclusions: {
+      Darwin: ["Registry Route"],
+      Linux: ["Registry Route"],
+    },
+    inventoryExclusions: {
+      Darwin: ["Registry Route"],
+      Linux: ["Registry Route"],
+    },
+  });
+  assert.equal(result.process.status, 0, result.process.stderr);
+  assert.deepEqual(result.calls, ["Mac Route"]);
+});
+
+test("source manifest rejects missing or malformed registry exclusions", () => {
   for (const sourceExclusions of [
     null,
     { Darwin: ["Registry Route"] },
-    { Darwin: ["Registry Route"], Linux: ["Registry Route"] },
+    { Darwin: ["Registry Route", "Registry Route"], Linux: [] },
   ]) {
     const result = runMatrix({
       expected: ["Registry Route"],
       registryEntries: ["Registry Route"],
       sourceExclusions,
+    });
+    assert.equal(result.process.status, 1);
+    assert.deepEqual(result.calls, []);
+    assert.equal(result.summary.failureClass, "invalid_source_manifest");
+  }
+});
+
+test("source manifest rejects missing or cross-host custom-route exclusions", () => {
+  for (const sourceHostExclusions of [
+    null,
+    { Darwin: ["Mac Route"] },
+    { Darwin: ["Intrepid Route"], Linux: [] },
+    { Darwin: [], Linux: ["Mac Route"] },
+  ]) {
+    const result = runMatrix({
+      expected: ["Mac Route"],
+      sourceHostExclusions,
+      catalogHostExclusions: {
+        Darwin: ["Mac Route"],
+        Linux: ["Intrepid Route"],
+      },
     });
     assert.equal(result.process.status, 1);
     assert.deepEqual(result.calls, []);
@@ -287,7 +357,7 @@ test("an immutable existing summary prevents replay", () => {
   assert.deepEqual(result.calls, []);
 });
 
-test("checked inventory binds the complete 13-entry Mac and 18-entry Intrepid sets", () => {
+test("checked inventory binds the complete 12-entry Mac and 16-entry Intrepid sets", () => {
   const inventory = JSON.parse(
     readFileSync(
       path.join(repositoryRoot, "docs/test-plan-inputs/zed-agent-picker-inventory.json"),
@@ -295,8 +365,8 @@ test("checked inventory binds the complete 13-entry Mac and 18-entry Intrepid se
     ),
   );
   assert.equal(inventory.managedEntries.length, 24);
-  assert.equal(inventory.surfaces["mac-local"].length, 13);
-  assert.equal(inventory.surfaces.intrepid.length, 18);
+  assert.equal(inventory.surfaces["mac-local"].length, 12);
+  assert.equal(inventory.surfaces.intrepid.length, 16);
   assert.equal(new Set(inventory.managedEntries).size, 24);
   assert.deepEqual(Object.keys(inventory.executionClasses), [
     "mac-custom",
@@ -326,7 +396,6 @@ test("checked inventory binds the complete 13-entry Mac and 18-entry Intrepid se
     ),
     [
       "antigravity-acp",
-      "codex-acp",
       "cursor",
       "devin",
       "glm-acp-agent",

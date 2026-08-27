@@ -31,7 +31,6 @@
       "Claude (Mac, primary)",
       "Claude (Mac, secondary)",
       "Claude (Mac, work)",
-      "Codex (Mac, primary)",
       "Codex (Mac, secondary)",
       "Codex (Mac, work)",
       "antigravity-acp",
@@ -52,10 +51,8 @@
       "Codex (Intrepid, selected)",
       "Codex (Intrepid, primary)",
       "Codex (Intrepid, secondary)",
-      "Codex (Intrepid, work)",
       "antigravity-acp",
       "claude-acp",
-      "codex-acp",
       "cursor",
       "devin",
       "glm-acp-agent",
@@ -66,12 +63,11 @@
   "executionClasses": {
     "mac-custom": {
       "surface": "mac-local",
-      "representative": "Codex (Mac, primary)",
+      "representative": "Codex (Mac, secondary)",
       "members": [
         "Claude (Mac, primary)",
         "Claude (Mac, secondary)",
         "Claude (Mac, work)",
-        "Codex (Mac, primary)",
         "Codex (Mac, secondary)",
         "Codex (Mac, work)"
       ]
@@ -107,8 +103,7 @@
         "Claude (Intrepid, work)",
         "Codex (Intrepid, selected)",
         "Codex (Intrepid, primary)",
-        "Codex (Intrepid, secondary)",
-        "Codex (Intrepid, work)"
+        "Codex (Intrepid, secondary)"
       ]
     },
     "intrepid-registry": {
@@ -117,7 +112,6 @@
       "members": [
         "antigravity-acp",
         "claude-acp",
-        "codex-acp",
         "cursor",
         "devin",
         "glm-acp-agent",

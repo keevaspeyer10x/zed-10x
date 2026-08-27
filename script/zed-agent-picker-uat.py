@@ -177,6 +177,7 @@ def validate_source_manifest(
     persistent = manifest.get("persistentLanes")
     registry = manifest.get("projectHostRegistryLanes")
     registry_exclusions = manifest.get("projectHostRegistryExclusions")
+    host_route_exclusions = manifest.get("hostRouteExclusions")
     servers = manifest.get("agentServers")
     if not (
         isinstance(managed, list)
@@ -201,8 +202,17 @@ def validate_source_manifest(
             and set(exclusions).issubset(registry)
             for exclusions in registry_exclusions.values()
         )
-        and set(registry_exclusions["Darwin"]).isdisjoint(
-            registry_exclusions["Linux"]
+        and isinstance(host_route_exclusions, dict)
+        and set(host_route_exclusions) == {"Darwin", "Linux"}
+        and all(
+            isinstance(exclusions, list)
+            and all(isinstance(item, str) and item for item in exclusions)
+            and len(exclusions) == len(set(exclusions))
+            for exclusions in host_route_exclusions.values()
+        )
+        and set(host_route_exclusions["Darwin"]).issubset(mac)
+        and set(host_route_exclusions["Linux"]).issubset(
+            set(linux_local) | set(persistent)
         )
         and set(managed)
         == set(mac) | set(linux_local) | set(persistent) | set(registry)
@@ -215,6 +225,19 @@ def validate_source_manifest(
         and set(persistent).isdisjoint(registry)
     ):
         raise MatrixFailure("invalid_source_manifest")
+    mac_routes = [
+        item for item in mac if item not in host_route_exclusions["Darwin"]
+    ]
+    linux_local_routes = [
+        item
+        for item in linux_local
+        if item not in host_route_exclusions["Linux"]
+    ]
+    persistent_routes = [
+        item
+        for item in persistent
+        if item not in host_route_exclusions["Linux"]
+    ]
     mac_registry = [
         item for item in registry if item not in registry_exclusions["Darwin"]
     ]
@@ -224,14 +247,14 @@ def validate_source_manifest(
     projected = {
         "managedEntries": managed,
         "surfaces": {
-            "mac-local": mac + mac_registry,
-            "intrepid": linux_local + list(persistent) + linux_registry,
+            "mac-local": mac_routes + mac_registry,
+            "intrepid": linux_local_routes + persistent_routes + linux_registry,
         },
         "executionClassMembers": {
-            "mac-custom": mac,
+            "mac-custom": mac_routes,
             "mac-registry": mac_registry,
-            "intrepid-local": linux_local,
-            "intrepid-persistent": list(persistent),
+            "intrepid-local": linux_local_routes,
+            "intrepid-persistent": persistent_routes,
             "intrepid-registry": linux_registry,
         },
     }
