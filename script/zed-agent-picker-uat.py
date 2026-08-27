@@ -280,6 +280,18 @@ def main() -> int:
             raise MatrixFailure("invalid_timeout")
 
         canary = load_canary_module(Path(__file__).with_name("zed-acp-live-canary.py"))
+        if not args.cwd.is_absolute():
+            raise MatrixFailure("invalid_project_directory")
+        try:
+            project_cwd = args.cwd.resolve(strict=True)
+            if not project_cwd.is_dir():
+                raise MatrixFailure("invalid_project_directory")
+        except OSError as exc:
+            raise MatrixFailure("invalid_project_directory") from exc
+        try:
+            canary.read_sentinel(project_cwd, args.sentinel)
+        except (OSError, ValueError, canary.CanaryFailure) as exc:
+            raise MatrixFailure("invalid_sentinel") from exc
         inventory, expected, managed = load_inventory(args.inventory, args.surface)
         validate_source_manifest(args.source_manifest, inventory)
         settings = load_settings(args.settings, canary)

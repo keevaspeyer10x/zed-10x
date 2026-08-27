@@ -27,6 +27,7 @@ function runMatrix({
   registryEntries = [],
   sourceExclusions = { Darwin: [], Linux: [] },
   inventoryExclusions = { Darwin: [], Linux: [] },
+  sentinel = "sentinel.txt",
 }) {
   const root = mkdtempSync(path.join(tmpdir(), "zed-picker-matrix-"));
   const project = path.join(root, "project");
@@ -138,7 +139,7 @@ function runMatrix({
       "--cwd",
       project,
       "--sentinel",
-      "sentinel.txt",
+      sentinel,
       "--output-dir",
       outputDir,
       "--summary",
@@ -208,6 +209,17 @@ test("unsupported client behavior is not reclassified as external unavailability
   assert.deepEqual(result.calls, ["Alpha", "Unsupported Route"]);
   assert.equal(result.summary.failureClass, "picker_product_failure");
   assert.equal(result.summary.productFailureCount, 1);
+});
+
+test("an invalid sentinel fails once before any route starts", () => {
+  const result = runMatrix({
+    expected: ["Alpha", "Beta"],
+    sentinel: "/etc/hosts",
+  });
+  assert.equal(result.process.status, 1);
+  assert.deepEqual(result.calls, []);
+  assert.equal(result.summary.failureClass, "invalid_sentinel");
+  assert.equal(result.summary.productFailureCount, 0);
 });
 
 test("omitted or stale managed picker entries fail before any route starts", () => {
