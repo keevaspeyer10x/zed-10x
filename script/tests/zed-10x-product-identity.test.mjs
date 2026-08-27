@@ -260,6 +260,11 @@ test("macOS bundling is transaction-safe in headless shells", () => {
     /mv "\$app_path" "\$installed_app_path"[\s\S]*?xattr -cr "\$installed_app_path"[\s\S]*?codesign --verify --deep --strict "\$installed_app_path"[\s\S]*?Installed application bundle/,
     "the installed bundle must clear move-time metadata and pass strict signature verification before success",
   );
+  assert.match(
+    bundleScript,
+    /sed '\/com\.apple\.developer\.associated-domains\/,\+1d'[\s\S]*?> "\$unsigned_entitlements_path"[\s\S]*?\/usr\/bin\/xattr -cr "\$\{app_path\}"\s*codesign --force --deep/,
+    "ad-hoc signing must clear metadata after its final bundle write and immediately before codesign",
+  );
 });
 
 test("the development app bundle owns the canary launcher assembly", () => {
