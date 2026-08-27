@@ -101,9 +101,9 @@
     }
   },
   "defectDiscovery": {
-    "bugsFound": 14,
+    "bugsFound": 15,
     "productDefects": 4,
-    "testHarnessDefects": 8,
+    "testHarnessDefects": 9,
     "infraOrToolingDefects": 0,
     "processDefects": 2,
     "fixedDuringRun": [
@@ -120,7 +120,8 @@
       "Authorized the exact synthetic direnv before project open.",
       "Excluded the cleanup observer's reuse-safe ancestors without hiding matching sibling or descendant residue.",
       "Reopened representative picker-route acceptance and added exact selectable-variant plus revision/input evidence closure.",
-      "Withheld the sentinel digest and required one exact sentinel path plus observed file bytes in the same completed tool call, or an exact project-confined client read; prompt echo and unrelated split calls remain non-green."
+      "Withheld the sentinel digest and required one exact sentinel path plus observed file bytes in the same completed tool call, or an exact project-confined client read; prompt echo and unrelated split calls remain non-green.",
+      "Pinned the ephemeral sentinel's original file descriptor until route cleanup, refused all unlinking while process cleanup remained unproven, and closed both ownership descriptors on every path."
     ],
     "knownDefects": [
       "Initial ExternalAgentsUpdated can arrive before client handler registration and is not replayed",
@@ -136,7 +137,8 @@
       "The fixture directory environment was authorized after Zed cached it",
       "The remote cleanup census matched its own observer ancestry",
       "Representative Mac and Intrepid ACP routes were accepted as coverage for independently selectable picker entries",
-      "The standalone canary exposed its expected digest and accepted transcript-shaped evidence that did not prove a real project-file read"
+      "The standalone canary exposed its expected digest and accepted transcript-shaped evidence that did not prove a real project-file read",
+      "The ephemeral-sentinel cleanup released its ownership inode before final cleanup, allowing an immediate Linux inode reuse to false-green the replacement guard"
     ]
   },
   "coverageClosureVersion": 2

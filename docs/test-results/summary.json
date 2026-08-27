@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-27T12:51:23Z",
+  "generatedAt": "2026-08-27T13:00:10Z",
   "decisionCandidate": "production_ready",
   "plannedRows": 19,
   "implementedRows": 19,
@@ -61,7 +61,7 @@
     "rerunCount": 2,
     "flakyTests": [],
     "criticalOrHighFlakes": 0,
-    "classification": "Eight deterministic harness defects and four assembled-product defects were fixed before clean reruns; no product-path flake remained."
+    "classification": "Nine deterministic harness defects and four assembled-product defects were fixed before clean reruns; no product-path flake remained."
   },
   "testValidity": {
     "status": "passed",
@@ -109,7 +109,7 @@
     "highOrCriticalFindings": []
   },
   "defectDiscovery": {
-    "bugsFound": 14,
+    "bugsFound": 15,
     "productDefects": [
       "Remote external-agent inventory relied on a fixed startup delay instead of receiver-driven snapshot and reconnect ordering.",
       "Captured directory environments replayed PROMPT_COMMAND without its non-exported shell function, producing an immediate broken prompt.",
@@ -124,7 +124,8 @@
       "The terminal resize oracle compared only the first and last widths instead of requiring distinct observed widths.",
       "The synthetic directory environment was authorized after project open, so Zed had already cached the pre-authorization environment.",
       "The cleanup census matched its own remote observer ancestors because their argv contained the fixture path.",
-      "The standalone ACP canary required an agent-computed digest and cwd transcript instead of proving the exact sentinel path and observed file bytes."
+      "The standalone ACP canary required an agent-computed digest and cwd transcript instead of proving the exact sentinel path and observed file bytes.",
+      "The ephemeral-sentinel cleanup closed its ownership file descriptor too early, allowing Linux to reuse the inode after route-driven replacement and falsely classify the replacement as owned."
     ],
     "infraOrToolingDefects": [],
     "processDefects": [
@@ -144,6 +145,7 @@
       "Authorized the exact synthetic direnv before opening the installed app.",
       "Excluded only the observer's reuse-safe ancestor identities from cleanup census while retaining sibling/descendant residue detection.",
       "Retained marker-only, prompt-echo, permission, timeout, and cleanup negatives.",
+      "Pinned the original ephemeral-sentinel file descriptor for the full route lifetime, compared that live identity with the pathname immediately before any unlink, and refused all unlinking while process-group cleanup remained unproven.",
       "Separated every-route protocol evidence from installed assembled-product picker evidence and required one direct representative per stable execution class.",
       "Replaced the prompt-visible digest contract with exact same-call path plus observed sentinel-content proof or a project-confined ACP client read; prompt echo and unrelated split calls remain non-green."
     ],

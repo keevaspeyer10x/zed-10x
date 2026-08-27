@@ -346,6 +346,36 @@ test("ephemeral cleanup refuses to delete a route-replaced sentinel", () => {
   assert.equal(readFileSync(result.sentinel, "utf8"), "replacement-owned-by-agent\n");
 });
 
+test("ephemeral cleanup never unlinks while route cleanup is unproven", () => {
+  const probe = spawnSync(
+    "/usr/bin/python3",
+    [
+      "-c",
+      String.raw`
+import importlib.util
+import pathlib
+import tempfile
+
+path = pathlib.Path(${JSON.stringify(canary)})
+spec = importlib.util.spec_from_file_location("zed_acp_live_canary", path)
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+
+with tempfile.TemporaryDirectory() as root:
+    root_path = pathlib.Path(root)
+    sentinel_path = root_path / "sentinel.txt"
+    owned = module.OwnedEphemeralSentinel(root_path, pathlib.Path("sentinel.txt"))
+    assert module.release_owned_sentinel(owned, False) is False
+    assert sentinel_path.is_file()
+    assert owned.file_fd == -1
+    assert owned.directory_fd == -1
+`,
+    ],
+    { cwd: repositoryRoot, encoding: "utf8", timeout: 5_000 },
+  );
+  assert.equal(probe.status, 0, probe.stderr);
+});
+
 test("project-aware journey succeeds when the agent does not advertise session close", () => {
   const result = runCanary("pass-without-close");
   assert.equal(result.process.status, 0, result.process.stderr);

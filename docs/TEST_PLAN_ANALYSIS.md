@@ -2,7 +2,7 @@
 
 > **Date:** 2026-08-27
 > **Test run:** complete; all 19 rows have passing, executed, digest-bound evidence
-> **Analysis method:** DACI-RP over eight test-harness defects, four assembled-product defects, and two process defects discovered and fixed during deterministic and live execution
+> **Analysis method:** DACI-RP over nine test-harness defects, four assembled-product defects, and two process defects discovered and fixed during deterministic, CI, and live execution
 
 ## Final readiness disposition
 
@@ -36,12 +36,12 @@ The prior lifecycle exercised every changed assembled-product surface category t
 
 ## Defect Discovery Value
 
-- **Bugs found:** 14: four product, eight harness, and two process defects
+- **Bugs found:** 15: four product, nine harness, and two process defects
 - **Product defects:** 4, all fixed and re-run through the installed app
-- **Test harness defects:** 8, all fixed before accepting the UAT
+- **Test harness defects:** 9, all fixed before protected landing
 - **Infra/tooling defects:** 0
 - **Process defects:** 2, both fixed: representative routes no longer stand in for selectable variants, and direct protocol calls no longer stand in for the assembled picker/session boundary
-- **Fixed during run:** SSH remote-command quoting; project-read oracle hardening; resize-sensitive terminal fixture; captured shell-hook sanitization; remote Vim cwd; tagged SSH/TCP initialize replay; valid DAP response fixture; semantic resize oracle; pre-open direnv authorization; reuse-safe cleanup ancestry; exhaustive advertised-route execution; assembled picker execution-class coverage
+- **Fixed during run:** SSH remote-command quoting; project-read oracle hardening; resize-sensitive terminal fixture; captured shell-hook sanitization; remote Vim cwd; tagged SSH/TCP initialize replay; valid DAP response fixture; semantic resize oracle; pre-open direnv authorization; reuse-safe cleanup ancestry; pinned ephemeral-sentinel ownership across route replacement with no unlink before proven process cleanup; exhaustive advertised-route execution; assembled picker execution-class coverage
 - **Confidence-only rows:** 0
 - **Weak rows:** 0
 - **Low-yield assessment:** `coverage_sufficient_after_full_variant_and_assembled_uat`

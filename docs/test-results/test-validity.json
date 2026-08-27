@@ -67,6 +67,14 @@
       "fix": "Keep expected sentinel bytes and digest oracle-side; accept only one completed read that binds the exact sentinel path to its observed bytes, or an exact project-confined ACP client read. Refuse every permission request.",
       "regression": "prompt echo and unrelated split calls fail; exact sentinel path plus actual content passes; permission requests approve nothing",
       "status": "fixed"
+    },
+    {
+      "id": "HARNESS-EPHEMERAL-SENTINEL-INODE-REUSE",
+      "category": "test_bug",
+      "symptom": "The cleanup guard closed the created sentinel file descriptor before the route ran, so Linux could immediately reuse its inode after route-driven replacement and make the replacement appear owned.",
+      "fix": "Keep the original file descriptor pinned for the full route lifetime, compare its live identity with the pathname immediately before unlink, never unlink while process-group cleanup is unproven, and close both ownership descriptors on every path.",
+      "regression": "ephemeral cleanup refuses a route-replaced sentinel across 100 consecutive Linux-shaped runs and never unlinks while route cleanup is unproven",
+      "status": "fixed"
     }
   ],
   "coverageClosureDefects": [

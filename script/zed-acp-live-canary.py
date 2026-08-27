@@ -134,11 +134,11 @@ class OwnedEphemeralSentinel:
             raise CanaryFailure("invalid_sentinel_path")
         self.relative = relative
         self.directory_fd = os.open(root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        self.file_fd = -1
         self.identity: tuple[int, int] | None = None
-        file_fd: int | None = None
         try:
             try:
-                file_fd = os.open(
+                self.file_fd = os.open(
                     relative.name,
                     os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
                     0o600,
@@ -146,18 +146,18 @@ class OwnedEphemeralSentinel:
                 )
             except FileExistsError as exc:
                 raise CanaryFailure("sentinel_collision") from exc
-            metadata = os.fstat(file_fd)
+            metadata = os.fstat(self.file_fd)
             self.identity = (metadata.st_dev, metadata.st_ino)
-            os.fchmod(file_fd, 0o600)
+            os.fchmod(self.file_fd, 0o600)
             payload = f"zed-acp-project-canary-v1:{os.urandom(32).hex()}\n".encode()
             view = memoryview(payload)
             while view:
-                written = os.write(file_fd, view)
+                written = os.write(self.file_fd, view)
                 if written <= 0:
                     raise OSError("ephemeral sentinel write made no progress")
                 view = view[written:]
-            os.fsync(file_fd)
-            metadata = os.fstat(file_fd)
+            os.fsync(self.file_fd)
+            metadata = os.fstat(self.file_fd)
             if (
                 not stat.S_ISREG(metadata.st_mode)
                 or stat.S_IMODE(metadata.st_mode) != 0o600
@@ -166,18 +166,18 @@ class OwnedEphemeralSentinel:
                 raise CanaryFailure("invalid_sentinel_file")
             os.fsync(self.directory_fd)
         except Exception:
-            if file_fd is not None:
-                os.close(file_fd)
-                file_fd = None
             self._remove_if_owned()
             self.close()
             raise
-        finally:
-            if file_fd is not None:
-                os.close(file_fd)
 
     def _remove_if_owned(self) -> bool:
-        if self.identity is None:
+        if self.identity is None or self.file_fd < 0:
+            return False
+        try:
+            owned_metadata = os.fstat(self.file_fd)
+        except OSError:
+            return False
+        if (owned_metadata.st_dev, owned_metadata.st_ino) != self.identity:
             return False
         try:
             file_fd = os.open(
@@ -217,9 +217,23 @@ class OwnedEphemeralSentinel:
         return removed
 
     def close(self) -> None:
+        if self.file_fd >= 0:
+            os.close(self.file_fd)
+            self.file_fd = -1
         if self.directory_fd >= 0:
             os.close(self.directory_fd)
             self.directory_fd = -1
+
+
+def release_owned_sentinel(
+    owned_sentinel: OwnedEphemeralSentinel, process_group_gone: bool
+) -> bool:
+    try:
+        if not process_group_gone:
+            return False
+        return owned_sentinel.remove()
+    finally:
+        owned_sentinel.close()
 
 
 def nested_strings(value: Any) -> list[str]:
@@ -1155,9 +1169,10 @@ def main() -> int:
             if not process_group_gone and failure_class is None:
                 failure_class = "process_cleanup_failed"
         if owned_sentinel is not None:
-            sentinel_removed = owned_sentinel.remove()
-            owned_sentinel.close()
-            if not sentinel_removed:
+            sentinel_removed = release_owned_sentinel(
+                owned_sentinel, process_group_gone
+            )
+            if process_group_gone and not sentinel_removed:
                 failure_class = "sentinel_cleanup_failed"
 
     status = "pass" if failure_class is None else "failed"
