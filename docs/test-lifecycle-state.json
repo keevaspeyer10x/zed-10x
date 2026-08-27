@@ -82,7 +82,7 @@
         "docs/test-results/advertised-agent-matrix.json",
         "docs/test-results/installed-picker-uat.json"
       ],
-      "summary": "All 19 rows have direct, executed evidence. ACP-JOURNEY-002 binds every independently selectable route in the exact 14-entry Mac and 18-entry Intrepid inventories. ACP-ASSEMBLED-019 separately binds the installed picker and session/new boundary for all five production execution classes. External authentication or permission refusal remains an explicit route classification rather than a product-origin failure, and cleanup is green."
+      "summary": "All 19 rows have direct, executed evidence. ACP-JOURNEY-002 binds every independently selectable route in the exact 12-entry Mac and 16-entry Intrepid healthy inventories. ACP-ASSEMBLED-019 separately binds the installed picker and session/new boundary for all five production execution classes. External authentication or permission refusal remains an explicit route classification rather than a product-origin failure, and cleanup is green."
     },
     "5-analysis": {
       "status": "complete",

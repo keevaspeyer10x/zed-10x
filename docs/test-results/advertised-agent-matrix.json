@@ -1,69 +1,241 @@
 {
-  "schemaVersion": 1,
-  "generatedAt": "2026-08-26T23:08:04Z",
-  "status": "passed",
-  "command": "node --test script/tests/zed-acp-live-canary.test.mjs script/tests/zed-agent-picker-uat.test.mjs && script/zed-agent-picker-uat.py for Mac-local and Intrepid",
-  "exitCode": 0,
-  "attempts": 1,
-  "testedRevision": "33f618c43476eff685f2a17bb13a1a29c10ccc61",
-  "testedTree": "82c594be13b0bdbcd7f163929caadba08cb2d494",
-  "inventorySha256": "ea95295eb071047c68b88c80c89b7162b35d1941f7cc1ee5ad60e3ab50ad3334",
-  "sourceManifestSha256": "1a5ce0608ae28f9d26901c2bffc7b5f3646435e0911394b4e2eea367addc9b2b",
-  "mac": {
-    "expectedCount": 14,
-    "configuredCount": 14,
-    "productFailureCount": 0,
-    "routes": [
-      {"endpoint": "Claude (Mac, primary)", "classification": "external_unavailable", "failureClass": "capacity_or_rate_limit", "receiptSha256": "531c35a091510462ded749d72900abe3eb63c03b9e54a631ae4d80df3274f8f8"},
-      {"endpoint": "Claude (Mac, secondary)", "classification": "interaction_required", "failureClass": "permission_requested", "receiptSha256": "680641531df41788879bdeaf58e2c30ec6d48f1ae30d6148b78e93090511b049"},
-      {"endpoint": "Claude (Mac, work)", "classification": "interaction_required", "failureClass": "permission_requested", "receiptSha256": "35d962a541d0af85fec0dd738c04238dca4e044ce8711cfdb1f6120f48f48de3"},
-      {"endpoint": "Codex (Mac, primary)", "classification": "passed", "failureClass": null, "receiptSha256": "2f73eb50b6d7d6688b29910b83fc24d164b280f5e6808afd0f7c547d550cc940"},
-      {"endpoint": "Codex (Mac, secondary)", "classification": "passed", "failureClass": null, "receiptSha256": "b7c43304f16c3e170dfaccd1d49f3c8c9c241247d0b449a77b5a2085f7bba0a6"},
-      {"endpoint": "Codex (Mac, work)", "classification": "passed", "failureClass": null, "receiptSha256": "132391e14dc8d660069bf3c1a327e64b46784ec5ea033e10e7bb49d4b1987028"},
-      {"endpoint": "antigravity-acp", "classification": "external_unavailable", "failureClass": "authentication_required", "receiptSha256": "d61f31799de2b43c351532baab44cde8f1f35fee79b07a6946d929cbe583d589"},
-      {"endpoint": "claude-acp", "classification": "external_unavailable", "failureClass": "authentication_required", "receiptSha256": "5fd065c17eb6c99d143d3ddbbcf1ce5feaeed3c015b7f097fa46e08d401ca792"},
-      {"endpoint": "codex-acp", "classification": "passed_installed_ui", "failureClass": null, "receiptSha256": "153919cbc6beb6dd2ad9072f38c83b982b3e1c0bcec61a977ce8afd9df37ef22"},
-      {"endpoint": "cursor", "classification": "interaction_required", "failureClass": "permission_requested", "receiptSha256": "8d56878a2f78138ebc6739c22ece7a515fe11aa32f4d62eeefe07224178d8387"},
-      {"endpoint": "devin", "classification": "external_unavailable", "failureClass": "authentication_required", "receiptSha256": "3d3379397df0027bbe9a4247ee89c519f4bba7dde7148535f2a0cb28a8a41986"},
-      {"endpoint": "glm-acp-agent", "classification": "external_unavailable", "failureClass": "authentication_required", "receiptSha256": "8560bfbaeab2f0712b695bec6fbffcb8e1991e2cc61741b058e04514cd25c1a3"},
-      {"endpoint": "grok-build", "classification": "passed", "failureClass": null, "receiptSha256": "5c1c92bd5f5ee8035d0db26241c0ee9deec2cfea0540a5782f0f96509982948b"},
-      {"endpoint": "kimi", "classification": "external_unavailable", "failureClass": "authentication_required", "receiptSha256": "a1295128575ff21aa02b7b42868261d678404a2f22e970b0d3987fdaf48a638f"}
-    ]
-  },
-  "intrepid": {
-    "expectedCount": 18,
-    "configuredCount": 18,
-    "productFailureCount": 0,
-    "baseSummarySha256": "f896982d5cd85324b1388169ed543d1eee79a4f86b4704005db49285325703cc",
-    "selectedRouteCorrectionSha256": "be88ab0ea3b695fb6a9bfcb5bc69e110af27ab5eaa9edbc37ec1dc8562940e1e",
-    "routes": [
-      {"endpoint": "GLM (Intrepid)", "classification": "passed", "failureClass": null, "receiptSha256": "6a7cd2ac10bc3d9e274c89015bdb652e1b987568eb46f3e9d42c492fcb5d9d13"},
-      {"endpoint": "Kimi (Intrepid)", "classification": "interaction_required", "failureClass": "permission_requested", "receiptSha256": "363bfa78fc6a472dd522cebadecbb2296cbf03424e8c326b27c64294995aa854"},
-      {"endpoint": "Claude (Intrepid, selected)", "classification": "passed", "failureClass": null, "receiptSha256": "5e4911ffa98423c79c44c6d51b6a064c21ff1b03201c023d2b5cf76415e8f63c"},
-      {"endpoint": "Claude (Intrepid, primary)", "classification": "external_unavailable", "failureClass": "capacity_or_rate_limit", "receiptSha256": "39bdb6b295beea4f9f04c809244996f13deaa291f832a074cf1c4a8f65cf6de2"},
-      {"endpoint": "Claude (Intrepid, secondary)", "classification": "external_unavailable", "failureClass": "authentication_expired", "receiptSha256": "2b73d23016b83893eb3624261be5cf06f692f4faf148bc577d13227dfdcc665f"},
-      {"endpoint": "Claude (Intrepid, work)", "classification": "external_unavailable", "failureClass": "capacity_or_rate_limit", "receiptSha256": "3aa763809edc75d53990e533a874549988af25203c418b86ab7c7ce2d9e816c7"},
-      {"endpoint": "Codex (Intrepid, selected)", "classification": "passed", "failureClass": null, "receiptSha256": "be88ab0ea3b695fb6a9bfcb5bc69e110af27ab5eaa9edbc37ec1dc8562940e1e"},
-      {"endpoint": "Codex (Intrepid, primary)", "classification": "passed", "failureClass": null, "receiptSha256": "7a4b2379b2c373611fbf7ac628d43a468dec67561a809391aed27bb9b770a3bf"},
-      {"endpoint": "Codex (Intrepid, secondary)", "classification": "passed", "failureClass": null, "receiptSha256": "6dcf92d21e2b9163413d796ffb51c5acc63c2ab384c17e09f2ee56707dfce15b"},
-      {"endpoint": "Codex (Intrepid, work)", "classification": "passed", "failureClass": null, "receiptSha256": "4b061af8f64d7e1d4927a4f52b27ad6df8f0ac24959e70cd5150e247dc7271a5"},
-      {"endpoint": "antigravity-acp", "classification": "external_unavailable", "failureClass": "authentication_required", "receiptSha256": "cd201e0a108fde2dd57aba2168b8f35ebb27a87e64181984139f11b3582582d9"},
-      {"endpoint": "claude-acp", "classification": "passed", "failureClass": null, "receiptSha256": "c0a517c425ffb54b8bc5ef5fdc3f50f36eb143f8854feb5c7ef63e4cb3515fc7"},
-      {"endpoint": "codex-acp", "classification": "passed", "failureClass": null, "receiptSha256": "48b13fc4138bfe6b67af8722f5a810b46d9355972055f70f2031212389b03628"},
-      {"endpoint": "cursor", "classification": "passed", "failureClass": null, "receiptSha256": "311c18173b0e3749e3d43962bf33892a91d160bfe7a4679644f45620a451fdea"},
-      {"endpoint": "devin", "classification": "interaction_required", "failureClass": "permission_requested", "receiptSha256": "3385c02b9d2e16fbd68f70548648ec3d458434dd5b85552627f6324ab8784330"},
-      {"endpoint": "glm-acp-agent", "classification": "interaction_required", "failureClass": "permission_requested", "receiptSha256": "d5474556e52175e9cfb29dacff7f417e7be2befeee6a4fa60ae34b82302e34b2"},
-      {"endpoint": "grok-build", "classification": "passed", "failureClass": null, "receiptSha256": "ed448b238abba8c9c82a28312ad0f4019f0a1945146efc5edd60bedd5705ebef"},
-      {"endpoint": "kimi", "classification": "passed", "failureClass": null, "receiptSha256": "d603bd257edce614f7456b69f5f48328e388964ac5f66044437b7cb1f153c40d"}
-    ]
-  },
-  "standaloneCodexMacCanary": {
-    "status": "non_authoritative_harness_mismatch",
-    "failureClass": "tool_evidence_missing",
-    "receiptSha256": "153919cbc6beb6dd2ad9072f38c83b982b3e1c0bcec61a977ce8afd9df37ef22",
-    "disposition": "The standalone ACP client did not expose Zed's project tool surface; the installed Zed picker/session journey for the same registry route performed the exact project read. The oracle was not weakened."
-  },
+  "allDirectProcessGroupsGone": true,
+  "attempt": 1,
+  "evidenceMode": "standalone_project_canary",
+  "inventorySha256": "98c97176c88e5b1930ce545330fbea074200f7d06359ff89de38f401da3ec16a",
   "permissionsApproved": 0,
   "promptOrResponseContentRetained": false,
-  "allDirectProcessGroupsGone": true
+  "schema": "zed-agent-matrix-v2",
+  "sourceManifestSha256": "536181e768f5844375d7711d604f8b37417c5288cfabe15249ad9c2dcaaf3039",
+  "status": "pass",
+  "surfaces": [
+    {
+      "canarySha256": "eb0292df9dae8d7ca7f8fe7eedf1bc094b0ac9d7faaaac62baf4baf4560c114e",
+      "counts": {
+        "external_unavailable": 5,
+        "interaction_required": 0,
+        "passed": 7
+      },
+      "expectedCount": 12,
+      "registrySha256": "1431501923d3fa13b96e4f34dab827860f957f02dddc1bbf113b3fed47da8ee9",
+      "routes": [
+        {
+          "classification": "external_unavailable",
+          "elapsedMs": 4495,
+          "endpoint": "Claude (Mac, primary)",
+          "failureClass": "capacity_or_rate_limit",
+          "receiptSha256": "3d3a4f35d9a1926fa3b0a47ce0d4024f91d5bf09d77ccbb25f46a66d856e8ed8"
+        },
+        {
+          "classification": "passed",
+          "elapsedMs": 8114,
+          "endpoint": "Claude (Mac, secondary)",
+          "failureClass": null,
+          "receiptSha256": "b618d39f494721e8f8a633fadec5df0ae95fb37b8ace703c0a5a7bad5e5b4216"
+        },
+        {
+          "classification": "passed",
+          "elapsedMs": 9989,
+          "endpoint": "Claude (Mac, work)",
+          "failureClass": null,
+          "receiptSha256": "7af6b7b1a6912d7044e896bc6acdc8882d3cfb606d4b47774f7e9d6fe36cf14a"
+        },
+        {
+          "classification": "passed",
+          "elapsedMs": 17635,
+          "endpoint": "Codex (Mac, secondary)",
+          "failureClass": null,
+          "receiptSha256": "f25b45ca403f86b67b9461f60bab755ab50ee93728c55a627a8f4bd91643aa7f"
+        },
+        {
+          "classification": "passed",
+          "elapsedMs": 17715,
+          "endpoint": "Codex (Mac, work)",
+          "failureClass": null,
+          "receiptSha256": "00e8e1354edcf520859f589038a79a9b89be794fad9da67556a92fd0f0b28e7c"
+        },
+        {
+          "classification": "external_unavailable",
+          "elapsedMs": 4693,
+          "endpoint": "antigravity-acp",
+          "failureClass": "authentication_required",
+          "receiptSha256": "9e8d4fdd73c4a5fd60513a145bf8c6cc5eb89399e7de14dad7af437b450353c2"
+        },
+        {
+          "classification": "passed",
+          "elapsedMs": 17548,
+          "endpoint": "codex-acp",
+          "failureClass": null,
+          "receiptSha256": "5e265fd8c5e57c55d9c57c69a6f4bc9ab659e84b1fcedde269a5d742a55a50db"
+        },
+        {
+          "classification": "passed",
+          "elapsedMs": 38545,
+          "endpoint": "cursor",
+          "failureClass": null,
+          "receiptSha256": "10ed466a0d1430a88d55776f287b0385a1276b1824b40c789649992f29f2e32c"
+        },
+        {
+          "classification": "external_unavailable",
+          "elapsedMs": 3257,
+          "endpoint": "devin",
+          "failureClass": "authentication_required",
+          "receiptSha256": "7fe0c534f926dd21d837f03f48bad742ea77fda7ee8056d8f4b538185b9bb489"
+        },
+        {
+          "classification": "external_unavailable",
+          "elapsedMs": 803,
+          "endpoint": "glm-acp-agent",
+          "failureClass": "authentication_required",
+          "receiptSha256": "fb72c6d3d4266dd5554824c84fc406de83c8ee3c4ca163d3715d84a51e4d8390"
+        },
+        {
+          "classification": "passed",
+          "elapsedMs": 17812,
+          "endpoint": "grok-build",
+          "failureClass": null,
+          "receiptSha256": "247db580b7c9265e98935946bfa89abe7ce5f30d17474022185b5a5ea901816b"
+        },
+        {
+          "classification": "external_unavailable",
+          "elapsedMs": 14043,
+          "endpoint": "kimi",
+          "failureClass": "authentication_required",
+          "receiptSha256": "ec8c5761de82b99bcf5c640ec0c0332a66b1ead16477cb28d40206dea6808249"
+        }
+      ],
+      "settingsSha256": "eca080e08c04e8ebbede162f46bcef4b4b87d77d688f33e2d149db2b9a1c0cd6",
+      "summarySha256": "433dfe1b16b313c0d2bbd8b8422740ac3210b32ab7bd044c19589fe10b8b7abd",
+      "surface": "mac-local"
+    },
+    {
+      "canarySha256": "eb0292df9dae8d7ca7f8fe7eedf1bc094b0ac9d7faaaac62baf4baf4560c114e",
+      "counts": {
+        "external_unavailable": 3,
+        "interaction_required": 1,
+        "passed": 12
+      },
+      "expectedCount": 16,
+      "registrySha256": "1431501923d3fa13b96e4f34dab827860f957f02dddc1bbf113b3fed47da8ee9",
+      "routes": [
+        {
+          "classification": "interaction_required",
+          "elapsedMs": 52757,
+          "endpoint": "GLM (Intrepid)",
+          "failureClass": "permission_requested",
+          "receiptSha256": "15ec715c0c6165a091e96dcf593a6136c230c18b5ac742829bad19644b85dc37"
+        },
+        {
+          "classification": "passed",
+          "elapsedMs": 24538,
+          "endpoint": "Kimi (Intrepid)",
+          "failureClass": null,
+          "receiptSha256": "4037fe65a9d5a680b4dfabd0e4a26e739d0222aba4955595eddb045b45b6f482"
+        },
+        {
+          "classification": "passed",
+          "elapsedMs": 59716,
+          "endpoint": "Claude (Intrepid, selected)",
+          "failureClass": null,
+          "receiptSha256": "8f9f4813181b1403d3c4673c26d0dbb7bf03229d009d2aae8452d0df5290cdb3"
+        },
+        {
+          "classification": "external_unavailable",
+          "elapsedMs": 4377,
+          "endpoint": "Claude (Intrepid, primary)",
+          "failureClass": "capacity_or_rate_limit",
+          "receiptSha256": "4e58db731e391ba0640b67db0a7dd02880fb3481ecb9cf2a689e5d3eb14bd9e6"
+        },
+        {
+          "classification": "external_unavailable",
+          "elapsedMs": 2066,
+          "endpoint": "Claude (Intrepid, secondary)",
+          "failureClass": "authentication_expired",
+          "receiptSha256": "416f38e56349ad43fbe262e6f329ab0297506303085e44dd7ced76b70f58e35b"
+        },
+        {
+          "classification": "passed",
+          "elapsedMs": 10392,
+          "endpoint": "Claude (Intrepid, work)",
+          "failureClass": null,
+          "receiptSha256": "9e4458508b403af2205462c6f6952f5453eb49800be8e957ff5e86b135b85811"
+        },
+        {
+          "classification": "passed",
+          "elapsedMs": 17151,
+          "endpoint": "Codex (Intrepid, selected)",
+          "failureClass": null,
+          "receiptSha256": "bd592ce836d11a2716946de0483de44512fba5543688b6c29b8517bf59c581bf"
+        },
+        {
+          "classification": "passed",
+          "elapsedMs": 19464,
+          "endpoint": "Codex (Intrepid, primary)",
+          "failureClass": null,
+          "receiptSha256": "2181b11e381080f32fa2fdb016be1d0c02b38f05cb003d99ee4a9d1d0b7365d1"
+        },
+        {
+          "classification": "passed",
+          "elapsedMs": 17614,
+          "endpoint": "Codex (Intrepid, secondary)",
+          "failureClass": null,
+          "receiptSha256": "d8472b80f648d7c72eac897d3cc62a9b13f897df77736813a6820d3902f9ead9"
+        },
+        {
+          "classification": "external_unavailable",
+          "elapsedMs": 5545,
+          "endpoint": "antigravity-acp",
+          "failureClass": "authentication_required",
+          "receiptSha256": "7afe9133f0204d2e65c9b43565e29cac35cb02ced691ff3e9e90240f527ff168"
+        },
+        {
+          "classification": "passed",
+          "elapsedMs": 71564,
+          "endpoint": "claude-acp",
+          "failureClass": null,
+          "receiptSha256": "5e9f47bcb55a2386e834657c1f1bb881f18c6e2ebb6d8afd9f77d5d26cfd6cd2"
+        },
+        {
+          "classification": "passed",
+          "elapsedMs": 30474,
+          "endpoint": "cursor",
+          "failureClass": null,
+          "receiptSha256": "29914adfa610ac93e3f1a30aa73c92ca74edf4b058eb7875caf96ba29c59db12"
+        },
+        {
+          "classification": "passed",
+          "elapsedMs": 5718,
+          "endpoint": "devin",
+          "failureClass": null,
+          "receiptSha256": "29be603b20126169ea0bdbdfe9e1b2f4c981d86b6bf3c1fcff7bc67e58e56974"
+        },
+        {
+          "classification": "passed",
+          "elapsedMs": 8493,
+          "endpoint": "glm-acp-agent",
+          "failureClass": null,
+          "receiptSha256": "4c746d0596bfb8762c41693e040ade93b2222804234b4e8c7efc577f050ba1e7"
+        },
+        {
+          "classification": "passed",
+          "elapsedMs": 20890,
+          "endpoint": "grok-build",
+          "failureClass": null,
+          "receiptSha256": "9c3ed8b90294a96b36a642122f58cd19bd632bbe74e83138657f16afff889b3d"
+        },
+        {
+          "classification": "passed",
+          "elapsedMs": 29998,
+          "endpoint": "kimi",
+          "failureClass": null,
+          "receiptSha256": "a8b40a3c033ba81f45ee32826dca8c12ac31eaeda508e4a1336c6f4d8cbfe8af"
+        }
+      ],
+      "settingsSha256": "cd4100890dae6ac0bffdc027cbc5b556fa7b7b4c54c734ea3d2214f5a0fb18f1",
+      "summarySha256": "37870704295beaf60553099be99e08a1db48b59304ef4b64d99f4e8bbd9a36e2",
+      "surface": "intrepid"
+    }
+  ],
+  "testedRevision": "74864015a64570f6b52e5810528ddb9f77e5e355",
+  "testedTree": "ebb0e1e17e4e4547369723dc9899d13c5fa67cbf"
 }

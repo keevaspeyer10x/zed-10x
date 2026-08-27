@@ -43,8 +43,8 @@ The complete 30-cell matrix, including reasoned non-applicable cells, is in
 a sibling surface cannot satisfy an installed-product cell.
 
 The picker is independently selectable behavior, not one interchangeable ACP
-surface. The Mac-local matrix therefore runs all 14 advertised entries and the
-Intrepid matrix runs all 18 advertised entries exactly once. Each entry must
+surface. The Mac-local matrix therefore runs all 12 healthy advertised entries
+and the Intrepid matrix runs all 16 exactly once. Each entry must
 either complete the withheld-oracle project journey, stop at a safely refused
 interactive permission request, or produce an explicit authentication,
 capacity/rate-limit, or unsupported-route classification.
@@ -57,7 +57,7 @@ canonical managed-agent manifest before any entry starts.
 | ID | Risk | Executable proof |
 |---|---:|---|
 | ACP-SMOKE-001 | critical | ordering, reconnect, stale suppression, installed inventory |
-| ACP-JOURNEY-002 | critical | all 14 Mac-local and 18 Intrepid picker entries, each with a project-aware terminal result or explicit external-readiness classification |
+| ACP-JOURNEY-002 | critical | all 12 Mac-local and 16 Intrepid healthy picker entries, each with a project-aware terminal result or explicit external-readiness classification |
 | ACP-ASSEMBLED-019 | critical | installed Zed picker and `session/new` for Mac custom, Mac registry, Intrepid local, Intrepid persistent and Intrepid registry representatives; other entries require exact route evidence plus mechanical class equivalence |
 | ACP-NEG-003 | high | missing executable, auth, capacity, permission, timeout |
 | ACP-OPS-004 | high | normal and timeout cleanup |

@@ -73,7 +73,7 @@
         }
       ],
       "plannedEvidence": [
-        "exact 14-entry Mac and 18-entry Intrepid picker reconciliation",
+        "exact 12-entry Mac and 16-entry Intrepid picker reconciliation",
         "one terminal journey or explicit external-readiness classification per advertised entry",
         "completed ACP tool call from real cwd",
         "withheld sentinel digest",
@@ -139,7 +139,7 @@
       ],
       "runCommand": "node --test script/tests/zed-acp-live-canary.test.mjs script/tests/zed-agent-picker-uat.test.mjs && script/zed-agent-picker-uat.py for Mac-local and Intrepid",
       "evidencePath": "docs/test-results/advertised-agent-matrix.json",
-      "evidenceSha256": "05f46c394f6a5caac919970468cd62796f4249b1190180e9e9deb4735a7bc36d"
+      "evidenceSha256": "7cecb6350dd3eea5c544665aa6d5ab5ec665b79211b7a646731fc36ae7fbe5b4"
     },
     {
       "id": "ACP-ASSEMBLED-019",

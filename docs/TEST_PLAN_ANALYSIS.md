@@ -16,15 +16,16 @@ whose executable, package, authentication, host runtime, or protocol path can
 fail independently.
 
 The correction adds an exact selectable-variant matrix, binds its inventory to
-the canonical managed-agent manifest, executes every advertised route once,
+the canonical managed-agent manifest and host health exclusions, executes every advertised route once,
 and separates explicit external readiness from product-origin failure. It also
 requires the installed picker and `session/new` journey for one representative
 of each stable production launch class before mechanically equivalent siblings
-can count. The installed Mac and Intrepid pickers exposed exactly 14 and 18
-host-labelled routes. All five production execution classes traversed the
+can count. The final Mac and Intrepid projections expose exactly 12 and 16
+healthy host-labelled routes. The complete route matrix tested those exact
+projections without a product-origin failure. All five production execution classes traversed the
 installed product; external authentication refusal was classified separately
-and a same-class registry control passed. The exact route and assembled-product
-receipts are sealed against tested revision `c366ecfec4f19768e42e75597d212a15e9f02022`
+and a same-class registry control passed. The exact route receipt is sealed
+against tested revision `74864015a64570f6b52e5810528ddb9f77e5e355`
 and its load-bearing inventory. The decision candidate is production-ready,
 subject to exact-head review, protected CI, and a post-merge rebuild/canary.
 
@@ -50,7 +51,7 @@ The prior lifecycle exercised every changed assembled-product surface category t
   - the installed MCP context server completes initialize, initialized notification, and tools/list;
   - the installed stdio and TCP debug adapters complete their real request sequences, and TCP classifies a delayed true reset, opens a second connection, and replays initialize exactly once;
   - a prompt-visible digest or a union of unrelated transcript fragments is not proof of a project read; the final oracle keeps expected bytes private and binds exact path to observed content in one completed read, or uses an exact project-confined ACP client read;
-  - the installed Mac and Intrepid pickers expose exactly 14 and 18 host-labelled routes;
+  - the final Mac and Intrepid projections expose exactly 12 and 16 healthy host-labelled routes;
   - every advertised route was invoked and classified, and all five stable launch classes crossed the installed picker/session boundary;
   - Codex Mac primary, Intrepid GLM, Intrepid Codex secondary, Intrepid Grok Build, and Intrepid Devin completed exact project-bound controls; the Mac Devin representative stopped only on external authentication.
 - **Residual risk:**
@@ -188,7 +189,7 @@ Evidence is sealed in:
 - **Symptom:** one passing Mac route and one passing Intrepid route were treated as coverage for 14 and 18 independently selectable picker entries whose executable, host, package, authentication, and protocol paths can differ.
 - **Generator:** the plan described the journey at the feature level but did not close the inventory of user-selectable variants against executed evidence.
 - **Fix:** bind the picker inventory to the canonical managed-agent manifest, invoke every advertised entry once without replay, and classify product failures separately from external authentication, capacity, or permission outcomes.
-- **Verification:** the sealed route matrix covers exactly 14 Mac and 18 Intrepid entries; omission, staleness, manifest drift, duplicate invocation, and product-origin failure are deterministic negatives.
+- **Verification:** the sealed route matrix covers exactly 12 Mac and 16 Intrepid entries after host-scoped health exclusions; omission, staleness, manifest drift, duplicate invocation, and product-origin failure are deterministic negatives.
 
 ### Cluster 12: Direct provider calls impersonated the assembled product boundary
 

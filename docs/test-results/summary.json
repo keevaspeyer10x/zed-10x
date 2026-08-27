@@ -156,7 +156,7 @@
       "Installed Vim, MCP, DAP stdio, and DAP TCP journeys run from the real project and complete their actual protocol or editor behavior.",
       "Provider transcripts vary, so project-read authority is now the exact resource and observed bytes within one authoritative operation rather than any particular explanatory transcript.",
       "Codex Mac primary and Intrepid GLM each complete a withheld-oracle project read with no approved permission request.",
-      "The installed Mac and Intrepid pickers expose exactly 14 and 18 consistently host-labelled routes, respectively.",
+      "The final Mac and Intrepid projections expose exactly 12 and 16 healthy, consistently host-labelled routes, respectively.",
       "All five production launch classes traversed the installed picker; four completed exact project reads and the Mac Devin representative stopped only on external authentication, with a same-class green registry control."
     ],
     "lowYieldAssessment": "coverage_sufficient_after_full_variant_and_assembled_uat",
@@ -193,8 +193,8 @@
       "failureCategory": null,
       "defectMateriality": "every advertised route was invoked and classified without a product failure",
       "cleanupStatus": "passed",
-      "newInformation": "All 14 Mac and 18 Intrepid entries reached a project-bound result, a safely refused interaction, or an explicit external-readiness classification; the sole transient route mismatch passed on exact rerun.",
-      "evidenceSha256": "05f46c394f6a5caac919970468cd62796f4249b1190180e9e9deb4735a7bc36d",
+      "newInformation": "All 12 Mac and 16 Intrepid healthy entries reached a project-bound result, a safely refused interaction, or an explicit external-readiness classification with no product-origin failure.",
+      "evidenceSha256": "7cecb6350dd3eea5c544665aa6d5ab5ec665b79211b7a646731fc36ae7fbe5b4",
       "exitCode": 0
     },
     {
@@ -440,11 +440,11 @@
     }
   ],
   "evidenceBinding": {
-    "testedRevision": "c366ecfec4f19768e42e75597d212a15e9f02022",
+    "testedRevision": "74864015a64570f6b52e5810528ddb9f77e5e355",
     "loadBearingInputs": [
       {
         "path": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
-        "sha256": "ea95295eb071047c68b88c80c89b7162b35d1941f7cc1ee5ad60e3ab50ad3334"
+        "sha256": "98c97176c88e5b1930ce545330fbea074200f7d06359ff89de38f401da3ec16a"
       }
     ]
   }
