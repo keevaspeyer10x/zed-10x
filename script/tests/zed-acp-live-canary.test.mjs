@@ -25,7 +25,10 @@ const fakeNpm = path.join(
 
 function runCanary(mode, extraArgs = []) {
   const project = mkdtempSync(path.join(tmpdir(), "zed-acp-project-"));
-  writeFileSync(path.join(project, "sentinel.txt"), "assembled-product-evidence\n");
+  writeFileSync(
+    path.join(project, "sentinel.txt"),
+    "assembled-product-evidence\nsecond-hidden-line\nthird-hidden-line\n",
+  );
   const output = path.join(project, `${mode}.json`);
   const childPid = path.join(project, "child.pid");
   const result = spawnSync(
@@ -246,6 +249,23 @@ test("project-aware ACP canary accepts a completed tool call with exact project 
   assert.equal(result.receipt.closeSessionSupported, true);
   assert.equal(result.receipt.closeSessionCompleted, true);
   assert.equal(result.receipt.promptOrResponseContentRetained, false);
+});
+
+test("project-aware ACP canary accepts byte-faithful numbered read output", () => {
+  for (const mode of [
+    "pass-numbered-tab",
+    "pass-numbered-tab-compact",
+    "pass-numbered-arrow",
+    "pass-numbered-arrow-compact",
+  ]) {
+    const result = runCanary(mode);
+    assert.equal(result.process.status, 0, result.process.stderr);
+    assert.equal(result.receipt.status, "pass");
+    assert.equal(result.receipt.toolInputSentinelMatched, true);
+    assert.equal(result.receipt.toolOutputSentinelMatched, true);
+    assert.equal(result.receipt.toolEvidenceMatched, true);
+    assert.match(result.receipt.toolEvidenceFormat, /^numbered_/);
+  }
 });
 
 test("project-aware journey succeeds when the agent does not advertise session close", () => {

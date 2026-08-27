@@ -147,10 +147,49 @@ def tool_input_names_sentinel(value: Any, absolute: Path, relative: Path) -> boo
     return False
 
 
-def tool_output_contains_sentinel(value: Any, sentinel_content: str) -> bool:
-    return bool(sentinel_content) and any(
-        sentinel_content in text for text in nested_strings(value)
+def rendered_sentinel_variants(sentinel_content: str) -> tuple[tuple[str, str], ...]:
+    if not sentinel_content:
+        return ()
+    lines = sentinel_content.splitlines(keepends=True)
+    return (
+        ("exact", sentinel_content),
+        (
+            "numbered_tab",
+            "".join(
+                f"{line_number:>6}\t{line}"
+                for line_number, line in enumerate(lines, start=1)
+            ),
+        ),
+        (
+            "numbered_tab_compact",
+            "".join(
+                f"{line_number}\t{line}"
+                for line_number, line in enumerate(lines, start=1)
+            ),
+        ),
+        (
+            "numbered_arrow",
+            "".join(
+                f"{line_number:>6}→{line}"
+                for line_number, line in enumerate(lines, start=1)
+            ),
+        ),
+        (
+            "numbered_arrow_compact",
+            "".join(
+                f"{line_number}→{line}"
+                for line_number, line in enumerate(lines, start=1)
+            ),
+        ),
     )
+
+
+def tool_output_sentinel_format(value: Any, sentinel_content: str) -> str | None:
+    strings = nested_strings(value)
+    for format_name, rendered in rendered_sentinel_variants(sentinel_content):
+        if any(rendered in text for text in strings):
+            return format_name
+    return None
 
 
 def strip_jsonc(source: str) -> str:
@@ -751,11 +790,14 @@ class Journey:
             if fields.get("status") == "completed"
         ]
         relative_sentinel = self.sentinel.relative_to(self.cwd)
-        tool_evidence_matched = any(
+        tool_input_matches = [
             tool_input_names_sentinel(
                 fields.get("rawInput"), self.sentinel, relative_sentinel
             )
-            and tool_output_contains_sentinel(
+            for fields in completed
+        ]
+        tool_output_formats = [
+            tool_output_sentinel_format(
                 {
                     "content": fields.get("content"),
                     "rawOutput": fields.get("rawOutput"),
@@ -763,13 +805,32 @@ class Journey:
                 self.sentinel_content,
             )
             for fields in completed
+        ]
+        tool_evidence_formats = [
+            output_format
+            for input_matches, output_format in zip(
+                tool_input_matches, tool_output_formats
+            )
+            if input_matches and output_format is not None
+        ]
+        tool_evidence_format = (
+            tool_evidence_formats[0]
+            if tool_evidence_formats
+            else "client_read_exact"
+            if self.client_read_sentinel_matched
+            else None
         )
         return {
             "toolCallStarted": bool(self.tool_calls) or self.client_read_requests > 0,
             "toolCallCompleted": bool(completed) or self.client_read_completed > 0,
-            "toolEvidenceMatched": (
-                tool_evidence_matched or self.client_read_sentinel_matched
+            "toolInputSentinelMatched": any(tool_input_matches),
+            "toolOutputSentinelMatched": any(
+                output_format is not None for output_format in tool_output_formats
             ),
+            "toolEvidenceMatched": (
+                bool(tool_evidence_formats) or self.client_read_sentinel_matched
+            ),
+            "toolEvidenceFormat": tool_evidence_format,
             "terminalMarkerObserved": self.marker in self.agent_text,
             "stopReason": stop_reason if stop_reason is not None else self.stop_reason,
             "providerErrorCode": self.provider_error_code,
@@ -942,7 +1003,14 @@ def main() -> int:
         "processGroupGone": process_group_gone,
         "toolCallStarted": journey_evidence.get("toolCallStarted", bool(journey and journey.tool_calls)),
         "toolCallCompleted": journey_evidence.get("toolCallCompleted", False),
+        "toolInputSentinelMatched": journey_evidence.get(
+            "toolInputSentinelMatched", False
+        ),
+        "toolOutputSentinelMatched": journey_evidence.get(
+            "toolOutputSentinelMatched", False
+        ),
         "toolEvidenceMatched": journey_evidence.get("toolEvidenceMatched", False),
+        "toolEvidenceFormat": journey_evidence.get("toolEvidenceFormat"),
         "terminalMarkerObserved": journey_evidence.get("terminalMarkerObserved", False),
         "permissionRequestsObserved": journey_evidence.get(
             "permissionRequestsObserved", journey.permission_requests if journey else 0

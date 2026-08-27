@@ -42,6 +42,10 @@ def main() -> int:
         "--mode",
         choices=(
             "pass",
+            "pass-numbered-tab",
+            "pass-numbered-tab-compact",
+            "pass-numbered-arrow",
+            "pass-numbered-arrow-compact",
             "pass-without-close",
             "split-evidence",
             "prompt-echo",
@@ -236,6 +240,36 @@ def main() -> int:
 
             sentinel_path = Path(session_cwd) / "sentinel.txt"
             sentinel_content = sentinel_path.read_text(encoding="utf-8")
+            if args.mode == "pass-numbered-tab":
+                sentinel_output = "".join(
+                    f"{line_number:>6}\t{line}"
+                    for line_number, line in enumerate(
+                        sentinel_content.splitlines(keepends=True), start=1
+                    )
+                )
+            elif args.mode == "pass-numbered-tab-compact":
+                sentinel_output = "".join(
+                    f"{line_number}\t{line}"
+                    for line_number, line in enumerate(
+                        sentinel_content.splitlines(keepends=True), start=1
+                    )
+                )
+            elif args.mode == "pass-numbered-arrow":
+                sentinel_output = "".join(
+                    f"{line_number:>6}→{line}"
+                    for line_number, line in enumerate(
+                        sentinel_content.splitlines(keepends=True), start=1
+                    )
+                )
+            elif args.mode == "pass-numbered-arrow-compact":
+                sentinel_output = "".join(
+                    f"{line_number}→{line}"
+                    for line_number, line in enumerate(
+                        sentinel_content.splitlines(keepends=True), start=1
+                    )
+                )
+            else:
+                sentinel_output = sentinel_content
             observed_path = (
                 "/wrong/project/sentinel.txt"
                 if args.mode in {"wrong-cwd", "wrong-cwd-close-error"}
@@ -278,7 +312,7 @@ def main() -> int:
                                 if args.mode == "split-evidence"
                                 else prompt
                                 if args.mode == "prompt-echo"
-                                else sentinel_content
+                                else sentinel_output
                             ),
                         }
                     )
