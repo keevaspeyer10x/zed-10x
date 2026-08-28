@@ -70,6 +70,14 @@ if [[ -f "$RUST_CI" ]]; then
         contains "$RUST_CI" "contents: read"
     check "focused Rust CI uses the bounded GitHub-hosted runner" \
         contains "$RUST_CI" "runs-on: ubuntu-24.04"
+    check "focused CI runs the complete CLI suite on macOS" \
+        contains "$RUST_CI" "cargo test --locked -p cli --bin cli"
+    check "required focused Rust CI aggregates Linux and macOS" \
+        contains "$RUST_CI" "needs: [focused-linux, focused-macos-cli]"
+    check "required focused Rust CI rejects a failed Linux job" \
+        contains "$RUST_CI" 'test "${{ needs.focused-linux.result }}" == '\''success'\'''
+    check "required focused Rust CI rejects a failed macOS job" \
+        contains "$RUST_CI" 'test "${{ needs.focused-macos-cli.result }}" == '\''success'\'''
     check "focused Rust CI has a bounded timeout" \
         contains "$RUST_CI" "timeout-minutes: 120"
     check "checkout is pinned by immutable SHA" \
