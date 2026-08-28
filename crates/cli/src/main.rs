@@ -1447,6 +1447,20 @@ mod mac_os {
         Some((stdout, stderr))
     }
 
+    fn local_launch_log_path(executable: &Path) -> anyhow::Result<PathBuf> {
+        if executable
+            .ancestors()
+            .any(|ancestor| ancestor.extension() == Some(OsStr::new("app")))
+        {
+            return Ok(paths::logs_dir().join("zed-cli.log"));
+        }
+
+        let executable_parent = executable
+            .parent()
+            .with_context(|| format!("Executable {executable:?} path has no parent"))?;
+        Ok(executable_parent.join("zed_dev.log"))
+    }
+
     fn locate_bundle() -> Result<PathBuf> {
         let cli_path = std::env::current_exe()?.canonicalize()?;
         let mut app_path = cli_path.clone();
@@ -1553,14 +1567,11 @@ mod mac_os {
                 }
 
                 Self::LocalPath { executable, .. } => {
-                    let executable_parent = executable
-                        .parent()
-                        .with_context(|| format!("Executable {executable:?} path has no parent"))?;
                     self.launch_executable(
                         url,
                         user_data_dir,
                         launch_lane,
-                        executable_parent.join("zed_dev.log"),
+                        local_launch_log_path(executable)?,
                     )?;
                 }
             }
@@ -1791,6 +1802,26 @@ mod mac_os {
                     ..
                 }
             ));
+        }
+
+        #[test]
+        fn packaged_local_executable_keeps_launch_log_outside_bundle() {
+            let executable =
+                PathBuf::from("/Applications/Zed 10x.app/Contents/MacOS/zed-10x-launcher");
+
+            let log_path = local_launch_log_path(&executable).unwrap();
+
+            assert!(!log_path.starts_with("/Applications/Zed 10x.app"));
+            assert_eq!(log_path.file_name(), Some(OsStr::new("zed-cli.log")));
+        }
+
+        #[test]
+        fn source_local_executable_keeps_developer_log_beside_binary() {
+            let executable = PathBuf::from("/tmp/zed-target/debug/zed");
+
+            let log_path = local_launch_log_path(&executable).unwrap();
+
+            assert_eq!(log_path, PathBuf::from("/tmp/zed-target/debug/zed_dev.log"));
         }
 
         #[test]

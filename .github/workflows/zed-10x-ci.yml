@@ -13,7 +13,19 @@ permissions:
   contents: read
 
 jobs:
-  focused-rust:
+  focused-macos-cli:
+    runs-on: macos-15
+    timeout-minutes: 60
+    env:
+      CARGO_INCREMENTAL: 0
+    steps:
+      - name: Check out the exact pull-request revision
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+
+      - name: Protect packaged CLI launch logging
+        run: cargo test --locked -p cli --bin cli
+
+  focused-linux:
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     steps:
@@ -92,3 +104,14 @@ jobs:
 
       - name: Test the Zed 10x binary
         run: cargo test --locked -p zed --bin zed-10x -- --test-threads=1
+
+  focused-rust:
+    if: ${{ always() }}
+    needs: [focused-linux, focused-macos-cli]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Require both platform suites
+        run: |
+          test "${{ needs.focused-linux.result }}" == 'success'
+          test "${{ needs.focused-macos-cli.result }}" == 'success'
