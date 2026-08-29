@@ -445,6 +445,71 @@ test("ACP client read diagnostics classify invalid requests without retaining pa
   assert.equal(result.receipt.processGroupGone, true);
 });
 
+test("ACP client terminal capability proves an exact read-only project journey", () => {
+  const result = runCanary("client-terminal-read");
+  assert.equal(result.process.status, 0, result.process.stderr);
+  assert.equal(result.receipt.status, "pass");
+  assert.equal(result.receipt.clientTerminalRequestCount, 4);
+  assert.equal(result.receipt.clientTerminalReadCompletedCount, 1);
+  assert.equal(result.receipt.clientTerminalSentinelMatched, true);
+  assert.equal(result.receipt.clientTerminalFailureReason, null);
+  assert.equal(result.receipt.toolEvidenceMatched, true);
+  assert.equal(result.receipt.toolEvidenceBasis, "client_terminal_exact");
+  assert.equal(result.receipt.terminalMarkerObserved, true);
+});
+
+test("ACP client terminal capability refuses a mutating command without executing it", () => {
+  const result = runCanary("client-terminal-write");
+  assert.equal(result.process.status, 1, result.process.stderr);
+  assert.equal(result.receipt.failureClass, "terminal_command_not_read_only");
+  assert.equal(result.receipt.clientTerminalRequestCount, 1);
+  assert.equal(result.receipt.clientTerminalReadCompletedCount, 0);
+  assert.equal(result.receipt.clientTerminalSentinelMatched, false);
+  assert.equal(result.receipt.clientTerminalFailureReason, "command_not_allowed");
+  assert.equal(result.receipt.processGroupGone, true);
+});
+
+test("ACP client terminal capability refuses environment injection as policy", () => {
+  const result = runCanary("client-terminal-environment");
+  assert.equal(result.process.status, 1, result.process.stderr);
+  assert.equal(result.receipt.failureClass, "terminal_command_not_read_only");
+  assert.equal(result.receipt.clientTerminalFailureReason, "environment_not_allowed");
+  assert.equal(result.receipt.processGroupGone, true);
+});
+
+test("ACP client terminal truncation cannot satisfy exact project evidence", () => {
+  const result = runCanary("client-terminal-truncated");
+  assert.equal(result.process.status, 1, result.process.stderr);
+  assert.equal(result.receipt.failureClass, "project_evidence_mismatch");
+  assert.equal(result.receipt.clientTerminalReadCompletedCount, 1);
+  assert.equal(result.receipt.clientTerminalSentinelMatched, false);
+  assert.equal(result.receipt.toolEvidenceMatched, false);
+  assert.equal(result.receipt.processGroupGone, true);
+});
+
+test("optional vendor client requests receive method-not-found and do not block the journey", () => {
+  const result = runCanary("optional-client-extension");
+  assert.equal(result.process.status, 0, result.process.stderr);
+  assert.equal(result.receipt.status, "pass");
+  assert.equal(result.receipt.unsupportedClientRequestCount, 1);
+  assert.deepEqual(
+    result.receipt.unsupportedClientMethodSha256s,
+    [createHash("sha256").update("cursor/update_todos").digest("hex")],
+  );
+  assert.equal(result.receipt.clientReadSentinelMatched, true);
+  assert.equal(result.receipt.toolEvidenceMatched, true);
+});
+
+test("unsupported standard client requests fail rather than hide mutation attempts", () => {
+  const result = runCanary("optional-client-reserved-write");
+  assert.equal(result.process.status, 1, result.process.stderr);
+  assert.equal(result.receipt.failureClass, "unsupported_client_request");
+  assert.equal(result.receipt.unsupportedClientRequestCount, 0);
+  assert.deepEqual(result.receipt.unsupportedClientMethodSha256s, []);
+  assert.equal(readFileSync(result.sentinel, "utf8").includes("must-not-be-written"), false);
+  assert.equal(result.receipt.processGroupGone, true);
+});
+
 test("production JSONC settings resolve the configured endpoint", () => {
   const result = runSettingsCanary(`{
     // Zed settings allow comments and trailing commas.
@@ -557,6 +622,10 @@ test("authentication and capacity failures remain distinct", () => {
   const sessionLimit = runCanary("session-limit");
   assert.equal(sessionLimit.process.status, 1);
   assert.equal(sessionLimit.receipt.failureClass, "capacity_or_rate_limit");
+
+  const weeklyLimit = runCanary("weekly-limit");
+  assert.equal(weeklyLimit.process.status, 1);
+  assert.equal(weeklyLimit.receipt.failureClass, "capacity_or_rate_limit");
 });
 
 test("provider error evidence remains content-free and classifies API-key failures", () => {

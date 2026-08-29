@@ -357,7 +357,7 @@ test("an immutable existing summary prevents replay", () => {
   assert.deepEqual(result.calls, []);
 });
 
-test("checked inventory binds the complete 12-entry Mac and 16-entry Intrepid sets", () => {
+test("checked inventory binds the complete 12-entry Mac and 17-entry Intrepid sets", () => {
   const inventory = JSON.parse(
     readFileSync(
       path.join(repositoryRoot, "docs/test-plan-inputs/zed-agent-picker-inventory.json"),
@@ -366,7 +366,8 @@ test("checked inventory binds the complete 12-entry Mac and 16-entry Intrepid se
   );
   assert.equal(inventory.managedEntries.length, 24);
   assert.equal(inventory.surfaces["mac-local"].length, 12);
-  assert.equal(inventory.surfaces.intrepid.length, 16);
+  assert.equal(inventory.surfaces.intrepid.length, 17);
+  assert.ok(inventory.surfaces.intrepid.includes("Codex (Intrepid, work)"));
   assert.equal(new Set(inventory.managedEntries).size, 24);
   assert.deepEqual(Object.keys(inventory.executionClasses), [
     "mac-custom",

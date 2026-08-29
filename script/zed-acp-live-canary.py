@@ -29,7 +29,7 @@ INITIALIZE = {
         "protocolVersion": 1,
         "clientCapabilities": {
             "fs": {"readTextFile": True, "writeTextFile": False},
-            "terminal": False,
+            "terminal": True,
         },
         "clientInfo": {"name": "zed-acp-project-canary", "version": "1.0.0"},
     },
@@ -595,7 +595,7 @@ def classify_error(message: str) -> str:
         ),
         (
             "capacity_or_rate_limit",
-            r"capacity|rate.?limit|quota|overloaded|spend|session limit",
+            r"capacity|rate.?limit|quota|overloaded|spend|(?:session|daily|weekly|monthly|usage) limit",
         ),
         ("permission_denied", r"permission|forbidden|denied"),
         ("timeout", r"timed? ?out|timeout|deadline"),
@@ -780,6 +780,13 @@ class Journey:
         self.client_read_error_responses = 0
         self.client_read_sentinel_matched = False
         self.client_read_failure_reason: str | None = None
+        self.client_terminal_requests = 0
+        self.client_terminal_read_completed = 0
+        self.client_terminal_sentinel_matched = False
+        self.client_terminal_failure_reason: str | None = None
+        self.client_terminals: dict[str, dict[str, Any]] = {}
+        self.unsupported_client_method_sha256s: set[str] = set()
+        self.unsupported_client_requests = 0
 
     def observe(self, message: dict[str, Any]) -> None:
         if message.get("method") != "session/update":
@@ -894,6 +901,158 @@ class Journey:
             {"jsonrpc": "2.0", "id": request_id, "result": {"content": projected}}
         )
 
+    def fail_invalid_client_terminal(
+        self, reason: str, failure_class: str = "invalid_client_terminal_request"
+    ) -> None:
+        self.client_terminal_failure_reason = reason
+        raise CanaryFailure(failure_class)
+
+    def terminal_request(self, message: dict[str, Any]) -> tuple[int | str, dict[str, Any]]:
+        self.client_terminal_requests += 1
+        request_id = message.get("id")
+        params = message.get("params")
+        if not isinstance(request_id, (int, str)) or not isinstance(params, dict):
+            self.fail_invalid_client_terminal("invalid_envelope")
+        if params.get("sessionId") != self.session_id:
+            self.fail_invalid_client_terminal("session_mismatch")
+        return request_id, params
+
+    def handle_create_terminal(self, message: dict[str, Any]) -> None:
+        request_id, params = self.terminal_request(message)
+        command = params.get("command")
+        arguments = params.get("args", [])
+        environment = params.get("env", [])
+        requested_cwd = params.get("cwd")
+        output_byte_limit = params.get("outputByteLimit")
+        if not isinstance(command, str) or not isinstance(arguments, list) or not all(
+            isinstance(argument, str) for argument in arguments
+        ):
+            self.fail_invalid_client_terminal("invalid_command")
+        if not isinstance(environment, list):
+            self.fail_invalid_client_terminal("invalid_environment")
+        if environment:
+            self.fail_invalid_client_terminal(
+                "environment_not_allowed", "terminal_command_not_read_only"
+            )
+        if requested_cwd is not None:
+            if not isinstance(requested_cwd, str) or not Path(requested_cwd).is_absolute():
+                self.fail_invalid_client_terminal("invalid_cwd")
+            try:
+                if Path(requested_cwd).resolve(strict=True) != self.cwd:
+                    self.fail_invalid_client_terminal("cwd_outside_project")
+            except OSError:
+                self.fail_invalid_client_terminal("invalid_cwd")
+        if output_byte_limit is not None and (
+            not isinstance(output_byte_limit, int) or output_byte_limit < 0
+        ):
+            self.fail_invalid_client_terminal("invalid_output_limit")
+
+        # The real Zed client can execute arbitrary terminal commands. This
+        # canary deliberately exposes only the smallest read-only subset needed
+        # for a project-read journey: cat, one exact sentinel path, no shell,
+        # environment, option, or second operand. It therefore exercises agents
+        # such as Cursor that use ACP terminals without turning a test probe into
+        # an ambient command-execution authority.
+        if Path(command).name != "cat":
+            self.fail_invalid_client_terminal(
+                "command_not_allowed", "terminal_command_not_read_only"
+            )
+        effective_arguments = arguments[1:] if arguments[:1] == ["--"] else arguments
+        if len(effective_arguments) != 1:
+            self.fail_invalid_client_terminal(
+                "arguments_not_allowed", "terminal_command_not_read_only"
+            )
+        requested_path = Path(effective_arguments[0])
+        if not requested_path.is_absolute():
+            requested_path = self.cwd / requested_path
+        try:
+            requested_path = requested_path.resolve(strict=True)
+        except OSError:
+            self.fail_invalid_client_terminal("path_unresolvable")
+        if requested_path != self.sentinel:
+            self.fail_invalid_client_terminal(
+                "path_not_exact_sentinel", "terminal_command_not_read_only"
+            )
+
+        encoded = self.sentinel_content.encode("utf-8")
+        truncated = output_byte_limit is not None and output_byte_limit < len(encoded)
+        if truncated:
+            retained = encoded[-output_byte_limit:] if output_byte_limit else b""
+            while retained:
+                try:
+                    output = retained.decode("utf-8")
+                    break
+                except UnicodeDecodeError:
+                    retained = retained[1:]
+            else:
+                output = ""
+        else:
+            output = self.sentinel_content
+        terminal_id = f"canary-terminal-{len(self.client_terminals) + 1}"
+        self.client_terminals[terminal_id] = {
+            "output": output,
+            "truncated": truncated,
+            "released": False,
+        }
+        self.transport.send(
+            {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "result": {"terminalId": terminal_id},
+            }
+        )
+
+    def client_terminal(self, params: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+        terminal_id = params.get("terminalId")
+        if not isinstance(terminal_id, str) or terminal_id not in self.client_terminals:
+            self.fail_invalid_client_terminal("unknown_terminal")
+        terminal = self.client_terminals[terminal_id]
+        if terminal.get("released"):
+            self.fail_invalid_client_terminal("released_terminal")
+        return terminal_id, terminal
+
+    def handle_terminal_output(self, message: dict[str, Any]) -> None:
+        request_id, params = self.terminal_request(message)
+        _terminal_id, terminal = self.client_terminal(params)
+        output = terminal["output"]
+        self.client_terminal_read_completed += 1
+        if not terminal["truncated"] and sha256_text(output) == self.sentinel_sha256:
+            self.client_terminal_sentinel_matched = True
+        self.transport.send(
+            {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "result": {
+                    "output": output,
+                    "truncated": terminal["truncated"],
+                    "exitStatus": {"exitCode": 0, "signal": None},
+                },
+            }
+        )
+
+    def handle_wait_for_terminal_exit(self, message: dict[str, Any]) -> None:
+        request_id, params = self.terminal_request(message)
+        self.client_terminal(params)
+        self.transport.send(
+            {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "result": {"exitCode": 0, "signal": None},
+            }
+        )
+
+    def handle_release_terminal(self, message: dict[str, Any]) -> None:
+        request_id, params = self.terminal_request(message)
+        _terminal_id, terminal = self.client_terminal(params)
+        terminal["released"] = True
+        self.transport.send({"jsonrpc": "2.0", "id": request_id, "result": {}})
+
+    def handle_kill_terminal(self, message: dict[str, Any]) -> None:
+        request_id, params = self.terminal_request(message)
+        _terminal_id, terminal = self.client_terminal(params)
+        terminal["released"] = True
+        self.transport.send({"jsonrpc": "2.0", "id": request_id, "result": {}})
+
     def await_response(
         self, request_id: int, deadline: float | None = None
     ) -> dict[str, Any]:
@@ -906,8 +1065,42 @@ class Journey:
             if message.get("method") == "fs/read_text_file":
                 self.handle_read_text_file(message)
                 continue
+            terminal_handlers = {
+                "terminal/create": self.handle_create_terminal,
+                "terminal/output": self.handle_terminal_output,
+                "terminal/wait_for_exit": self.handle_wait_for_terminal_exit,
+                "terminal/release": self.handle_release_terminal,
+                "terminal/kill": self.handle_kill_terminal,
+            }
+            terminal_handler = terminal_handlers.get(message.get("method"))
+            if terminal_handler is not None:
+                terminal_handler(message)
+                continue
             if message.get("method") is not None and message.get("id") is not None:
-                raise CanaryFailure("unsupported_client_request")
+                method = message.get("method")
+                if not isinstance(method, str) or "/" not in method:
+                    raise CanaryFailure("unsupported_client_request")
+                namespace = method.split("/", 1)[0]
+                if namespace in {"fs", "session", "terminal"}:
+                    # Unknown standard client requests can represent a
+                    # capability or safety-contract mismatch (including an
+                    # attempted filesystem write) and must not be downgraded
+                    # to an optional extension.
+                    raise CanaryFailure("unsupported_client_request")
+                self.unsupported_client_method_sha256s.add(sha256_text(method))
+                self.unsupported_client_requests += 1
+                # JSON-RPC clients reject optional or vendor-specific methods
+                # with Method not found. Failing the whole journey here made
+                # the canary less compatible than Zed itself and produced a
+                # false product failure for Cursor's optional todo extension.
+                self.transport.send(
+                    {
+                        "jsonrpc": "2.0",
+                        "id": message["id"],
+                        "error": {"code": -32601, "message": "Method not found"},
+                    }
+                )
+                continue
             if message.get("id") != request_id:
                 continue
             if "error" in message:
@@ -990,11 +1183,15 @@ class Journey:
             if tool_evidence_formats
             else "client_read_exact"
             if self.client_read_sentinel_matched
+            else "client_terminal_exact"
+            if self.client_terminal_sentinel_matched
             else None
         )
         tool_evidence_basis = (
             "client_read_exact"
             if self.client_read_sentinel_matched
+            else "client_terminal_exact"
+            if self.client_terminal_sentinel_matched
             else "ephemeral_output"
             if tool_evidence_formats and self.sentinel_is_ephemeral
             else "bound_path_output"
@@ -1002,8 +1199,16 @@ class Journey:
             else None
         )
         return {
-            "toolCallStarted": bool(self.tool_calls) or self.client_read_requests > 0,
-            "toolCallCompleted": bool(completed) or self.client_read_completed > 0,
+            "toolCallStarted": (
+                bool(self.tool_calls)
+                or self.client_read_requests > 0
+                or self.client_terminal_requests > 0
+            ),
+            "toolCallCompleted": (
+                bool(completed)
+                or self.client_read_completed > 0
+                or self.client_terminal_read_completed > 0
+            ),
             "toolInputSentinelMatched": any(tool_input_matches),
             "toolLocationSentinelMatched": any(tool_location_matches),
             "toolPathSentinelMatched": any(tool_path_matches),
@@ -1011,7 +1216,9 @@ class Journey:
                 output_format is not None for output_format in tool_output_formats
             ),
             "toolEvidenceMatched": (
-                bool(tool_evidence_formats) or self.client_read_sentinel_matched
+                bool(tool_evidence_formats)
+                or self.client_read_sentinel_matched
+                or self.client_terminal_sentinel_matched
             ),
             "toolEvidenceFormat": tool_evidence_format,
             "toolEvidenceBasis": tool_evidence_basis,
@@ -1024,6 +1231,14 @@ class Journey:
             "clientReadErrorResponseCount": self.client_read_error_responses,
             "clientReadSentinelMatched": self.client_read_sentinel_matched,
             "clientReadFailureReason": self.client_read_failure_reason,
+            "clientTerminalRequestCount": self.client_terminal_requests,
+            "clientTerminalReadCompletedCount": self.client_terminal_read_completed,
+            "clientTerminalSentinelMatched": self.client_terminal_sentinel_matched,
+            "clientTerminalFailureReason": self.client_terminal_failure_reason,
+            "unsupportedClientMethodSha256s": sorted(
+                self.unsupported_client_method_sha256s
+            ),
+            "unsupportedClientRequestCount": self.unsupported_client_requests,
             "agentMessageSha256": sha256_text(self.agent_text) if self.agent_text else None,
             "agentMessageClassification": (
                 classify_error(self.agent_text) if self.agent_text else None
@@ -1069,6 +1284,8 @@ class Journey:
         prompt = (
             "Use a project filesystem tool to read "
             f"{json.dumps(str(relative_sentinel))} in the current project without modifying it. "
+            "If your tool uses the ACP client terminal, invoke cat with that file as its only "
+            "argument and do not use a shell wrapper or environment variables. "
             f"After the tool completes, reply with exactly {self.marker}"
         )
         self.transport.send(
@@ -1250,6 +1467,24 @@ def main() -> int:
         ),
         "clientReadFailureReason": journey_evidence.get(
             "clientReadFailureReason"
+        ),
+        "clientTerminalRequestCount": journey_evidence.get(
+            "clientTerminalRequestCount", 0
+        ),
+        "clientTerminalReadCompletedCount": journey_evidence.get(
+            "clientTerminalReadCompletedCount", 0
+        ),
+        "clientTerminalSentinelMatched": journey_evidence.get(
+            "clientTerminalSentinelMatched", False
+        ),
+        "clientTerminalFailureReason": journey_evidence.get(
+            "clientTerminalFailureReason"
+        ),
+        "unsupportedClientMethodSha256s": journey_evidence.get(
+            "unsupportedClientMethodSha256s", []
+        ),
+        "unsupportedClientRequestCount": journey_evidence.get(
+            "unsupportedClientRequestCount", 0
         ),
         "agentMessageSha256": journey_evidence.get("agentMessageSha256"),
         "agentMessageClassification": journey_evidence.get(
