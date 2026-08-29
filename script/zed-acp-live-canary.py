@@ -778,6 +778,7 @@ class Journey:
         self.client_read_requests = 0
         self.client_read_completed = 0
         self.client_read_error_responses = 0
+        self.client_read_outside_project_denied = 0
         self.client_read_sentinel_matched = False
         self.client_read_failure_reason: str | None = None
         self.client_terminal_requests = 0
@@ -840,6 +841,23 @@ class Journey:
             self.fail_invalid_client_read("invalid_line")
         if limit is not None and (not isinstance(limit, int) or limit < 0):
             self.fail_invalid_client_read("invalid_limit")
+
+        def deny_outside_project() -> None:
+            # Some agents load global instructions after completing a project
+            # read. Mirror a restrictive client by denying that request, but do
+            # not let the denied probe erase independently proven project
+            # evidence. A route that never reads the project still fails the
+            # ordinary tool-evidence checks.
+            self.client_read_error_responses += 1
+            self.client_read_outside_project_denied += 1
+            self.transport.send(
+                {
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "error": {"code": -32002, "message": "Resource not found"},
+                }
+            )
+
         try:
             path = Path(raw_path).resolve(strict=True)
         except FileNotFoundError:
@@ -848,8 +866,8 @@ class Journey:
             except OSError as exc:
                 self.fail_invalid_client_read("path_unresolvable", exc)
             if not unresolved_path.is_relative_to(self.cwd):
-                self.client_read_failure_reason = "outside_project"
-                raise CanaryFailure("client_read_outside_project")
+                deny_outside_project()
+                return
             self.client_read_error_responses += 1
             self.transport.send(
                 {
@@ -862,8 +880,8 @@ class Journey:
         except OSError as exc:
             self.fail_invalid_client_read("path_unresolvable", exc)
         if not path.is_relative_to(self.cwd):
-            self.client_read_failure_reason = "outside_project"
-            raise CanaryFailure("client_read_outside_project")
+            deny_outside_project()
+            return
         try:
             fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
             try:
@@ -1229,6 +1247,7 @@ class Journey:
             "clientReadRequestCount": self.client_read_requests,
             "clientReadCompletedCount": self.client_read_completed,
             "clientReadErrorResponseCount": self.client_read_error_responses,
+            "clientReadOutsideProjectDeniedCount": self.client_read_outside_project_denied,
             "clientReadSentinelMatched": self.client_read_sentinel_matched,
             "clientReadFailureReason": self.client_read_failure_reason,
             "clientTerminalRequestCount": self.client_terminal_requests,
@@ -1316,8 +1335,10 @@ class Journey:
         if not current_evidence["terminalMarkerObserved"]:
             raise CanaryFailure("terminal_marker_missing")
 
-        if self.close_session_supported and not self.close_session(2.0):
-            raise CanaryFailure("session_close_failed")
+        if self.close_session_supported:
+            close_timeout = min(10.0, max(0.0, self.deadline - time.monotonic()))
+            if close_timeout <= 0 or not self.close_session(close_timeout):
+                raise CanaryFailure("session_close_failed")
         return self.evidence(stop_reason)
 
 
@@ -1461,6 +1482,9 @@ def main() -> int:
         ),
         "clientReadErrorResponseCount": journey_evidence.get(
             "clientReadErrorResponseCount", 0
+        ),
+        "clientReadOutsideProjectDeniedCount": journey_evidence.get(
+            "clientReadOutsideProjectDeniedCount", 0
         ),
         "clientReadSentinelMatched": journey_evidence.get(
             "clientReadSentinelMatched", False

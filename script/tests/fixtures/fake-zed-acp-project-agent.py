@@ -67,6 +67,7 @@ def main() -> int:
             "client-read",
             "client-read-missing-after-sentinel",
             "client-read-outside",
+            "client-read-outside-after-sentinel",
             "client-read-relative",
             "optional-client-extension",
             "optional-client-reserved-write",
@@ -226,6 +227,7 @@ def main() -> int:
                 "client-read",
                 "client-read-missing-after-sentinel",
                 "client-read-outside",
+                "client-read-outside-after-sentinel",
                 "client-read-relative",
                 "optional-client-extension",
             }:
@@ -280,6 +282,21 @@ def main() -> int:
                     missing_response = json.loads(sys.stdin.readline())
                     if missing_response.get("error", {}).get("code") != -32002:
                         return 3
+                if args.mode == "client-read-outside-after-sentinel":
+                    emit(
+                        {
+                            "jsonrpc": "2.0",
+                            "id": 96,
+                            "method": "fs/read_text_file",
+                            "params": {
+                                "sessionId": "fixture-session",
+                                "path": "/etc/hosts",
+                            },
+                        }
+                    )
+                    outside_response = json.loads(sys.stdin.readline())
+                    if outside_response.get("error", {}).get("code") != -32002:
+                        return 4
                 emit(
                     session_update(
                         {

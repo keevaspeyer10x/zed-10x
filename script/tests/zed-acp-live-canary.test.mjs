@@ -426,11 +426,27 @@ test("ACP client read capability mirrors Zed resource-not-found responses and co
 test("ACP client read capability refuses paths outside the test project", () => {
   const result = runCanary("client-read-outside");
   assert.equal(result.process.status, 1, result.process.stderr);
-  assert.equal(result.receipt.failureClass, "client_read_outside_project");
-  assert.equal(result.receipt.clientReadFailureReason, "outside_project");
+  assert.equal(result.receipt.failureClass, "tool_evidence_missing");
+  assert.equal(result.receipt.clientReadFailureReason, null);
   assert.equal(result.receipt.clientReadRequestCount, 1);
   assert.equal(result.receipt.clientReadCompletedCount, 0);
+  assert.equal(result.receipt.clientReadErrorResponseCount, 1);
+  assert.equal(result.receipt.clientReadOutsideProjectDeniedCount, 1);
   assert.equal(result.receipt.clientReadSentinelMatched, false);
+  assert.equal(result.receipt.processGroupGone, true);
+});
+
+test("a denied global read does not erase exact project evidence", () => {
+  const result = runCanary("client-read-outside-after-sentinel");
+  assert.equal(result.process.status, 0, result.process.stderr);
+  assert.equal(result.receipt.status, "pass");
+  assert.equal(result.receipt.clientReadRequestCount, 2);
+  assert.equal(result.receipt.clientReadCompletedCount, 1);
+  assert.equal(result.receipt.clientReadErrorResponseCount, 1);
+  assert.equal(result.receipt.clientReadOutsideProjectDeniedCount, 1);
+  assert.equal(result.receipt.clientReadSentinelMatched, true);
+  assert.equal(result.receipt.toolEvidenceMatched, true);
+  assert.equal(result.receipt.terminalMarkerObserved, true);
   assert.equal(result.receipt.processGroupGone, true);
 });
 
