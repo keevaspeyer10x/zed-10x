@@ -1042,16 +1042,9 @@ impl ConversationView {
 
     fn retry_load(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.connection_store.update(cx, |store, cx| {
-            store.restart_connection(
-                self.connection_key.clone(),
-                self.agent.clone(),
-                cx,
-            );
+            store.restart_connection(self.connection_key.clone(), self.agent.clone(), cx);
         });
-        telemetry::event!(
-            "Agent Panel Load Retried",
-            agent = self.agent.agent_id(),
-        );
+        telemetry::event!("Agent Panel Load Retried", agent = self.agent.agent_id(),);
         self.reset(window, cx);
     }
 
@@ -4750,9 +4743,7 @@ pub(crate) mod tests {
     }
 
     #[gpui::test]
-    async fn test_retry_load_restarts_transport_and_preserves_session_id(
-        cx: &mut TestAppContext,
-    ) {
+    async fn test_retry_load_restarts_transport_and_preserves_session_id(cx: &mut TestAppContext) {
         use std::sync::atomic::Ordering;
 
         init_test(cx);
