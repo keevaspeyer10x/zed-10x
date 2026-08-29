@@ -34,6 +34,8 @@ INITIALIZE = {
         "clientInfo": {"name": "zed-acp-project-canary", "version": "1.0.0"},
     },
 }
+MAX_OUTSIDE_PROJECT_DENIALS = 16
+SESSION_CLOSE_TIMEOUT_SECONDS = 10.0
 
 
 class CanaryFailure(RuntimeError):
@@ -850,13 +852,10 @@ class Journey:
             # ordinary tool-evidence checks.
             self.client_read_error_responses += 1
             self.client_read_outside_project_denied += 1
-            self.transport.send(
-                {
-                    "jsonrpc": "2.0",
-                    "id": request_id,
-                    "error": {"code": -32002, "message": "Resource not found"},
-                }
-            )
+            if self.client_read_outside_project_denied > MAX_OUTSIDE_PROJECT_DENIALS:
+                raise CanaryFailure("client_read_outside_project_limit")
+            # This counter is a subset of client_read_error_responses.
+            self.send_resource_not_found(request_id)
 
         try:
             path = Path(raw_path).resolve(strict=True)
@@ -869,15 +868,16 @@ class Journey:
                 deny_outside_project()
                 return
             self.client_read_error_responses += 1
-            self.transport.send(
-                {
-                    "jsonrpc": "2.0",
-                    "id": request_id,
-                    "error": {"code": -32002, "message": "Resource not found"},
-                }
-            )
+            self.send_resource_not_found(request_id)
             return
         except OSError as exc:
+            try:
+                unresolved_path = Path(raw_path).resolve(strict=False)
+            except OSError:
+                self.fail_invalid_client_read("path_unresolvable", exc)
+            if not unresolved_path.is_relative_to(self.cwd):
+                deny_outside_project()
+                return
             self.fail_invalid_client_read("path_unresolvable", exc)
         if not path.is_relative_to(self.cwd):
             deny_outside_project()
@@ -917,6 +917,15 @@ class Journey:
             self.client_read_sentinel_matched = True
         self.transport.send(
             {"jsonrpc": "2.0", "id": request_id, "result": {"content": projected}}
+        )
+
+    def send_resource_not_found(self, request_id: int | str) -> None:
+        self.transport.send(
+            {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "error": {"code": -32002, "message": "Resource not found"},
+            }
         )
 
     def fail_invalid_client_terminal(
@@ -1326,6 +1335,8 @@ class Journey:
 
         current_evidence = self.evidence(stop_reason)
         if not current_evidence["toolCallCompleted"]:
+            if self.client_read_outside_project_denied > 0:
+                raise CanaryFailure("client_read_outside_project_only")
             message_class = current_evidence.get("agentMessageClassification")
             if message_class not in {None, "provider_or_transport_error"}:
                 raise CanaryFailure(message_class)
@@ -1336,8 +1347,13 @@ class Journey:
             raise CanaryFailure("terminal_marker_missing")
 
         if self.close_session_supported:
-            close_timeout = min(10.0, max(0.0, self.deadline - time.monotonic()))
-            if close_timeout <= 0 or not self.close_session(close_timeout):
+            close_timeout = min(
+                SESSION_CLOSE_TIMEOUT_SECONDS,
+                max(0.0, self.deadline - time.monotonic()),
+            )
+            if close_timeout <= 0:
+                raise CanaryFailure("timeout")
+            if not self.close_session(close_timeout):
                 raise CanaryFailure("session_close_failed")
         return self.evidence(stop_reason)
 
