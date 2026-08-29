@@ -51,6 +51,7 @@
       "Codex (Intrepid, selected)",
       "Codex (Intrepid, primary)",
       "Codex (Intrepid, secondary)",
+      "Codex (Intrepid, work)",
       "antigravity-acp",
       "claude-acp",
       "cursor",
@@ -103,7 +104,8 @@
         "Claude (Intrepid, work)",
         "Codex (Intrepid, selected)",
         "Codex (Intrepid, primary)",
-        "Codex (Intrepid, secondary)"
+        "Codex (Intrepid, secondary)",
+        "Codex (Intrepid, work)"
       ]
     },
     "intrepid-registry": {
