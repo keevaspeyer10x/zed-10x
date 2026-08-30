@@ -1040,6 +1040,14 @@ impl ConversationView {
         cx.notify();
     }
 
+    fn retry_load(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.connection_store.update(cx, |store, cx| {
+            store.restart_connection(self.connection_key.clone(), self.agent.clone(), cx);
+        });
+        telemetry::event!("Agent Panel Load Retried", agent = self.agent.agent_id(),);
+        self.reset(window, cx);
+    }
+
     fn initial_state(
         agent: Rc<dyn AgentServer>,
         connection_store: Entity<AgentConnectionStore>,
@@ -2708,7 +2716,19 @@ impl ConversationView {
             .icon(IconName::XCircleFilled)
             .title(title)
             .description(message)
-            .actions_slot(div().children(action_slot))
+            .actions_slot(
+                h_flex()
+                    .gap_1()
+                    .child(
+                        Button::new("retry-agent-load", "Retry")
+                            .label_size(LabelSize::Small)
+                            .style(ButtonStyle::Tinted(TintColor::Accent))
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.retry_load(window, cx);
+                            })),
+                    )
+                    .children(action_slot),
+            )
             .into_any_element()
     }
 
@@ -4650,7 +4670,7 @@ pub(crate) mod tests {
         });
 
         let connection = StubAgentConnection::new().with_supports_load_session(true);
-        let (server, fail) = FlakyAgentServer::new(connection);
+        let (server, fail, _connect_attempts) = FlakyAgentServer::new(connection);
 
         let conversation_view = cx.update(|window, cx| {
             cx.new(|cx| {
@@ -4719,6 +4739,59 @@ pub(crate) mod tests {
                 thread_session, resume_session_id,
                 "the live AcpThread should hold the resumed session id"
             );
+        });
+    }
+
+    #[gpui::test]
+    async fn test_retry_load_restarts_transport_and_preserves_session_id(cx: &mut TestAppContext) {
+        use std::sync::atomic::Ordering;
+
+        init_test(cx);
+
+        let connection = StubAgentConnection::new().with_supports_load_session(true);
+        let (server, fail, connect_attempts) = FlakyAgentServer::new(connection);
+        fail.store(false, Ordering::SeqCst);
+        let (conversation_view, cx) = setup_conversation_view(server, cx).await;
+        let original_session_id = conversation_view
+            .read_with(cx, |view, _cx| view.root_session_id.clone())
+            .expect("the initial connection should create a session");
+        assert_eq!(connect_attempts.load(Ordering::SeqCst), 1);
+
+        // Model the production failure: the transport exits while the shared
+        // connection store still holds its now-stale connected entry.
+        conversation_view.update(cx, |view, cx| {
+            view.set_server_state(
+                ServerState::LoadError {
+                    error: LoadError::Other("incoming_transport_closed".into()),
+                },
+                cx,
+            );
+        });
+
+        conversation_view.update_in(cx, |view, window, cx| {
+            view.retry_load(window, cx);
+        });
+        cx.run_until_parked();
+
+        assert_eq!(
+            connect_attempts.load(Ordering::SeqCst),
+            2,
+            "retry must start a new agent transport instead of reusing the stale connection"
+        );
+        conversation_view.read_with(cx, |view, cx| {
+            let connected = view
+                .as_connected()
+                .expect("retry should reconnect the agent");
+            assert_eq!(connected.active_id.as_ref(), Some(&original_session_id));
+            let thread_session_id = view
+                .active_thread()
+                .expect("retry should restore the original thread")
+                .read(cx)
+                .thread
+                .read(cx)
+                .session_id()
+                .clone();
+            assert_eq!(thread_session_id, original_session_id);
         });
     }
 
@@ -5795,19 +5868,27 @@ pub(crate) mod tests {
     pub(crate) struct FlakyAgentServer {
         connection: StubAgentConnection,
         fail: Arc<std::sync::atomic::AtomicBool>,
+        connect_attempts: Arc<std::sync::atomic::AtomicUsize>,
     }
 
     impl FlakyAgentServer {
         pub(crate) fn new(
             connection: StubAgentConnection,
-        ) -> (Self, Arc<std::sync::atomic::AtomicBool>) {
+        ) -> (
+            Self,
+            Arc<std::sync::atomic::AtomicBool>,
+            Arc<std::sync::atomic::AtomicUsize>,
+        ) {
             let fail = Arc::new(std::sync::atomic::AtomicBool::new(true));
+            let connect_attempts = Arc::new(std::sync::atomic::AtomicUsize::new(0));
             (
                 Self {
                     connection,
                     fail: fail.clone(),
+                    connect_attempts: connect_attempts.clone(),
                 },
                 fail,
+                connect_attempts,
             )
         }
     }
@@ -5827,6 +5908,8 @@ pub(crate) mod tests {
             _project: Entity<Project>,
             _cx: &mut App,
         ) -> Task<gpui::Result<Rc<dyn AgentConnection>>> {
+            self.connect_attempts
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
             if self.fail.load(std::sync::atomic::Ordering::SeqCst) {
                 Task::ready(Err(anyhow!(
                     "Custom agent server `Flaky` is not registered"
