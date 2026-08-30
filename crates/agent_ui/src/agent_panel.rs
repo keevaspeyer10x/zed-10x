@@ -8469,7 +8469,7 @@ mod tests {
         // Open a restored thread using a flaky server so the initial connect
         // fails and the view lands in LoadError — mirroring the cold-start
         // race against a custom agent over SSH.
-        let (server, _fail) =
+        let (server, _fail, _connect_attempts) =
             FlakyAgentServer::new(StubAgentConnection::new().with_supports_load_session(true));
         panel.update_in(cx, |panel, window, cx| {
             panel.open_restored_thread_with_server(
