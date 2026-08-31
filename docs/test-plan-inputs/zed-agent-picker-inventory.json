@@ -17,7 +17,6 @@
     "Codex (Intrepid, primary)",
     "Codex (Intrepid, secondary)",
     "Codex (Intrepid, work)",
-    "antigravity-acp",
     "claude-acp",
     "codex-acp",
     "cursor",
@@ -33,13 +32,9 @@
       "Claude (Mac, work)",
       "Codex (Mac, secondary)",
       "Codex (Mac, work)",
-      "antigravity-acp",
       "codex-acp",
       "cursor",
-      "devin",
-      "glm-acp-agent",
-      "grok-build",
-      "kimi"
+      "grok-build"
     ],
     "intrepid": [
       "GLM (Intrepid)",
@@ -52,13 +47,130 @@
       "Codex (Intrepid, primary)",
       "Codex (Intrepid, secondary)",
       "Codex (Intrepid, work)",
-      "antigravity-acp",
       "claude-acp",
       "cursor",
       "devin",
       "glm-acp-agent",
       "grok-build",
       "kimi"
+    ]
+  },
+  "pickerSurfaces": {
+    "mac-local": [
+      {
+        "id": "VAR-MAC-CLAUDE-PRIMARY",
+        "label": "Claude (Mac, primary)",
+        "configuredEntries": ["Claude (Mac, primary)"]
+      },
+      {
+        "id": "VAR-MAC-CLAUDE-SECONDARY",
+        "label": "Claude (Mac, secondary)",
+        "configuredEntries": ["Claude (Mac, secondary)"]
+      },
+      {
+        "id": "VAR-MAC-CLAUDE-WORK",
+        "label": "Claude (Mac, work)",
+        "configuredEntries": ["Claude (Mac, work)"]
+      },
+      {
+        "id": "VAR-MAC-CODEX",
+        "label": "Codex (Mac)",
+        "configuredEntries": ["codex-acp"]
+      },
+      {
+        "id": "VAR-MAC-CODEX-SECONDARY",
+        "label": "Codex (Mac, secondary)",
+        "configuredEntries": ["Codex (Mac, secondary)"]
+      },
+      {
+        "id": "VAR-MAC-CODEX-WORK",
+        "label": "Codex (Mac, work)",
+        "configuredEntries": ["Codex (Mac, work)"]
+      },
+      {
+        "id": "VAR-MAC-CURSOR",
+        "label": "Cursor (Mac)",
+        "configuredEntries": ["cursor"]
+      },
+      {
+        "id": "VAR-MAC-GROK",
+        "label": "Grok Build (Mac)",
+        "configuredEntries": ["grok-build"]
+      }
+    ],
+    "intrepid-persistent": [
+      {
+        "id": "VAR-INTREPID-CLAUDE-PRIMARY",
+        "label": "Claude (Intrepid, primary)",
+        "configuredEntries": ["Claude (Intrepid, primary)"]
+      },
+      {
+        "id": "VAR-INTREPID-CLAUDE-SECONDARY",
+        "label": "Claude (Intrepid, secondary)",
+        "configuredEntries": ["Claude (Intrepid, secondary)"]
+      },
+      {
+        "id": "VAR-INTREPID-CLAUDE-SELECTED",
+        "label": "Claude (Intrepid, selected)",
+        "configuredEntries": ["Claude (Intrepid, selected)"]
+      },
+      {
+        "id": "VAR-INTREPID-CLAUDE-WORK",
+        "label": "Claude (Intrepid, work)",
+        "configuredEntries": ["Claude (Intrepid, work)"]
+      },
+      {
+        "id": "VAR-INTREPID-CODEX-PRIMARY",
+        "label": "Codex (Intrepid, primary)",
+        "configuredEntries": ["Codex (Intrepid, primary)"]
+      },
+      {
+        "id": "VAR-INTREPID-CODEX-SECONDARY",
+        "label": "Codex (Intrepid, secondary)",
+        "configuredEntries": ["Codex (Intrepid, secondary)"]
+      },
+      {
+        "id": "VAR-INTREPID-CODEX-SELECTED",
+        "label": "Codex (Intrepid, selected)",
+        "configuredEntries": ["Codex (Intrepid, selected)"]
+      },
+      {
+        "id": "VAR-INTREPID-CODEX-WORK",
+        "label": "Codex (Intrepid, work)",
+        "configuredEntries": ["Codex (Intrepid, work)"]
+      }
+    ],
+    "intrepid-ordinary": [
+      {
+        "id": "VAR-INTREPID-CLAUDE-AGENT",
+        "label": "Claude Agent (Intrepid)",
+        "configuredEntries": ["claude-acp"]
+      },
+      {
+        "id": "VAR-INTREPID-CURSOR",
+        "label": "Cursor (Intrepid)",
+        "configuredEntries": ["cursor"]
+      },
+      {
+        "id": "VAR-INTREPID-DEVIN",
+        "label": "Devin (Intrepid)",
+        "configuredEntries": ["devin"]
+      },
+      {
+        "id": "VAR-INTREPID-GLM",
+        "label": "GLM (Intrepid)",
+        "configuredEntries": ["GLM (Intrepid)", "glm-acp-agent"]
+      },
+      {
+        "id": "VAR-INTREPID-GROK",
+        "label": "Grok Build (Intrepid)",
+        "configuredEntries": ["grok-build"]
+      },
+      {
+        "id": "VAR-INTREPID-KIMI",
+        "label": "Kimi (Intrepid)",
+        "configuredEntries": ["Kimi (Intrepid)", "kimi"]
+      }
     ]
   },
   "executionClasses": {
@@ -75,15 +187,11 @@
     },
     "mac-registry": {
       "surface": "mac-local",
-      "representative": "devin",
+      "representative": "codex-acp",
       "members": [
-        "antigravity-acp",
         "codex-acp",
         "cursor",
-        "devin",
-        "glm-acp-agent",
-        "grok-build",
-        "kimi"
+        "grok-build"
       ]
     },
     "intrepid-local": {
@@ -112,7 +220,6 @@
       "surface": "intrepid",
       "representative": "devin",
       "members": [
-        "antigravity-acp",
         "claude-acp",
         "cursor",
         "devin",

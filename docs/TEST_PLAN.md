@@ -1,98 +1,103 @@
-# Zed 10x Remote Execution Release Test Plan
+# Zed 10x Installed Agent and Session Test Plan
 
-Status: the exact pre-merge candidate is production-ready. All 19 rows have
-executed, digest-bound evidence. `ACP-JOURNEY-002` covers every configured route
-in the 12-entry Mac and 16-entry Intrepid inventories. `ACP-ASSEMBLED-019`
-separately exercises every visible installed picker entry (12 Mac and 14
-Intrepid), including real project-file reads or precise external
-authentication/capacity boundaries, followed by quit/reopen/reconnect and
-completed-thread restoration.
+Status: fresh plan; installed execution pending<br>
+Generated: 2026-08-31T19:28:50.299Z<br>
+North star: Keeva can choose any visible External Agent with an unambiguous host/profile label, start it in the current project, understand genuine provider unavailability, and recover a persistent Intrepid session after transport loss without losing work.
 
-Scope: installed Zed 10x external-agent and remote-execution journeys across a
-Mac-local project and a Mac-to-Intrepid POSIX SSH project. This is not a claim
-about every unrelated upstream Zed feature.
+## Scope
 
-The prior plan had six ACP-only rows. Live cleanup inspection found that a
-restored remote terminal exposed the resolved project environment in local SSH
-process arguments. Fresh discovery therefore expanded the plan to 19 rows and
-the complete terminal, task, shell, ACP, MCP, DAP stdio, DAP TCP, packaging,
-privacy, failure, and cleanup surface.
+This plan covers the **External Agents** section of the installed Zed 10x picker. It does not claim that native Zed Agent, Terminal, or Add More Agents are external-agent variants.
 
-## Release invariants
+## Surface × journey closure
 
-1. Caller-supplied remote environment values never appear in a local program
-   path, process argument, command debug/error text, terminal echo, or log.
-2. Environment-bearing commands use a version-matched, bounded stdin frame.
-   Unsupported capability, malformed input, timeout, or unsupported backend
-   fails closed without fallback.
-3. The private frame is consumed before the first application byte. PTY input
-   is not written until the remote side has disabled echo and announced
-   readiness.
-4. Existing cwd, directory environment, configured terminal environment,
-   task-specific environment, protocol, port-forward, input, and cancellation
-   behavior remains intact.
-5. Completion, cancellation, and timeout leave no owned process residue.
+| Installed surface | Visible variants | Host inventory | New session and project outcome | Cleanup | Persistent recovery |
+|---|---:|---|---|---|---|
+| Mac local | 8 | Installed boundary | Installed boundary | Installed boundary | N/A |
+| Intrepid persistent | 8 | Installed boundary | Installed boundary | Installed boundary | Installed boundary |
+| Intrepid ordinary | 6 | Installed boundary | Installed boundary | Installed boundary | N/A |
 
-## Surface and journey closure
+All 22 visible variants receive direct coverage for every applicable journey. The resulting plan contains 74 direct variant × journey cells and does not infer one profile or provider from another.
 
-- Mac-local installed app: ACP inventory/project-read/failure/cleanup journeys.
-- Mac app to Intrepid: ACP, terminal, task, Vim shell, context MCP, DAP stdio,
-  DAP TCP, capability upgrade, privacy/failure, and cleanup journeys.
-- Windows SSH, WSL, and Docker environment-bearing launches: explicit
-  fail-closed contract until an equivalent private transport is implemented.
+## Tier 0 rows
 
-The complete 40-cell matrix, including reasoned non-applicable cells, is in
-`docs/discovery-ir.json` and `docs/test-plan.json`. Passing a component test or
-a sibling surface cannot satisfy an installed-product cell.
+### ZED-ACP-INVENTORY-001: Installed picker is complete, host-scoped, consistently labelled, and duplicate-free
 
-The picker is independently selectable behavior, not one interchangeable ACP
-surface. The Mac-local matrix therefore runs all 12 healthy advertised entries
-and the Intrepid matrix runs all 16 exactly once. Each entry must
-either complete the withheld-oracle project journey, stop at a safely refused
-interactive permission request, or produce an explicit authentication,
-capacity/rate-limit, or unsupported-route classification.
-Product-origin launch, protocol, cwd, cleanup, inventory, or packaging failures
-block the row. The checked inventory must project exactly from the current
-canonical managed-agent manifest before any entry starts.
+**Surfaces:** SURFACE-ACP-MAC-LOCAL, SURFACE-ACP-INTREPID-PERSISTENT, SURFACE-ACP-INTREPID-ORDINARY<br>
+**Journey:** JOURNEY-HOST-SCOPED-INVENTORY<br>
+**Variants:** 22 direct variants<br>
+**Expected:** All 22 host-valid External Agent variants are visible exactly once on the correct project host.
 
-## Canonical rows
+Steps:
+1. Open a Mac-local project and inspect External Agents
+2. Open an Intrepid project and inspect External Agents
+3. Compare every visible entry to the checked inventory and host-label grammar
 
-| ID | Risk | Executable proof |
-|---|---:|---|
-| ACP-SMOKE-001 | critical | ordering, reconnect, stale suppression, installed inventory |
-| ACP-JOURNEY-002 | critical | all 12 Mac-local and 16 Intrepid healthy picker entries, each with a project-aware terminal result or explicit external-readiness classification |
-| ACP-ASSEMBLED-019 | critical | installed Zed picker and `session/new` for every visible Mac and Intrepid entry, plus restart/reconnect restoration; alias-collapsed Intrepid registry entries retain exact direct-route evidence |
-| ACP-NEG-003 | high | missing executable, auth, capacity, permission, timeout |
-| ACP-OPS-004 | high | normal and timeout cleanup |
-| ENV-FRAME-005 | critical | round-trip, partial read, malformed and boundary input |
-| ENV-SSH-006 | critical | argv/Debug/error privacy, empty-env compatibility, home anchor |
-| ENV-PTY-007 | critical | real PTY no-echo handshake, tty restore, first input, early exit |
-| ENV-TERMINAL-008 | critical | installed terminal cwd/env/input/resize/Ctrl-C/cleanup |
-| ENV-TASK-009 | critical | installed task env/toolchain/cancel/cleanup |
-| ENV-SHELL-010 | high | Vim shell prelude, cwd/env, selected input/output |
-| ENV-MCP-011 | critical | MCP prelude before initialize, request, cleanup |
-| ENV-DAP-STDIO-012 | critical | stdio DAP prelude before initialize, cleanup |
-| ENV-DAP-TCP-013 | critical | TCP DAP prelude, port forward, initialize, cleanup |
-| ENV-CONSUMER-MATRIX-014 | critical | complete caller inventory and affected crate matrix |
-| ENV-CAPABILITY-015 | critical | capability negotiation, version drift, no fallback |
-| ENV-PRIVACY-016 | critical | content-free installed argv/log audit with negative control |
-| ENV-PLATFORM-017 | high | Windows SSH, WSL, Docker fail closed |
-| ENV-PACKAGE-018 | critical | debug bundle, canonical user entry point/process identity, remote capability, rollback |
+Pass criteria:
+- exact label sets match
+- no duplicates
+- no off-host entries
 
-## Adversarial layer
+### ZED-ACP-SESSION-002: Every visible External Agent starts the named route and reaches a project-bound outcome
 
-The run must exercise partial reads, Unicode, quotes, newlines, invalid names,
-NULs, malformed lengths, truncation, oversize input, missing capability, early
-child exit, PTY echo/canonical buffering, old remote server, cancellation,
-timeout, PID residue, a stale same-identifier local app bundle, and a
-known-leaking negative-control command. Secrets or
-sentinel values are compared by hash/boolean only during live process and log
-inspection; the audit must never print them.
+**Surfaces:** SURFACE-ACP-MAC-LOCAL, SURFACE-ACP-INTREPID-PERSISTENT, SURFACE-ACP-INTREPID-ORDINARY<br>
+**Journey:** JOURNEY-NEW-SESSION-PROJECT-OUTCOME<br>
+**Variants:** 22 direct variants<br>
+**Expected:** Every variant has a product-green terminal outcome and healthy routes remain usable after a failed provider.
 
-## Decision
+Steps:
+1. Select every visible External Agent once through the installed picker
+2. Create a new session and request the exact project sentinel
+3. Record a project-bound pass or precise external-readiness outcome
+4. After an unavailable route, start a healthy route without restarting Zed
 
-The exact pre-merge candidate is `production_ready`: all 19 rows are implemented,
-executed, and mapped to durable evidence; independent exact-candidate review is
-green; and the installed app plus matching Intrepid server pass every applicable
-journey. Release completion still requires required CI, protected exact-head
-merge, and a post-merge rebuild/install plus focused verification.
+Pass criteria:
+- 22/22 variants attempted
+- zero product failures
+- no substitution
+- healthy-after-failure succeeds
+
+### ZED-ACP-CLEANUP-003: Closing and failure leave route-appropriate process and journal state
+
+**Surfaces:** SURFACE-ACP-MAC-LOCAL, SURFACE-ACP-INTREPID-PERSISTENT, SURFACE-ACP-INTREPID-ORDINARY<br>
+**Journey:** JOURNEY-TERMINATION-CLEANUP<br>
+**Variants:** 22 direct variants<br>
+**Expected:** No leaked ordinary ownership and no accidental destruction of persistent recovery state.
+
+Steps:
+1. Close, cancel, and fail representative sessions after the complete route matrix
+2. Census ordinary owned process groups
+3. Verify persistent attachments detached and lane services remain healthy
+
+Pass criteria:
+- ordinary cleanup green
+- persistent detach green
+- journal and service health green
+
+### ZED-ACP-RECOVERY-004: A killed persistent lane recovers the original session through the installed Retry action
+
+**Surfaces:** SURFACE-ACP-INTREPID-PERSISTENT<br>
+**Journey:** JOURNEY-PERSISTENT-SESSION-RECOVERY<br>
+**Variants:** 8 direct variants<br>
+**Expected:** The screenshot failure becomes a finite recoverable interruption rather than a lost or blank session.
+
+Steps:
+1. Attach to a completed persistent Intrepid session
+2. Restart its exact user service while Zed remains attached
+3. Observe a recoverable failure and invoke Retry
+4. Verify the same session and project, then continue once
+
+Pass criteria:
+- fresh transport
+- same session ID
+- same history
+- same project
+- continuation passes
+
+## Execution order
+
+1. Run deterministic inventory and Retry regressions.
+2. Capture exact installed Mac and Intrepid runtime identities.
+3. Exercise installed picker inventory and every visible variant.
+4. Exercise cleanup semantics.
+5. Restart one real persistent lane while attached and recover the original session through Retry.
+6. Bind content-free evidence to the exact tested revision and validate the lifecycle artifacts.

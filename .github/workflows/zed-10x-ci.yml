@@ -68,6 +68,7 @@ jobs:
           cargo test --locked -p agent_ui test_store_update_agent_id_preserves_thread_identity --lib
           cargo test --locked -p agent_ui test_serialize_preserves_session_id_in_load_error --lib
           cargo test --locked -p agent_ui test_retry_load_restarts_transport_and_preserves_session_id --lib
+          cargo test --locked -p agent_ui test_retry_after_acp_server_exit_loads_the_original_session --lib
           cargo test --locked -p agent_ui test_new_workspace_ignores_unavailable_global_last_used_agent --lib
           cargo test --locked -p agent_ui test_pending_registry_agent_waits_for_authoritative_inventory --lib
           cargo test --locked -p agent_ui test_create_thread_with_options_retains_thread_and_restores_agent --lib

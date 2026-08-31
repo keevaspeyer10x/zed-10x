@@ -4280,6 +4280,76 @@ pub(crate) mod tests {
     }
 
     #[gpui::test]
+    async fn test_retry_after_acp_server_exit_loads_the_original_session(cx: &mut TestAppContext) {
+        init_test(cx);
+
+        let server = FakeAcpAgentServer::new();
+        let load_session_count = server.load_session_count();
+        let close_session_count = server.close_session_count();
+        let (conversation_view, cx) = setup_conversation_view(server.clone(), cx).await;
+        let original_session_id = conversation_view
+            .read_with(cx, |view, _cx| view.root_session_id.clone())
+            .expect("the initial connection should create a session");
+
+        assert_eq!(
+            load_session_count.load(std::sync::atomic::Ordering::SeqCst),
+            0,
+            "the initial connection should create rather than load a session"
+        );
+
+        server.simulate_server_exit();
+        cx.run_until_parked();
+
+        conversation_view.read_with(cx, |view, _cx| {
+            assert!(
+                matches!(
+                    view.server_state,
+                    ServerState::LoadError {
+                        error: LoadError::Exited { .. }
+                    }
+                ),
+                "the real ACP exit event should present a retryable load error"
+            );
+            assert_eq!(
+                view.root_session_id.as_ref(),
+                Some(&original_session_id),
+                "the failed view must retain the session identity needed by Retry"
+            );
+        });
+        assert_eq!(
+            close_session_count.load(std::sync::atomic::Ordering::SeqCst),
+            1,
+            "the failed connection should close the old ACP session before retry"
+        );
+
+        conversation_view.update_in(cx, |view, window, cx| {
+            view.retry_load(window, cx);
+        });
+        cx.run_until_parked();
+
+        assert_eq!(
+            load_session_count.load(std::sync::atomic::Ordering::SeqCst),
+            1,
+            "Retry should load the original session on a fresh transport"
+        );
+        conversation_view.read_with(cx, |view, cx| {
+            let connected = view
+                .as_connected()
+                .expect("Retry should reconnect after the ACP process exits");
+            assert_eq!(connected.active_id.as_ref(), Some(&original_session_id));
+            let thread_session_id = view
+                .active_thread()
+                .expect("Retry should restore the original thread")
+                .read(cx)
+                .thread
+                .read(cx)
+                .session_id()
+                .clone();
+            assert_eq!(thread_session_id, original_session_id);
+        });
+    }
+
+    #[gpui::test]
     async fn test_thread_view_seeds_existing_elicitation_form_state(cx: &mut TestAppContext) {
         init_test(cx);
         cx.update(|cx| {
