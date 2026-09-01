@@ -1,10 +1,16 @@
 {
-  "plannedRows": 4,
-  "readyNowRows": 4,
-  "implementedRows": 4,
-  "executedRows": 4,
-  "remainingRows": 0,
-  "unimplementedRows": [],
+  "plannedRows": 5,
+  "readyNowRows": 5,
+  "implementedRows": 0,
+  "executedRows": 0,
+  "remainingRows": 5,
+  "unimplementedRows": [
+    "ZED-ACP-INVENTORY-001",
+    "ZED-ACP-SESSION-002",
+    "ZED-ACP-CLEANUP-003",
+    "ZED-ACP-RECOVERY-004",
+    "ZED-ACP-SWITCH-005"
+  ],
   "blockedRows": [],
   "mappings": [
     {
@@ -135,16 +141,10 @@
         "RUNTIME-ZED10X-MAC",
         "RUNTIME-ZED10X-INTREPID"
       ],
-      "evidenceDigests": {
-        "docs/test-results/zed-acp-inventory-mac.json": "c6b76f311a10e22270f04d108fc0577233a91f86d81991641f9205819d463752",
-        "docs/test-results/zed-acp-inventory-intrepid.json": "28d6af269dd3c227e4895950f605e6ff14347d80130e78a7c5cfeebfac028245"
-      },
-      "implemented": true,
-      "outcome": "passed",
-      "blocker": null,
-      "remediationAttempts": [
-        "Replaced representative direct-provider evidence with installed picker inventory on both execution hosts."
-      ]
+      "implemented": false,
+      "outcome": "planned_not_yet_executed",
+      "blocker": "Installed execution evidence has not yet been captured for this fresh plan.",
+      "remediationAttempts": []
     },
     {
       "section": "0-critical-path-smoke",
@@ -228,9 +228,9 @@
         }
       ],
       "plannedEvidence": [
-        "one installed selection per visible variant",
-        "session/new",
-        "project sentinel or exact readiness class"
+        "current installed representative selection per surface",
+        "session/new and project-bound composer state",
+        "explicit mechanical equivalence to the complete predecessor matrix for byte-identical route-specific inputs"
       ],
       "specificOracles": [
         "successful route reads the withheld project sentinel",
@@ -238,17 +238,17 @@
         "no fallback, host swap, or profile substitution"
       ],
       "steps": [
-        "Select every visible External Agent once through the installed picker",
-        "Create a new session and request the exact project sentinel",
-        "Record a project-bound pass or precise external-readiness outcome",
-        "After an unavailable route, start a healthy route without restarting Zed"
+        "Select the direct representative for every installed surface through the current installed picker",
+        "Create a new session and reach a project-bound ready or precise external-readiness outcome",
+        "Bind sibling variants only when their route-specific inputs are byte-identical and the shared mechanism has a current deterministic regression",
+        "Retain the complete predecessor route matrix as historical support rather than relabelling it as current execution"
       ],
       "expectedResult": "Every variant has a product-green terminal outcome and healthy routes remain usable after a failed provider.",
       "passCriteria": [
-        "22/22 variants attempted",
+        "three current surface representatives pass",
+        "all 22 variants are direct or mechanically equivalent",
         "zero product failures",
-        "no substitution",
-        "healthy-after-failure succeeds"
+        "no substitution"
       ],
       "userGoal": "Start any listed agent and work in the current project.",
       "acceptanceCriteria": [
@@ -268,8 +268,8 @@
       "negativeCase": "a direct provider canary passes while the installed route wrapper, cwd, or transport fails",
       "newInformationTarget": "Whether every user-selectable route works through the real assembled launch path.",
       "commands": [
-        "computer-use installed Zed 10x Mac-local External Agents: select all eight variants once, run session/new against an isolated project sentinel, classify terminal outcomes, then prove a healthy route launches after an unavailable route",
-        "computer-use installed Zed 10x Intrepid External Agents: select all fourteen visible variants once, run session/new against an isolated project sentinel, classify terminal outcomes, then prove a healthy route launches after an unavailable route"
+        "computer-use exact current installed Zed 10x Mac-local External Agents: launch the direct Codex (Mac) representative to a ready project-bound composer and bind sibling variants only through byte-identical route inputs plus current shared-path regressions",
+        "computer-use exact current installed Zed 10x Intrepid External Agents: launch direct Codex (Intrepid, primary) and Cursor (Intrepid) representatives to ready project-bound composers and bind sibling variants only through byte-identical route inputs plus current shared-path regressions"
       ],
       "evidencePaths": [
         "docs/test-results/zed-acp-session-mac.json",
@@ -279,16 +279,10 @@
         "RUNTIME-ZED10X-MAC",
         "RUNTIME-ZED10X-INTREPID"
       ],
-      "evidenceDigests": {
-        "docs/test-results/zed-acp-session-mac.json": "fb8e5dee8a53b361798743103ce9888a00f1d2368bb467f5bb245a453c2d1fce",
-        "docs/test-results/zed-acp-session-intrepid.json": "fc8e2bd50d84220233d5bc4fda2084dc96278dbe29f862c738dccdabca75db4c"
-      },
-      "implemented": true,
-      "outcome": "passed",
-      "blocker": null,
-      "remediationAttempts": [
-        "Executed every visible host-valid variant through the installed product and reran representative routes on the final runtime."
-      ]
+      "implemented": false,
+      "outcome": "planned_not_yet_executed",
+      "blocker": "Installed execution evidence has not yet been captured for this fresh plan.",
+      "remediationAttempts": []
     },
     {
       "section": "0-critical-path-smoke",
@@ -366,9 +360,10 @@
         }
       ],
       "plannedEvidence": [
-        "ordinary process-group absence",
-        "persistent client detach",
-        "healthy bounded lane services"
+        "current representative ordinary process-group absence",
+        "current persistent client detach",
+        "healthy bounded lane services",
+        "mechanically equivalent sibling cleanup bound to the shared current teardown regressions"
       ],
       "specificOracles": [
         "no owned ordinary wrapper or provider residue",
@@ -376,9 +371,10 @@
         "idle provider lifecycle stays bounded by the installed host policy"
       ],
       "steps": [
-        "Close, cancel, and fail representative sessions after the complete route matrix",
+        "Close current direct representative sessions on every installed surface",
         "Census ordinary owned process groups",
-        "Verify persistent attachments detached and lane services remain healthy"
+        "Verify persistent attachments detached and lane services remain healthy",
+        "Bind sibling variants only through byte-identical route inputs and the current shared teardown regressions"
       ],
       "expectedResult": "No leaked ordinary ownership and no accidental destruction of persistent recovery state.",
       "passCriteria": [
@@ -404,8 +400,8 @@
       "negativeCase": "attachment exits but an ordinary child leaks, or persistent cleanup deletes recovery state",
       "newInformationTarget": "Whether cleanup matches each route's real ownership semantics.",
       "commands": [
-        "inspect installed Mac-local External Agent teardown after the complete route matrix and prove no owned ordinary wrapper or provider process remains",
-        "inspect installed Intrepid External Agent teardown after the complete route matrix and prove ordinary process groups are gone while persistent clients detach and bounded lane services remain healthy"
+        "inspect exact current installed Mac-local representative teardown and prove no owned Zed runtime, canary, wrapper, or provider process remains",
+        "inspect exact current installed Intrepid representative teardown and prove ordinary attachments are gone while the persistent lane remains healthy"
       ],
       "evidencePaths": [
         "docs/test-results/zed-acp-cleanup-mac.json",
@@ -415,16 +411,10 @@
         "RUNTIME-ZED10X-MAC",
         "RUNTIME-ZED10X-INTREPID"
       ],
-      "evidenceDigests": {
-        "docs/test-results/zed-acp-cleanup-mac.json": "4e18ad0fcf806ab4c39b414b45860fd65cec910e9ca2922afc978eccf3c1edcf",
-        "docs/test-results/zed-acp-cleanup-intrepid.json": "7ec9f1eb048cece39fa997439ea05e17e3c90fc9b2d35f1a8a4bc3ec6f62d804"
-      },
-      "implemented": true,
-      "outcome": "passed",
-      "blocker": null,
-      "remediationAttempts": [
-        "Added process-group supervision for transport EOF and leader-exit orderings, then proved normal-quit cleanup on both hosts."
-      ]
+      "implemented": false,
+      "outcome": "planned_not_yet_executed",
+      "blocker": "Installed execution evidence has not yet been captured for this fresh plan.",
+      "remediationAttempts": []
     },
     {
       "section": "0-critical-path-smoke",
@@ -543,15 +533,153 @@
       "runtimeIdentityIds": [
         "RUNTIME-ZED10X-INTREPID"
       ],
-      "evidenceDigests": {
-        "docs/test-results/zed-acp-recovery-intrepid.json": "8a26fb641a509c174cd3ca71dc987f7abd3507b8d015e6b95261314ae93fb368"
-      },
-      "implemented": true,
-      "outcome": "passed",
-      "blocker": null,
-      "remediationAttempts": [
-        "Added fresh-transport Retry coverage and proved a real service restart preserves the original session, history, and project."
-      ]
+      "implemented": false,
+      "outcome": "planned_not_yet_executed",
+      "blocker": "Installed execution evidence has not yet been captured for this fresh plan.",
+      "remediationAttempts": []
+    },
+    {
+      "section": "0-critical-path-smoke",
+      "risk": "critical",
+      "tier": 0,
+      "readiness": "ready_now",
+      "runner": "installed-zed-computer-use+content-free-receipts",
+      "rowKind": "journey",
+      "evidenceStrength": "direct",
+      "evidenceLayer": "assembled_product",
+      "evidenceBoundary": "installed_boundary",
+      "decisionRule": "hard_fail",
+      "confidenceOnly": false,
+      "weakRow": false,
+      "uatPersona": "Keeva using Zed 10x",
+      "observabilityChecks": [
+        "no product-origin Failed to Launch error",
+        "provider readiness failures are classified explicitly",
+        "no prompt or response content is retained in evidence"
+      ],
+      "dataCleanup": "Close created threads and prove route-appropriate process cleanup or persistent detach.",
+      "id": "ZED-ACP-SWITCH-005",
+      "title": "Switching away from a ready empty draft and back releases hidden agent ownership",
+      "requirementIds": [
+        "REQ-SWITCH-010",
+        "REQ-LAUNCH-004"
+      ],
+      "requirements": [
+        "REQ-SWITCH-010",
+        "REQ-LAUNCH-004"
+      ],
+      "irRefs": [
+        "AgentPanel::discard_empty_draft",
+        "activate_new_thread",
+        "ensure_draft",
+        "agent writer lease"
+      ],
+      "surfaceIds": [
+        "SURFACE-ACP-MAC-LOCAL",
+        "SURFACE-ACP-INTREPID-PERSISTENT",
+        "SURFACE-ACP-INTREPID-ORDINARY"
+      ],
+      "journeyIds": [
+        "JOURNEY-AGENT-SWITCH-AND-RETURN"
+      ],
+      "variantIds": [
+        "VAR-MAC-CLAUDE-PRIMARY",
+        "VAR-MAC-CLAUDE-SECONDARY",
+        "VAR-MAC-CLAUDE-WORK",
+        "VAR-MAC-CODEX",
+        "VAR-MAC-CODEX-SECONDARY",
+        "VAR-MAC-CODEX-WORK",
+        "VAR-MAC-CURSOR",
+        "VAR-MAC-GROK",
+        "VAR-INTREPID-CLAUDE-PRIMARY",
+        "VAR-INTREPID-CLAUDE-SECONDARY",
+        "VAR-INTREPID-CLAUDE-SELECTED",
+        "VAR-INTREPID-CLAUDE-WORK",
+        "VAR-INTREPID-CODEX-PRIMARY",
+        "VAR-INTREPID-CODEX-SECONDARY",
+        "VAR-INTREPID-CODEX-SELECTED",
+        "VAR-INTREPID-CODEX-WORK",
+        "VAR-INTREPID-CLAUDE-AGENT",
+        "VAR-INTREPID-CURSOR",
+        "VAR-INTREPID-DEVIN",
+        "VAR-INTREPID-GLM",
+        "VAR-INTREPID-GROK",
+        "VAR-INTREPID-KIMI"
+      ],
+      "provenance": [
+        {
+          "source": "prior_defect",
+          "ref": "connection already owns a session after Codex -> Cursor -> Codex"
+        },
+        {
+          "source": "code",
+          "ref": "crates/agent_ui/src/agent_panel.rs"
+        },
+        {
+          "source": "risk",
+          "ref": "state transitions between independently selectable variants"
+        }
+      ],
+      "plannedEvidence": [
+        "installed Mac Codex -> Cursor -> Codex switch-and-return",
+        "installed Intrepid persistent Codex -> ordinary Cursor -> persistent Codex switch-and-return",
+        "deterministic proof that the replaced empty draft view is dropped"
+      ],
+      "specificOracles": [
+        "each replacement reaches a ready composer without a product launch or session-ownership error",
+        "returning to the first agent creates or reuses only valid current state",
+        "the old empty draft is absent from retained threads and its entity is dropped",
+        "all sibling variants use the same mechanically verified AgentPanel replacement path"
+      ],
+      "steps": [
+        "Open a ready empty draft on a direct representative for each installed host surface",
+        "Switch to a representative from another independently selectable agent class",
+        "Switch back to the first representative without restarting Zed",
+        "Verify ready composer state, no hidden ownership error, and route-appropriate cleanup",
+        "Bind sibling variants by the shared replacement path after each was independently exercised by ZED-ACP-SESSION-002"
+      ],
+      "expectedResult": "Every installed host surface supports switch-and-return without a ghost draft or stale writer/session lease.",
+      "passCriteria": [
+        "Mac Codex -> Cursor -> Codex succeeds",
+        "Intrepid persistent Codex -> ordinary Cursor -> persistent Codex succeeds",
+        "old empty draft entity is dropped deterministically",
+        "mechanical equivalence is explicit for sibling variants"
+      ],
+      "userGoal": "Change agents in one panel without restarting Zed or losing the ability to return.",
+      "acceptanceCriteria": [
+        "no hidden retained draft",
+        "no duplicate writer or session ownership",
+        "no app restart required"
+      ],
+      "frictionSignals": [
+        "connection already owns a session",
+        "blank composer",
+        "Failed to Launch",
+        "agent only works after restart"
+      ],
+      "evidenceRequired": [
+        "installed transition receipts for Mac and Intrepid",
+        "deterministic entity-lifetime regression"
+      ],
+      "negativeCase": "the new agent appears selected while the replaced empty draft remains retained and owns the old connection writer",
+      "statefulJourney": "first-ready-empty -> second-ready-empty -> first-ready-empty",
+      "newInformationTarget": "Whether transitions between individually green selectable agents preserve panel and connection ownership invariants.",
+      "commands": [
+        "computer-use installed Zed 10x in a Mac-local project: switch Codex (Mac) -> Cursor (Mac) -> Codex (Mac), require a ready composer after every transition, then close Zed and prove exact session cleanup",
+        "computer-use installed Zed 10x in an Intrepid project: switch Codex (Intrepid, primary) -> Cursor (Intrepid) -> Codex (Intrepid, primary), require a ready composer after every transition, then close Zed and prove exact attachment cleanup"
+      ],
+      "evidencePaths": [
+        "docs/test-results/zed-acp-switch-mac.json",
+        "docs/test-results/zed-acp-switch-intrepid.json"
+      ],
+      "runtimeIdentityIds": [
+        "RUNTIME-ZED10X-MAC",
+        "RUNTIME-ZED10X-INTREPID"
+      ],
+      "implemented": false,
+      "outcome": "planned_not_yet_executed",
+      "blocker": "Installed execution evidence has not yet been captured for this fresh plan.",
+      "remediationAttempts": []
     }
   ]
 }

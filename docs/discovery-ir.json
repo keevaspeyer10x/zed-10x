@@ -3,10 +3,10 @@
   "coverageClosureVersion": 2,
   "freshLifecycle": true,
   "discoveryMode": "fresh_full_lifecycle",
-  "generatedAt": "2026-08-31T19:28:50.299Z",
+  "generatedAt": "2026-09-01T09:41:10.034Z",
   "repository": "zed-10x",
   "scope": {
-    "included": "Installed External Agent inventory, launch, project outcome, cleanup, and persistent session recovery on Mac and Intrepid.",
+    "included": "Installed External Agent inventory, launch, project outcome, cross-agent state transitions, cleanup, and persistent session recovery on Mac and Intrepid.",
     "excluded": [
       "Zed Agent and Terminal native picker entries",
       "provider account repair",
@@ -65,6 +65,11 @@
       "id": "REQ-RUNTIME-009",
       "claim": "Intrepid uses the commit-matched installed remote server and current host agent configuration.",
       "source": "crates/remote_server/src/remote_server.rs"
+    },
+    {
+      "id": "REQ-SWITCH-010",
+      "claim": "Replacing an empty draft with another selectable agent releases the old draft and allows either agent to be selected again in the same panel.",
+      "source": "crates/agent_ui/src/agent_panel.rs"
     }
   ],
   "productSurfaces": [
@@ -203,6 +208,21 @@
           "ref": "surface-by-journey closure"
         }
       ]
+    },
+    {
+      "id": "JOURNEY-AGENT-SWITCH-AND-RETURN",
+      "name": "Switch between independently selectable agents and return",
+      "terminalObservable": "A ready empty draft can be replaced by another agent and then restored without retaining hidden draft, writer, or session ownership from either prior selection.",
+      "provenance": [
+        {
+          "source": "prior_defect",
+          "ref": "observed installed Zed 10x failures"
+        },
+        {
+          "source": "risk",
+          "ref": "surface-by-journey closure"
+        }
+      ]
     }
   ],
   "surfaceJourneyMatrix": [
@@ -259,6 +279,22 @@
       "journeyId": "JOURNEY-PERSISTENT-SESSION-RECOVERY",
       "applicability": "not_applicable",
       "reason": "Mac-local routes do not use the Intrepid persistent session host or its durable journal."
+    },
+    {
+      "surfaceId": "SURFACE-ACP-MAC-LOCAL",
+      "journeyId": "JOURNEY-AGENT-SWITCH-AND-RETURN",
+      "applicability": "applicable",
+      "assembledPath": [
+        "installed /Applications/Zed 10x.app External Agents picker",
+        "Switch between independently selectable agents and return",
+        "A ready empty draft can be replaced by another agent and then restored without retaining hidden draft, writer, or session ownership from either prior selection."
+      ],
+      "requiredEvidenceBoundary": "installed_boundary",
+      "requiredEvidence": [
+        "installed product execution",
+        "terminal observable",
+        "cleanup"
+      ]
     },
     {
       "surfaceId": "SURFACE-ACP-INTREPID-PERSISTENT",
@@ -325,6 +361,22 @@
       ]
     },
     {
+      "surfaceId": "SURFACE-ACP-INTREPID-PERSISTENT",
+      "journeyId": "JOURNEY-AGENT-SWITCH-AND-RETURN",
+      "applicability": "applicable",
+      "assembledPath": [
+        "installed Zed 10x remote project plus systemd-owned ACP session lane",
+        "Switch between independently selectable agents and return",
+        "A ready empty draft can be replaced by another agent and then restored without retaining hidden draft, writer, or session ownership from either prior selection."
+      ],
+      "requiredEvidenceBoundary": "installed_boundary",
+      "requiredEvidence": [
+        "installed product execution",
+        "terminal observable",
+        "cleanup"
+      ]
+    },
+    {
       "surfaceId": "SURFACE-ACP-INTREPID-ORDINARY",
       "journeyId": "JOURNEY-HOST-SCOPED-INVENTORY",
       "applicability": "applicable",
@@ -377,6 +429,22 @@
       "journeyId": "JOURNEY-PERSISTENT-SESSION-RECOVERY",
       "applicability": "not_applicable",
       "reason": "Ordinary Intrepid routes do not promise persistent lane or journal restoration."
+    },
+    {
+      "surfaceId": "SURFACE-ACP-INTREPID-ORDINARY",
+      "journeyId": "JOURNEY-AGENT-SWITCH-AND-RETURN",
+      "applicability": "applicable",
+      "assembledPath": [
+        "installed Zed 10x remote project plus execution-host ACP launch",
+        "Switch between independently selectable agents and return",
+        "A ready empty draft can be replaced by another agent and then restored without retaining hidden draft, writer, or session ownership from either prior selection."
+      ],
+      "requiredEvidenceBoundary": "installed_boundary",
+      "requiredEvidence": [
+        "installed product execution",
+        "terminal observable",
+        "cleanup"
+      ]
     }
   ],
   "selectableVariants": [
@@ -387,7 +455,8 @@
       "journeyIds": [
         "JOURNEY-HOST-SCOPED-INVENTORY",
         "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "JOURNEY-TERMINATION-CLEANUP"
+        "JOURNEY-TERMINATION-CLEANUP",
+        "JOURNEY-AGENT-SWITCH-AND-RETURN"
       ],
       "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
       "configuredEntries": [
@@ -401,7 +470,8 @@
       "journeyIds": [
         "JOURNEY-HOST-SCOPED-INVENTORY",
         "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "JOURNEY-TERMINATION-CLEANUP"
+        "JOURNEY-TERMINATION-CLEANUP",
+        "JOURNEY-AGENT-SWITCH-AND-RETURN"
       ],
       "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
       "configuredEntries": [
@@ -415,7 +485,8 @@
       "journeyIds": [
         "JOURNEY-HOST-SCOPED-INVENTORY",
         "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "JOURNEY-TERMINATION-CLEANUP"
+        "JOURNEY-TERMINATION-CLEANUP",
+        "JOURNEY-AGENT-SWITCH-AND-RETURN"
       ],
       "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
       "configuredEntries": [
@@ -429,7 +500,8 @@
       "journeyIds": [
         "JOURNEY-HOST-SCOPED-INVENTORY",
         "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "JOURNEY-TERMINATION-CLEANUP"
+        "JOURNEY-TERMINATION-CLEANUP",
+        "JOURNEY-AGENT-SWITCH-AND-RETURN"
       ],
       "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
       "configuredEntries": [
@@ -443,7 +515,8 @@
       "journeyIds": [
         "JOURNEY-HOST-SCOPED-INVENTORY",
         "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "JOURNEY-TERMINATION-CLEANUP"
+        "JOURNEY-TERMINATION-CLEANUP",
+        "JOURNEY-AGENT-SWITCH-AND-RETURN"
       ],
       "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
       "configuredEntries": [
@@ -457,7 +530,8 @@
       "journeyIds": [
         "JOURNEY-HOST-SCOPED-INVENTORY",
         "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "JOURNEY-TERMINATION-CLEANUP"
+        "JOURNEY-TERMINATION-CLEANUP",
+        "JOURNEY-AGENT-SWITCH-AND-RETURN"
       ],
       "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
       "configuredEntries": [
@@ -471,7 +545,8 @@
       "journeyIds": [
         "JOURNEY-HOST-SCOPED-INVENTORY",
         "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "JOURNEY-TERMINATION-CLEANUP"
+        "JOURNEY-TERMINATION-CLEANUP",
+        "JOURNEY-AGENT-SWITCH-AND-RETURN"
       ],
       "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
       "configuredEntries": [
@@ -485,7 +560,8 @@
       "journeyIds": [
         "JOURNEY-HOST-SCOPED-INVENTORY",
         "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "JOURNEY-TERMINATION-CLEANUP"
+        "JOURNEY-TERMINATION-CLEANUP",
+        "JOURNEY-AGENT-SWITCH-AND-RETURN"
       ],
       "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
       "configuredEntries": [
@@ -500,7 +576,8 @@
         "JOURNEY-HOST-SCOPED-INVENTORY",
         "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
         "JOURNEY-TERMINATION-CLEANUP",
-        "JOURNEY-PERSISTENT-SESSION-RECOVERY"
+        "JOURNEY-PERSISTENT-SESSION-RECOVERY",
+        "JOURNEY-AGENT-SWITCH-AND-RETURN"
       ],
       "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
       "configuredEntries": [
@@ -515,7 +592,8 @@
         "JOURNEY-HOST-SCOPED-INVENTORY",
         "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
         "JOURNEY-TERMINATION-CLEANUP",
-        "JOURNEY-PERSISTENT-SESSION-RECOVERY"
+        "JOURNEY-PERSISTENT-SESSION-RECOVERY",
+        "JOURNEY-AGENT-SWITCH-AND-RETURN"
       ],
       "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
       "configuredEntries": [
@@ -530,7 +608,8 @@
         "JOURNEY-HOST-SCOPED-INVENTORY",
         "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
         "JOURNEY-TERMINATION-CLEANUP",
-        "JOURNEY-PERSISTENT-SESSION-RECOVERY"
+        "JOURNEY-PERSISTENT-SESSION-RECOVERY",
+        "JOURNEY-AGENT-SWITCH-AND-RETURN"
       ],
       "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
       "configuredEntries": [
@@ -545,7 +624,8 @@
         "JOURNEY-HOST-SCOPED-INVENTORY",
         "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
         "JOURNEY-TERMINATION-CLEANUP",
-        "JOURNEY-PERSISTENT-SESSION-RECOVERY"
+        "JOURNEY-PERSISTENT-SESSION-RECOVERY",
+        "JOURNEY-AGENT-SWITCH-AND-RETURN"
       ],
       "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
       "configuredEntries": [
@@ -560,7 +640,8 @@
         "JOURNEY-HOST-SCOPED-INVENTORY",
         "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
         "JOURNEY-TERMINATION-CLEANUP",
-        "JOURNEY-PERSISTENT-SESSION-RECOVERY"
+        "JOURNEY-PERSISTENT-SESSION-RECOVERY",
+        "JOURNEY-AGENT-SWITCH-AND-RETURN"
       ],
       "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
       "configuredEntries": [
@@ -575,7 +656,8 @@
         "JOURNEY-HOST-SCOPED-INVENTORY",
         "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
         "JOURNEY-TERMINATION-CLEANUP",
-        "JOURNEY-PERSISTENT-SESSION-RECOVERY"
+        "JOURNEY-PERSISTENT-SESSION-RECOVERY",
+        "JOURNEY-AGENT-SWITCH-AND-RETURN"
       ],
       "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
       "configuredEntries": [
@@ -590,7 +672,8 @@
         "JOURNEY-HOST-SCOPED-INVENTORY",
         "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
         "JOURNEY-TERMINATION-CLEANUP",
-        "JOURNEY-PERSISTENT-SESSION-RECOVERY"
+        "JOURNEY-PERSISTENT-SESSION-RECOVERY",
+        "JOURNEY-AGENT-SWITCH-AND-RETURN"
       ],
       "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
       "configuredEntries": [
@@ -605,7 +688,8 @@
         "JOURNEY-HOST-SCOPED-INVENTORY",
         "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
         "JOURNEY-TERMINATION-CLEANUP",
-        "JOURNEY-PERSISTENT-SESSION-RECOVERY"
+        "JOURNEY-PERSISTENT-SESSION-RECOVERY",
+        "JOURNEY-AGENT-SWITCH-AND-RETURN"
       ],
       "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
       "configuredEntries": [
@@ -619,7 +703,8 @@
       "journeyIds": [
         "JOURNEY-HOST-SCOPED-INVENTORY",
         "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "JOURNEY-TERMINATION-CLEANUP"
+        "JOURNEY-TERMINATION-CLEANUP",
+        "JOURNEY-AGENT-SWITCH-AND-RETURN"
       ],
       "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
       "configuredEntries": [
@@ -633,7 +718,8 @@
       "journeyIds": [
         "JOURNEY-HOST-SCOPED-INVENTORY",
         "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "JOURNEY-TERMINATION-CLEANUP"
+        "JOURNEY-TERMINATION-CLEANUP",
+        "JOURNEY-AGENT-SWITCH-AND-RETURN"
       ],
       "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
       "configuredEntries": [
@@ -647,7 +733,8 @@
       "journeyIds": [
         "JOURNEY-HOST-SCOPED-INVENTORY",
         "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "JOURNEY-TERMINATION-CLEANUP"
+        "JOURNEY-TERMINATION-CLEANUP",
+        "JOURNEY-AGENT-SWITCH-AND-RETURN"
       ],
       "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
       "configuredEntries": [
@@ -661,7 +748,8 @@
       "journeyIds": [
         "JOURNEY-HOST-SCOPED-INVENTORY",
         "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "JOURNEY-TERMINATION-CLEANUP"
+        "JOURNEY-TERMINATION-CLEANUP",
+        "JOURNEY-AGENT-SWITCH-AND-RETURN"
       ],
       "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
       "configuredEntries": [
@@ -676,7 +764,8 @@
       "journeyIds": [
         "JOURNEY-HOST-SCOPED-INVENTORY",
         "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "JOURNEY-TERMINATION-CLEANUP"
+        "JOURNEY-TERMINATION-CLEANUP",
+        "JOURNEY-AGENT-SWITCH-AND-RETURN"
       ],
       "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
       "configuredEntries": [
@@ -690,7 +779,8 @@
       "journeyIds": [
         "JOURNEY-HOST-SCOPED-INVENTORY",
         "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "JOURNEY-TERMINATION-CLEANUP"
+        "JOURNEY-TERMINATION-CLEANUP",
+        "JOURNEY-AGENT-SWITCH-AND-RETURN"
       ],
       "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
       "configuredEntries": [
@@ -704,7 +794,8 @@
     "A sibling profile pass does not prove another account/profile variant.",
     "A component Retry test does not prove the installed app survives a real lane restart.",
     "Provider unavailability is not a product failure, but it is not a usable-route pass either.",
-    "Persistent detach and ordinary process cleanup are different terminal semantics."
+    "Persistent detach and ordinary process cleanup are different terminal semantics.",
+    "One-shot success for two agents does not prove that switching between them releases hidden draft, writer, and session ownership."
   ],
   "existingCoverage": {
     "deterministic": [

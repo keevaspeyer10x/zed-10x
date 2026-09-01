@@ -1,306 +1,52 @@
 {
   "schemaVersion": 3,
-  "generatedAt": "2026-09-01T06:32:54Z",
-  "decisionCandidate": "production_ready",
-  "plannedRows": 4,
-  "implementedRows": 4,
-  "executedRows": 4,
-  "remainingPlannedRows": 0,
+  "generatedAt": "2026-09-01T09:41:10.034Z",
+  "decisionCandidate": "not_ready",
+  "plannedRows": 5,
+  "implementedRows": 0,
+  "executedRows": 0,
+  "remainingPlannedRows": 5,
   "requirements": {
-    "total": 9,
-    "covered": 9,
-    "passed": 9,
+    "total": 10,
+    "covered": 10,
+    "passed": 0,
     "failed": 0,
     "blocked": 0,
-    "untested": 0
+    "untested": 10
   },
-  "rowResults": [
-    {
-      "id": "ZED-ACP-INVENTORY-001",
-      "status": "passed",
-      "attempts": 1,
-      "exitCode": 0,
-      "commandResults": [
-        {
-          "status": "passed",
-          "attempts": 1,
-          "exitCode": 0,
-          "command": "computer-use installed Zed 10x in a Mac-local project: open External Agents and verify the exact eight Mac variants, unique consistent labels, and no Intrepid or alias-only entries",
-          "evidencePath": "docs/test-results/zed-acp-inventory-mac.json",
-          "evidenceSha256": "c6b76f311a10e22270f04d108fc0577233a91f86d81991641f9205819d463752"
-        },
-        {
-          "status": "passed",
-          "attempts": 1,
-          "exitCode": 0,
-          "command": "computer-use installed Zed 10x in an Intrepid project: open External Agents and verify the exact eight persistent plus six ordinary Intrepid variants, unique consistent labels, and no Mac or alias-only entries",
-          "evidencePath": "docs/test-results/zed-acp-inventory-intrepid.json",
-          "evidenceSha256": "28d6af269dd3c227e4895950f605e6ff14347d80130e78a7c5cfeebfac028245"
-        }
-      ],
-      "runtimeIdentityIds": [
-        "RUNTIME-ZED10X-MAC",
-        "RUNTIME-ZED10X-INTREPID"
-      ],
-      "runtimeIdentityEvidence": [
-        {
-          "id": "RUNTIME-ZED10X-MAC",
-          "evidencePath": "docs/test-results/zed-acp-runtime-mac.json",
-          "evidenceSha256": "7869f6f70393855e143312c97b9ea10ba9ab8330b2d19d5438c205381930bdb1"
-        },
-        {
-          "id": "RUNTIME-ZED10X-INTREPID",
-          "evidencePath": "docs/test-results/zed-acp-runtime-intrepid.json",
-          "evidenceSha256": "292477308ee333712c8265177de8c9d1abe5a5fb00e10909c9575e0c2cc67936"
-        }
-      ]
-    },
-    {
-      "id": "ZED-ACP-SESSION-002",
-      "status": "passed",
-      "attempts": 1,
-      "exitCode": 0,
-      "commandResults": [
-        {
-          "status": "passed",
-          "attempts": 1,
-          "exitCode": 0,
-          "command": "computer-use installed Zed 10x Mac-local External Agents: select all eight variants once, run session/new against an isolated project sentinel, classify terminal outcomes, then prove a healthy route launches after an unavailable route",
-          "evidencePath": "docs/test-results/zed-acp-session-mac.json",
-          "evidenceSha256": "fb8e5dee8a53b361798743103ce9888a00f1d2368bb467f5bb245a453c2d1fce"
-        },
-        {
-          "status": "passed",
-          "attempts": 1,
-          "exitCode": 0,
-          "command": "computer-use installed Zed 10x Intrepid External Agents: select all fourteen visible variants once, run session/new against an isolated project sentinel, classify terminal outcomes, then prove a healthy route launches after an unavailable route",
-          "evidencePath": "docs/test-results/zed-acp-session-intrepid.json",
-          "evidenceSha256": "fc8e2bd50d84220233d5bc4fda2084dc96278dbe29f862c738dccdabca75db4c"
-        }
-      ],
-      "runtimeIdentityIds": [
-        "RUNTIME-ZED10X-MAC",
-        "RUNTIME-ZED10X-INTREPID"
-      ],
-      "runtimeIdentityEvidence": [
-        {
-          "id": "RUNTIME-ZED10X-MAC",
-          "evidencePath": "docs/test-results/zed-acp-runtime-mac.json",
-          "evidenceSha256": "7869f6f70393855e143312c97b9ea10ba9ab8330b2d19d5438c205381930bdb1"
-        },
-        {
-          "id": "RUNTIME-ZED10X-INTREPID",
-          "evidencePath": "docs/test-results/zed-acp-runtime-intrepid.json",
-          "evidenceSha256": "292477308ee333712c8265177de8c9d1abe5a5fb00e10909c9575e0c2cc67936"
-        }
-      ]
-    },
-    {
-      "id": "ZED-ACP-CLEANUP-003",
-      "status": "passed",
-      "attempts": 1,
-      "exitCode": 0,
-      "commandResults": [
-        {
-          "status": "passed",
-          "attempts": 1,
-          "exitCode": 0,
-          "command": "inspect installed Mac-local External Agent teardown after the complete route matrix and prove no owned ordinary wrapper or provider process remains",
-          "evidencePath": "docs/test-results/zed-acp-cleanup-mac.json",
-          "evidenceSha256": "4e18ad0fcf806ab4c39b414b45860fd65cec910e9ca2922afc978eccf3c1edcf"
-        },
-        {
-          "status": "passed",
-          "attempts": 1,
-          "exitCode": 0,
-          "command": "inspect installed Intrepid External Agent teardown after the complete route matrix and prove ordinary process groups are gone while persistent clients detach and bounded lane services remain healthy",
-          "evidencePath": "docs/test-results/zed-acp-cleanup-intrepid.json",
-          "evidenceSha256": "7ec9f1eb048cece39fa997439ea05e17e3c90fc9b2d35f1a8a4bc3ec6f62d804"
-        }
-      ],
-      "runtimeIdentityIds": [
-        "RUNTIME-ZED10X-MAC",
-        "RUNTIME-ZED10X-INTREPID"
-      ],
-      "runtimeIdentityEvidence": [
-        {
-          "id": "RUNTIME-ZED10X-MAC",
-          "evidencePath": "docs/test-results/zed-acp-runtime-mac.json",
-          "evidenceSha256": "7869f6f70393855e143312c97b9ea10ba9ab8330b2d19d5438c205381930bdb1"
-        },
-        {
-          "id": "RUNTIME-ZED10X-INTREPID",
-          "evidencePath": "docs/test-results/zed-acp-runtime-intrepid.json",
-          "evidenceSha256": "292477308ee333712c8265177de8c9d1abe5a5fb00e10909c9575e0c2cc67936"
-        }
-      ]
-    },
-    {
-      "id": "ZED-ACP-RECOVERY-004",
-      "status": "passed",
-      "attempts": 1,
-      "exitCode": 0,
-      "command": "computer-use installed Zed 10x with an existing Codex (Intrepid, primary) session: restart zed-acp-session-host@codex--primary.service, invoke Retry, load the original session, and continue once",
-      "evidencePath": "docs/test-results/zed-acp-recovery-intrepid.json",
-      "evidenceSha256": "8a26fb641a509c174cd3ca71dc987f7abd3507b8d015e6b95261314ae93fb368",
-      "runtimeIdentityIds": [
-        "RUNTIME-ZED10X-INTREPID"
-      ],
-      "runtimeIdentityEvidence": [
-        {
-          "id": "RUNTIME-ZED10X-INTREPID",
-          "evidencePath": "docs/test-results/zed-acp-runtime-intrepid.json",
-          "evidenceSha256": "292477308ee333712c8265177de8c9d1abe5a5fb00e10909c9575e0c2cc67936"
-        }
-      ]
-    }
-  ],
+  "rowResults": [],
   "uat": {
-    "status": "passed",
-    "persona": "Keeva using Zed 10x",
-    "surfaces": 3,
-    "journeys": 4,
-    "selectableVariants": 22,
-    "directVariantJourneyCells": 74
-  },
-  "uiUxCoverage": {
-    "status": "complete",
-    "everyScreenReviewed": true,
-    "everySignificantElementReviewed": true,
-    "fullScreenInteractionReview": true,
-    "screens": [
-      "Mac External Agents picker",
-      "Intrepid External Agents picker",
-      "new-session terminal states",
-      "persistent-session recoverable failure",
-      "persistent-session Retry continuation"
-    ]
+    "status": "not_run",
+    "persona": "Keeva using Zed 10x"
   },
   "observability": {
-    "status": "passed",
-    "checks": [
-      "installed picker terminal state",
-      "exact runtime process census",
-      "persistent service invocation transition",
-      "content-free session identity continuity"
-    ]
+    "status": "not_run"
   },
   "dataCleanup": {
-    "status": "passed",
-    "macRemainingRuntimeProcesses": 0,
-    "intrepidRemainingExactRuntimeProcesses": 0,
-    "persistentLaneRemainedHealthy": true
+    "status": "not_run"
   },
   "flakiness": {
     "rerunCount": 0,
     "flakyTests": []
   },
   "testValidity": {
-    "status": "valid",
-    "evidencePath": "docs/test-results/test-validity.json"
-  },
-  "evidenceBinding": {
-    "testedRevision": "fb1fb76791553cfdd807ab7efd3850d228ce1ed4",
-    "loadBearingInputs": [
-      {
-        "path": "crates/agent_servers/src/acp.rs",
-        "sha256": "f8d970917e75fe40c47c9c810f7632e3eaddc2f250577bcc0c853cc6282b4075"
-      },
-      {
-        "path": "crates/agent_servers/src/custom.rs",
-        "sha256": "2a3b55849d14a48ca794434ec1895eb8df2757195d4e4484499d27c9f2917163"
-      },
-      {
-        "path": "crates/agent_ui/src/agent_connection_store.rs",
-        "sha256": "5c564b251ca3fec19feb0763aeaab30d7225a2a15d648b4a48d713c62aaa20c1"
-      },
-      {
-        "path": "crates/agent_ui/src/agent_panel.rs",
-        "sha256": "55e5023cc7a3b3408f6b9971414a7932962785b018688dbafdce3acbe7933800"
-      },
-      {
-        "path": "crates/agent_ui/src/conversation_view.rs",
-        "sha256": "b312b7ac46dfab83c499a63d85ee667f817da89e8254e53773606bdd58f51cca"
-      },
-      {
-        "path": "crates/project/src/agent_server_store.rs",
-        "sha256": "7e890d2efe34fd022ccacd7948f096a1bc6cd6c83b81d2afc561abd4d3b6614d"
-      },
-      {
-        "path": "crates/project/src/project_settings.rs",
-        "sha256": "9594d63f671836be5cd7bcbca5a29da7cd7a9f30ca86b04a90716b4d0907fda0"
-      },
-      {
-        "path": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
-        "sha256": "80f4bae3b0a5966e3b9f3a356ad26f0ea27f87dc144451722d56747befc98246"
-      },
-      {
-        "path": "crates/remote_server/src/server.rs",
-        "sha256": "b2e1f6af904c960626c799b9021668f73b24ecc19034cad651dbcf742b08dac4"
-      },
-      {
-        "path": "crates/remote_server/tests/env_exec.rs",
-        "sha256": "706072ebbb0dbe0ba1226e7c52cb2b95360290ef870427097b6304b24aea6417"
-      }
-    ],
-    "runtimeIdentities": [
-      {
-        "id": "RUNTIME-ZED10X-MAC",
-        "kind": "installed_artifact",
-        "value": "Zed 10x.app@fb1fb76791553cfdd807ab7efd3850d228ce1ed4:sha256=ed62732c2517b06b0ef59b013949ffa89a1ed5d3537b86f3ec299d6fe1850690",
-        "surfaceIds": [
-          "SURFACE-ACP-MAC-LOCAL"
-        ],
-        "evidencePath": "docs/test-results/zed-acp-runtime-mac.json",
-        "evidenceSha256": "7869f6f70393855e143312c97b9ea10ba9ab8330b2d19d5438c205381930bdb1"
-      },
-      {
-        "id": "RUNTIME-ZED10X-INTREPID",
-        "kind": "installed_artifact",
-        "value": "zed-remote-server-linux-x86_64@fb1fb76791553cfdd807ab7efd3850d228ce1ed4:sha256=02713af960f213199a9a7662c2e1256916cc0f754ead69167721edb05b0c8db7",
-        "surfaceIds": [
-          "SURFACE-ACP-INTREPID-PERSISTENT",
-          "SURFACE-ACP-INTREPID-ORDINARY"
-        ],
-        "evidencePath": "docs/test-results/zed-acp-runtime-intrepid.json",
-        "evidenceSha256": "292477308ee333712c8265177de8c9d1abe5a5fb00e10909c9575e0c2cc67936"
-      }
-    ]
+    "status": "not_run"
   },
   "defectDiscovery": {
-    "bugsFound": 3,
-    "productDefects": [
-      "The installed Retry action reused an exited agent connection instead of constructing a fresh transport.",
-      "Remote env-exec descendants could survive transport EOF or direct-command exit.",
-      "The local macOS bundle script continued into distribution staging after moving the installed app."
-    ],
-    "testHarnessDefects": [
-      "The first UI-driver send attempt used unsupported key casing; no duplicate message was sent and the visible composer state was verified before continuing."
-    ],
-    "infraOrToolingDefects": [
-      "Optional MultiMinds reviewer routes remain degraded, but the documented review policy has a ready route."
-    ],
+    "bugsFound": 0,
+    "productDefects": [],
+    "testHarnessDefects": [],
+    "infraOrToolingDefects": [],
     "processDefects": [
-      "The prior lifecycle treated configured routes, visible variants, and direct canaries as interchangeable.",
-      "Representative provider tests were previously accepted without installed surface-by-journey-by-variant closure."
+      "The prior lifecycle treated configured routes, visible variants, and direct canaries as interchangeable."
     ],
-    "fixedDuringRun": [
-      "Fresh-transport Retry with original session load",
-      "Remote process-group teardown for both transport and leader-exit orderings",
-      "Finite local bundle install flow",
-      "Installed Mac and Intrepid picker, launch, cleanup, and recovery evidence"
-    ],
+    "fixedDuringRun": [],
     "confidenceOnlyRows": [],
     "weakRows": [],
-    "newInformationSummary": [
-      "All 22 host-valid variants are present exactly once with consistent host labels.",
-      "A real Intrepid lane restart exposes one finite Retry, reloads the original session and project, and continues successfully.",
-      "Normal Zed quit removes every exact remote runtime while leaving the persistent lane healthy."
-    ],
-    "lowYieldAssessment": "high_information_yield",
+    "newInformationSummary": [],
+    "lowYieldAssessment": "mixed",
     "residualRisk": [
-      "Public notarized distribution is outside scope; the local app remains ad-hoc signed.",
-      "Provider account availability can still produce explicit external-readiness failures without being a Zed product defect."
+      "Installed execution is pending."
     ]
   }
 }

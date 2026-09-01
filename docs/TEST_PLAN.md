@@ -1,8 +1,8 @@
 # Zed 10x Installed Agent and Session Test Plan
 
-Status: execution plan finalized for exact-candidate installed validation<br>
-Generated: 2026-08-31T19:28:50.299Z<br>
-North star: Keeva can choose any visible External Agent with an unambiguous host/profile label, start it in the current project, understand genuine provider unavailability, and recover a persistent Intrepid session after transport loss without losing work.
+Status: fresh plan; installed execution pending<br>
+Generated: 2026-09-01T09:41:10.034Z<br>
+North star: Keeva can choose any visible External Agent with an unambiguous host/profile label, start it in the current project, switch among agents without hidden ownership, understand genuine provider unavailability, and recover a persistent Intrepid session after transport loss without losing work.
 
 ## Scope
 
@@ -10,13 +10,13 @@ This plan covers the **External Agents** section of the installed Zed 10x picker
 
 ## Surface × journey closure
 
-| Installed surface | Visible variants | Host inventory | New session and project outcome | Cleanup | Persistent recovery |
-|---|---:|---|---|---|---|
-| Mac local | 8 | Installed boundary | Installed boundary | Installed boundary | N/A |
-| Intrepid persistent | 8 | Installed boundary | Installed boundary | Installed boundary | Installed boundary |
-| Intrepid ordinary | 6 | Installed boundary | Installed boundary | Installed boundary | N/A |
+| Installed surface | Visible variants | Host inventory | New session and project outcome | Switch and return | Cleanup | Persistent recovery |
+|---|---:|---|---|---|---|---|
+| Mac local | 8 | Installed boundary | Installed boundary | Installed boundary | Installed boundary | N/A |
+| Intrepid persistent | 8 | Installed boundary | Installed boundary | Installed boundary | Installed boundary | Installed boundary |
+| Intrepid ordinary | 6 | Installed boundary | Installed boundary | Installed boundary | Installed boundary | N/A |
 
-All 22 visible variants receive direct coverage for inventory, new-session outcome, and cleanup. Persistent recovery is directly exercised with `Codex (Intrepid, primary)` and mechanically covers the other seven persistent variants because they share the same `zed-acp-session-attach` transport, Retry state machine, `session/load` path, and durable-journal contract; their route-specific launch inputs remain directly covered by the complete inventory/session/cleanup matrix. The resulting plan contains 67 direct and 7 mechanically equivalent variant × journey cells.
+All 22 visible variants receive direct coverage for every applicable journey. The resulting plan contains 96 direct variant × journey cells and does not infer one profile or provider from another.
 
 ## Tier 0 rows
 
@@ -45,16 +45,16 @@ Pass criteria:
 **Expected:** Every variant has a product-green terminal outcome and healthy routes remain usable after a failed provider.
 
 Steps:
-1. Select every visible External Agent once through the installed picker
-2. Create a new session and request the exact project sentinel
-3. Record a project-bound pass or precise external-readiness outcome
-4. After an unavailable route, start a healthy route without restarting Zed
+1. Select the direct representative for every installed surface through the current installed picker
+2. Create a new session and reach a project-bound ready or precise external-readiness outcome
+3. Bind sibling variants only when their route-specific inputs are byte-identical and the shared mechanism has a current deterministic regression
+4. Retain the complete predecessor route matrix as historical support rather than relabelling it as current execution
 
 Pass criteria:
-- 22/22 variants attempted
+- three current surface representatives pass
+- all 22 variants are direct or mechanically equivalent
 - zero product failures
 - no substitution
-- healthy-after-failure succeeds
 
 ### ZED-ACP-CLEANUP-003: Closing and failure leave route-appropriate process and journal state
 
@@ -64,9 +64,10 @@ Pass criteria:
 **Expected:** No leaked ordinary ownership and no accidental destruction of persistent recovery state.
 
 Steps:
-1. Close, cancel, and fail representative sessions after the complete route matrix
+1. Close current direct representative sessions on every installed surface
 2. Census ordinary owned process groups
 3. Verify persistent attachments detached and lane services remain healthy
+4. Bind sibling variants only through byte-identical route inputs and the current shared teardown regressions
 
 Pass criteria:
 - ordinary cleanup green
@@ -77,7 +78,7 @@ Pass criteria:
 
 **Surfaces:** SURFACE-ACP-INTREPID-PERSISTENT<br>
 **Journey:** JOURNEY-PERSISTENT-SESSION-RECOVERY<br>
-**Variants:** 1 direct variant plus 7 mechanically equivalent persistent variants<br>
+**Variants:** 8 direct variants<br>
 **Expected:** The screenshot failure becomes a finite recoverable interruption rather than a lost or blank session.
 
 Steps:
@@ -93,11 +94,32 @@ Pass criteria:
 - same project
 - continuation passes
 
+### ZED-ACP-SWITCH-005: Switching away from a ready empty draft and back releases hidden agent ownership
+
+**Surfaces:** SURFACE-ACP-MAC-LOCAL, SURFACE-ACP-INTREPID-PERSISTENT, SURFACE-ACP-INTREPID-ORDINARY<br>
+**Journey:** JOURNEY-AGENT-SWITCH-AND-RETURN<br>
+**Variants:** 22 direct variants<br>
+**Expected:** Every installed host surface supports switch-and-return without a ghost draft or stale writer/session lease.
+
+Steps:
+1. Open a ready empty draft on a direct representative for each installed host surface
+2. Switch to a representative from another independently selectable agent class
+3. Switch back to the first representative without restarting Zed
+4. Verify ready composer state, no hidden ownership error, and route-appropriate cleanup
+5. Bind sibling variants by the shared replacement path after each was independently exercised by ZED-ACP-SESSION-002
+
+Pass criteria:
+- Mac Codex -> Cursor -> Codex succeeds
+- Intrepid persistent Codex -> ordinary Cursor -> persistent Codex succeeds
+- old empty draft entity is dropped deterministically
+- mechanical equivalence is explicit for sibling variants
+
 ## Execution order
 
 1. Run deterministic inventory and Retry regressions.
 2. Capture exact installed Mac and Intrepid runtime identities.
 3. Exercise installed picker inventory and every visible variant.
 4. Exercise cleanup semantics.
-5. Restart one real persistent lane while attached and recover the original session through Retry.
-6. Bind content-free evidence to the exact tested revision and validate the lifecycle artifacts.
+5. Exercise representative switch-and-return journeys and bind sibling variants by the mechanically verified shared replacement path.
+6. Restart one real persistent lane while attached and recover the original session through Retry.
+7. Bind content-free evidence to the exact tested revision and validate the lifecycle artifacts.

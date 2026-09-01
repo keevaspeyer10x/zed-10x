@@ -1,12 +1,12 @@
 {
   "schemaVersion": 3,
   "coverageClosureVersion": 2,
-  "startedAt": "2026-08-31T19:28:50.299Z",
+  "startedAt": "2026-09-01T09:41:10.034Z",
   "repo": "zed-10x",
   "branch": "codex/zed-production-test-closure",
   "scope": {
     "id": "zed-10x-installed-agent-session-closure",
-    "description": "Installed External Agent inventory, launch, project outcome, cleanup, and persistent session recovery on Mac and Intrepid.",
+    "description": "Installed External Agent inventory, launch, project outcome, cross-agent state transitions, cleanup, and persistent session recovery on Mac and Intrepid.",
     "excluded": [
       "Zed Agent and Terminal native picker entries",
       "provider account repair",
@@ -27,9 +27,9 @@
       "status": "complete",
       "artifact": "docs/discovery-ir.json",
       "productSurfaces": 3,
-      "criticalJourneys": 4,
-      "surfaceJourneyCells": 12,
-      "applicableCells": 10,
+      "criticalJourneys": 5,
+      "surfaceJourneyCells": 15,
+      "applicableCells": 13,
       "selectableVariants": 22
     },
     "2-generation": {
@@ -38,33 +38,24 @@
         "docs/test-plan.json",
         "docs/TEST_PLAN.md"
       ],
-      "plannedRows": 4,
-      "readyNowRows": 4
+      "plannedRows": 5,
+      "readyNowRows": 5
     },
     "3-implementation": {
-      "status": "complete",
-      "plannedRows": 4,
-      "readyNowRows": 4,
-      "implementedRows": 4,
-      "remainingRows": 0
+      "status": "in_progress",
+      "plannedRows": 5,
+      "readyNowRows": 5,
+      "implementedRows": 0,
+      "remainingRows": 5
     },
     "4-execution": {
-      "status": "complete",
-      "executedRows": 4,
-      "passedRows": 4,
-      "failedRows": 0,
-      "blockedRows": 0
+      "status": "pending"
     },
     "5-analysis": {
-      "status": "complete",
-      "artifact": "docs/TEST_PLAN_ANALYSIS.md",
-      "decisionCandidate": "production_ready"
+      "status": "pending"
     },
     "6-tracking": {
-      "status": "complete",
-      "trackedGaps": 0,
-      "finding": "No Zed product or test-closure gap remains; external provider readiness and public notarization stay outside this local-use release scope."
+      "status": "pending"
     }
-  },
-  "completedAt": "2026-09-01T06:32:54Z"
+  }
 }

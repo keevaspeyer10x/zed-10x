@@ -2,10 +2,10 @@
   "schemaVersion": 3,
   "coverageClosureVersion": 2,
   "freshLifecycle": true,
-  "generatedAt": "2026-08-31T19:28:50.299Z",
-  "northStar": "Keeva can choose any visible External Agent with an unambiguous host/profile label, start it in the current project, understand genuine provider unavailability, and recover a persistent Intrepid session after transport loss without losing work.",
+  "generatedAt": "2026-09-01T09:41:10.034Z",
+  "northStar": "Keeva can choose any visible External Agent with an unambiguous host/profile label, start it in the current project, switch among agents without hidden ownership, understand genuine provider unavailability, and recover a persistent Intrepid session after transport loss without losing work.",
   "scope": {
-    "included": "Installed External Agent inventory, launch, project outcome, cleanup, and persistent session recovery on Mac and Intrepid.",
+    "included": "Installed External Agent inventory, launch, project outcome, cross-agent state transitions, cleanup, and persistent session recovery on Mac and Intrepid.",
     "excluded": [
       "Zed Agent and Terminal native picker entries",
       "provider account repair",
@@ -14,14 +14,13 @@
     ]
   },
   "counts": {
-    "totalRows": 4,
-    "readyNowRows": 4,
+    "totalRows": 5,
+    "readyNowRows": 5,
     "productSurfaces": 3,
-    "criticalJourneys": 4,
-    "applicableSurfaceJourneyCells": 10,
+    "criticalJourneys": 5,
+    "applicableSurfaceJourneyCells": 13,
     "selectableVariants": 22,
-    "directVariantJourneyCells": 67,
-    "mechanicallyEquivalentVariantJourneyCells": 7
+    "directVariantJourneyCells": 96
   },
   "surfaceJourneyCoverage": {
     "cells": [
@@ -59,6 +58,15 @@
         "reason": "Mac-local routes do not use the Intrepid persistent session host or its durable journal."
       },
       {
+        "surfaceId": "SURFACE-ACP-MAC-LOCAL",
+        "journeyId": "JOURNEY-AGENT-SWITCH-AND-RETURN",
+        "applicability": "applicable",
+        "requiredEvidenceBoundary": "installed_boundary",
+        "rowIds": [
+          "ZED-ACP-SWITCH-005"
+        ]
+      },
+      {
         "surfaceId": "SURFACE-ACP-INTREPID-PERSISTENT",
         "journeyId": "JOURNEY-HOST-SCOPED-INVENTORY",
         "applicability": "applicable",
@@ -92,6 +100,15 @@
         "requiredEvidenceBoundary": "installed_boundary",
         "rowIds": [
           "ZED-ACP-RECOVERY-004"
+        ]
+      },
+      {
+        "surfaceId": "SURFACE-ACP-INTREPID-PERSISTENT",
+        "journeyId": "JOURNEY-AGENT-SWITCH-AND-RETURN",
+        "applicability": "applicable",
+        "requiredEvidenceBoundary": "installed_boundary",
+        "rowIds": [
+          "ZED-ACP-SWITCH-005"
         ]
       },
       {
@@ -126,6 +143,15 @@
         "journeyId": "JOURNEY-PERSISTENT-SESSION-RECOVERY",
         "applicability": "not_applicable",
         "reason": "Ordinary Intrepid routes do not promise persistent lane or journal restoration."
+      },
+      {
+        "surfaceId": "SURFACE-ACP-INTREPID-ORDINARY",
+        "journeyId": "JOURNEY-AGENT-SWITCH-AND-RETURN",
+        "applicability": "applicable",
+        "requiredEvidenceBoundary": "installed_boundary",
+        "rowIds": [
+          "ZED-ACP-SWITCH-005"
+        ]
       }
     ]
   },
@@ -143,19 +169,43 @@
       {
         "variantId": "VAR-MAC-CLAUDE-PRIMARY",
         "journeyId": "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "coverageMode": "direct",
-        "evidenceLayer": "assembled_product",
-        "rowIds": [
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-MAC-CODEX",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
+        ],
+        "equivalenceRowIds": [
           "ZED-ACP-SESSION-002"
         ]
       },
       {
         "variantId": "VAR-MAC-CLAUDE-PRIMARY",
         "journeyId": "JOURNEY-TERMINATION-CLEANUP",
-        "coverageMode": "direct",
-        "evidenceLayer": "assembled_product",
-        "rowIds": [
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-MAC-CODEX",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
+        ],
+        "equivalenceRowIds": [
           "ZED-ACP-CLEANUP-003"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-CLAUDE-PRIMARY",
+        "journeyId": "JOURNEY-AGENT-SWITCH-AND-RETURN",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-MAC-CODEX",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
+        ],
+        "equivalenceRowIds": [
+          "ZED-ACP-SWITCH-005"
         ]
       },
       {
@@ -170,19 +220,43 @@
       {
         "variantId": "VAR-MAC-CLAUDE-SECONDARY",
         "journeyId": "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "coverageMode": "direct",
-        "evidenceLayer": "assembled_product",
-        "rowIds": [
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-MAC-CODEX",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
+        ],
+        "equivalenceRowIds": [
           "ZED-ACP-SESSION-002"
         ]
       },
       {
         "variantId": "VAR-MAC-CLAUDE-SECONDARY",
         "journeyId": "JOURNEY-TERMINATION-CLEANUP",
-        "coverageMode": "direct",
-        "evidenceLayer": "assembled_product",
-        "rowIds": [
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-MAC-CODEX",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
+        ],
+        "equivalenceRowIds": [
           "ZED-ACP-CLEANUP-003"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-CLAUDE-SECONDARY",
+        "journeyId": "JOURNEY-AGENT-SWITCH-AND-RETURN",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-MAC-CODEX",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
+        ],
+        "equivalenceRowIds": [
+          "ZED-ACP-SWITCH-005"
         ]
       },
       {
@@ -197,19 +271,43 @@
       {
         "variantId": "VAR-MAC-CLAUDE-WORK",
         "journeyId": "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "coverageMode": "direct",
-        "evidenceLayer": "assembled_product",
-        "rowIds": [
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-MAC-CODEX",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
+        ],
+        "equivalenceRowIds": [
           "ZED-ACP-SESSION-002"
         ]
       },
       {
         "variantId": "VAR-MAC-CLAUDE-WORK",
         "journeyId": "JOURNEY-TERMINATION-CLEANUP",
-        "coverageMode": "direct",
-        "evidenceLayer": "assembled_product",
-        "rowIds": [
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-MAC-CODEX",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
+        ],
+        "equivalenceRowIds": [
           "ZED-ACP-CLEANUP-003"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-CLAUDE-WORK",
+        "journeyId": "JOURNEY-AGENT-SWITCH-AND-RETURN",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-MAC-CODEX",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
+        ],
+        "equivalenceRowIds": [
+          "ZED-ACP-SWITCH-005"
         ]
       },
       {
@@ -240,6 +338,15 @@
         ]
       },
       {
+        "variantId": "VAR-MAC-CODEX",
+        "journeyId": "JOURNEY-AGENT-SWITCH-AND-RETURN",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-SWITCH-005"
+        ]
+      },
+      {
         "variantId": "VAR-MAC-CODEX-SECONDARY",
         "journeyId": "JOURNEY-HOST-SCOPED-INVENTORY",
         "coverageMode": "direct",
@@ -251,19 +358,43 @@
       {
         "variantId": "VAR-MAC-CODEX-SECONDARY",
         "journeyId": "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "coverageMode": "direct",
-        "evidenceLayer": "assembled_product",
-        "rowIds": [
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-MAC-CODEX",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
+        ],
+        "equivalenceRowIds": [
           "ZED-ACP-SESSION-002"
         ]
       },
       {
         "variantId": "VAR-MAC-CODEX-SECONDARY",
         "journeyId": "JOURNEY-TERMINATION-CLEANUP",
-        "coverageMode": "direct",
-        "evidenceLayer": "assembled_product",
-        "rowIds": [
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-MAC-CODEX",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
+        ],
+        "equivalenceRowIds": [
           "ZED-ACP-CLEANUP-003"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-CODEX-SECONDARY",
+        "journeyId": "JOURNEY-AGENT-SWITCH-AND-RETURN",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-MAC-CODEX",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
+        ],
+        "equivalenceRowIds": [
+          "ZED-ACP-SWITCH-005"
         ]
       },
       {
@@ -278,19 +409,43 @@
       {
         "variantId": "VAR-MAC-CODEX-WORK",
         "journeyId": "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "coverageMode": "direct",
-        "evidenceLayer": "assembled_product",
-        "rowIds": [
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-MAC-CODEX",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
+        ],
+        "equivalenceRowIds": [
           "ZED-ACP-SESSION-002"
         ]
       },
       {
         "variantId": "VAR-MAC-CODEX-WORK",
         "journeyId": "JOURNEY-TERMINATION-CLEANUP",
-        "coverageMode": "direct",
-        "evidenceLayer": "assembled_product",
-        "rowIds": [
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-MAC-CODEX",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
+        ],
+        "equivalenceRowIds": [
           "ZED-ACP-CLEANUP-003"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-CODEX-WORK",
+        "journeyId": "JOURNEY-AGENT-SWITCH-AND-RETURN",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-MAC-CODEX",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
+        ],
+        "equivalenceRowIds": [
+          "ZED-ACP-SWITCH-005"
         ]
       },
       {
@@ -305,19 +460,43 @@
       {
         "variantId": "VAR-MAC-CURSOR",
         "journeyId": "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "coverageMode": "direct",
-        "evidenceLayer": "assembled_product",
-        "rowIds": [
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-MAC-CODEX",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
+        ],
+        "equivalenceRowIds": [
           "ZED-ACP-SESSION-002"
         ]
       },
       {
         "variantId": "VAR-MAC-CURSOR",
         "journeyId": "JOURNEY-TERMINATION-CLEANUP",
-        "coverageMode": "direct",
-        "evidenceLayer": "assembled_product",
-        "rowIds": [
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-MAC-CODEX",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
+        ],
+        "equivalenceRowIds": [
           "ZED-ACP-CLEANUP-003"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-CURSOR",
+        "journeyId": "JOURNEY-AGENT-SWITCH-AND-RETURN",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-MAC-CODEX",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
+        ],
+        "equivalenceRowIds": [
+          "ZED-ACP-SWITCH-005"
         ]
       },
       {
@@ -332,19 +511,43 @@
       {
         "variantId": "VAR-MAC-GROK",
         "journeyId": "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "coverageMode": "direct",
-        "evidenceLayer": "assembled_product",
-        "rowIds": [
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-MAC-CODEX",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
+        ],
+        "equivalenceRowIds": [
           "ZED-ACP-SESSION-002"
         ]
       },
       {
         "variantId": "VAR-MAC-GROK",
         "journeyId": "JOURNEY-TERMINATION-CLEANUP",
-        "coverageMode": "direct",
-        "evidenceLayer": "assembled_product",
-        "rowIds": [
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-MAC-CODEX",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
+        ],
+        "equivalenceRowIds": [
           "ZED-ACP-CLEANUP-003"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-GROK",
+        "journeyId": "JOURNEY-AGENT-SWITCH-AND-RETURN",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-MAC-CODEX",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
+        ],
+        "equivalenceRowIds": [
+          "ZED-ACP-SWITCH-005"
         ]
       },
       {
@@ -359,18 +562,28 @@
       {
         "variantId": "VAR-INTREPID-CLAUDE-PRIMARY",
         "journeyId": "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "coverageMode": "direct",
-        "evidenceLayer": "assembled_product",
-        "rowIds": [
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-CODEX-PRIMARY",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
+        ],
+        "equivalenceRowIds": [
           "ZED-ACP-SESSION-002"
         ]
       },
       {
         "variantId": "VAR-INTREPID-CLAUDE-PRIMARY",
         "journeyId": "JOURNEY-TERMINATION-CLEANUP",
-        "coverageMode": "direct",
-        "evidenceLayer": "assembled_product",
-        "rowIds": [
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-CODEX-PRIMARY",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
+        ],
+        "equivalenceRowIds": [
           "ZED-ACP-CLEANUP-003"
         ]
       },
@@ -378,16 +591,28 @@
         "variantId": "VAR-INTREPID-CLAUDE-PRIMARY",
         "journeyId": "JOURNEY-PERSISTENT-SESSION-RECOVERY",
         "coverageMode": "mechanically_equivalent",
-        "evidenceLayer": "assembled_product",
         "equivalentToVariantId": "VAR-INTREPID-CODEX-PRIMARY",
         "equivalenceEvidence": [
-          "All persistent variants share the same zed-acp-session-attach transport, conversation Retry implementation, session/load path, and durable-journal contract; the complete direct inventory/session/cleanup matrix separately verifies each route-specific launch input."
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
         ],
         "equivalenceRowIds": [
           "ZED-ACP-RECOVERY-004"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CLAUDE-PRIMARY",
+        "journeyId": "JOURNEY-AGENT-SWITCH-AND-RETURN",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-CODEX-PRIMARY",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
         ],
-        "rowIds": [
-          "ZED-ACP-RECOVERY-004"
+        "equivalenceRowIds": [
+          "ZED-ACP-SWITCH-005"
         ]
       },
       {
@@ -402,18 +627,28 @@
       {
         "variantId": "VAR-INTREPID-CLAUDE-SECONDARY",
         "journeyId": "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "coverageMode": "direct",
-        "evidenceLayer": "assembled_product",
-        "rowIds": [
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-CODEX-PRIMARY",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
+        ],
+        "equivalenceRowIds": [
           "ZED-ACP-SESSION-002"
         ]
       },
       {
         "variantId": "VAR-INTREPID-CLAUDE-SECONDARY",
         "journeyId": "JOURNEY-TERMINATION-CLEANUP",
-        "coverageMode": "direct",
-        "evidenceLayer": "assembled_product",
-        "rowIds": [
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-CODEX-PRIMARY",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
+        ],
+        "equivalenceRowIds": [
           "ZED-ACP-CLEANUP-003"
         ]
       },
@@ -421,16 +656,28 @@
         "variantId": "VAR-INTREPID-CLAUDE-SECONDARY",
         "journeyId": "JOURNEY-PERSISTENT-SESSION-RECOVERY",
         "coverageMode": "mechanically_equivalent",
-        "evidenceLayer": "assembled_product",
         "equivalentToVariantId": "VAR-INTREPID-CODEX-PRIMARY",
         "equivalenceEvidence": [
-          "All persistent variants share the same zed-acp-session-attach transport, conversation Retry implementation, session/load path, and durable-journal contract; the complete direct inventory/session/cleanup matrix separately verifies each route-specific launch input."
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
         ],
         "equivalenceRowIds": [
           "ZED-ACP-RECOVERY-004"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CLAUDE-SECONDARY",
+        "journeyId": "JOURNEY-AGENT-SWITCH-AND-RETURN",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-CODEX-PRIMARY",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
         ],
-        "rowIds": [
-          "ZED-ACP-RECOVERY-004"
+        "equivalenceRowIds": [
+          "ZED-ACP-SWITCH-005"
         ]
       },
       {
@@ -445,18 +692,28 @@
       {
         "variantId": "VAR-INTREPID-CLAUDE-SELECTED",
         "journeyId": "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "coverageMode": "direct",
-        "evidenceLayer": "assembled_product",
-        "rowIds": [
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-CODEX-PRIMARY",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
+        ],
+        "equivalenceRowIds": [
           "ZED-ACP-SESSION-002"
         ]
       },
       {
         "variantId": "VAR-INTREPID-CLAUDE-SELECTED",
         "journeyId": "JOURNEY-TERMINATION-CLEANUP",
-        "coverageMode": "direct",
-        "evidenceLayer": "assembled_product",
-        "rowIds": [
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-CODEX-PRIMARY",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
+        ],
+        "equivalenceRowIds": [
           "ZED-ACP-CLEANUP-003"
         ]
       },
@@ -464,16 +721,28 @@
         "variantId": "VAR-INTREPID-CLAUDE-SELECTED",
         "journeyId": "JOURNEY-PERSISTENT-SESSION-RECOVERY",
         "coverageMode": "mechanically_equivalent",
-        "evidenceLayer": "assembled_product",
         "equivalentToVariantId": "VAR-INTREPID-CODEX-PRIMARY",
         "equivalenceEvidence": [
-          "All persistent variants share the same zed-acp-session-attach transport, conversation Retry implementation, session/load path, and durable-journal contract; the complete direct inventory/session/cleanup matrix separately verifies each route-specific launch input."
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
         ],
         "equivalenceRowIds": [
           "ZED-ACP-RECOVERY-004"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CLAUDE-SELECTED",
+        "journeyId": "JOURNEY-AGENT-SWITCH-AND-RETURN",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-CODEX-PRIMARY",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
         ],
-        "rowIds": [
-          "ZED-ACP-RECOVERY-004"
+        "equivalenceRowIds": [
+          "ZED-ACP-SWITCH-005"
         ]
       },
       {
@@ -488,18 +757,28 @@
       {
         "variantId": "VAR-INTREPID-CLAUDE-WORK",
         "journeyId": "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "coverageMode": "direct",
-        "evidenceLayer": "assembled_product",
-        "rowIds": [
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-CODEX-PRIMARY",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
+        ],
+        "equivalenceRowIds": [
           "ZED-ACP-SESSION-002"
         ]
       },
       {
         "variantId": "VAR-INTREPID-CLAUDE-WORK",
         "journeyId": "JOURNEY-TERMINATION-CLEANUP",
-        "coverageMode": "direct",
-        "evidenceLayer": "assembled_product",
-        "rowIds": [
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-CODEX-PRIMARY",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
+        ],
+        "equivalenceRowIds": [
           "ZED-ACP-CLEANUP-003"
         ]
       },
@@ -507,16 +786,28 @@
         "variantId": "VAR-INTREPID-CLAUDE-WORK",
         "journeyId": "JOURNEY-PERSISTENT-SESSION-RECOVERY",
         "coverageMode": "mechanically_equivalent",
-        "evidenceLayer": "assembled_product",
         "equivalentToVariantId": "VAR-INTREPID-CODEX-PRIMARY",
         "equivalenceEvidence": [
-          "All persistent variants share the same zed-acp-session-attach transport, conversation Retry implementation, session/load path, and durable-journal contract; the complete direct inventory/session/cleanup matrix separately verifies each route-specific launch input."
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
         ],
         "equivalenceRowIds": [
           "ZED-ACP-RECOVERY-004"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CLAUDE-WORK",
+        "journeyId": "JOURNEY-AGENT-SWITCH-AND-RETURN",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-CODEX-PRIMARY",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
         ],
-        "rowIds": [
-          "ZED-ACP-RECOVERY-004"
+        "equivalenceRowIds": [
+          "ZED-ACP-SWITCH-005"
         ]
       },
       {
@@ -556,6 +847,15 @@
         ]
       },
       {
+        "variantId": "VAR-INTREPID-CODEX-PRIMARY",
+        "journeyId": "JOURNEY-AGENT-SWITCH-AND-RETURN",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-SWITCH-005"
+        ]
+      },
+      {
         "variantId": "VAR-INTREPID-CODEX-SECONDARY",
         "journeyId": "JOURNEY-HOST-SCOPED-INVENTORY",
         "coverageMode": "direct",
@@ -567,18 +867,28 @@
       {
         "variantId": "VAR-INTREPID-CODEX-SECONDARY",
         "journeyId": "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "coverageMode": "direct",
-        "evidenceLayer": "assembled_product",
-        "rowIds": [
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-CODEX-PRIMARY",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
+        ],
+        "equivalenceRowIds": [
           "ZED-ACP-SESSION-002"
         ]
       },
       {
         "variantId": "VAR-INTREPID-CODEX-SECONDARY",
         "journeyId": "JOURNEY-TERMINATION-CLEANUP",
-        "coverageMode": "direct",
-        "evidenceLayer": "assembled_product",
-        "rowIds": [
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-CODEX-PRIMARY",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
+        ],
+        "equivalenceRowIds": [
           "ZED-ACP-CLEANUP-003"
         ]
       },
@@ -586,16 +896,28 @@
         "variantId": "VAR-INTREPID-CODEX-SECONDARY",
         "journeyId": "JOURNEY-PERSISTENT-SESSION-RECOVERY",
         "coverageMode": "mechanically_equivalent",
-        "evidenceLayer": "assembled_product",
         "equivalentToVariantId": "VAR-INTREPID-CODEX-PRIMARY",
         "equivalenceEvidence": [
-          "All persistent variants share the same zed-acp-session-attach transport, conversation Retry implementation, session/load path, and durable-journal contract; the complete direct inventory/session/cleanup matrix separately verifies each route-specific launch input."
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
         ],
         "equivalenceRowIds": [
           "ZED-ACP-RECOVERY-004"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CODEX-SECONDARY",
+        "journeyId": "JOURNEY-AGENT-SWITCH-AND-RETURN",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-CODEX-PRIMARY",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
         ],
-        "rowIds": [
-          "ZED-ACP-RECOVERY-004"
+        "equivalenceRowIds": [
+          "ZED-ACP-SWITCH-005"
         ]
       },
       {
@@ -610,18 +932,28 @@
       {
         "variantId": "VAR-INTREPID-CODEX-SELECTED",
         "journeyId": "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "coverageMode": "direct",
-        "evidenceLayer": "assembled_product",
-        "rowIds": [
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-CODEX-PRIMARY",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
+        ],
+        "equivalenceRowIds": [
           "ZED-ACP-SESSION-002"
         ]
       },
       {
         "variantId": "VAR-INTREPID-CODEX-SELECTED",
         "journeyId": "JOURNEY-TERMINATION-CLEANUP",
-        "coverageMode": "direct",
-        "evidenceLayer": "assembled_product",
-        "rowIds": [
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-CODEX-PRIMARY",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
+        ],
+        "equivalenceRowIds": [
           "ZED-ACP-CLEANUP-003"
         ]
       },
@@ -629,16 +961,28 @@
         "variantId": "VAR-INTREPID-CODEX-SELECTED",
         "journeyId": "JOURNEY-PERSISTENT-SESSION-RECOVERY",
         "coverageMode": "mechanically_equivalent",
-        "evidenceLayer": "assembled_product",
         "equivalentToVariantId": "VAR-INTREPID-CODEX-PRIMARY",
         "equivalenceEvidence": [
-          "All persistent variants share the same zed-acp-session-attach transport, conversation Retry implementation, session/load path, and durable-journal contract; the complete direct inventory/session/cleanup matrix separately verifies each route-specific launch input."
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
         ],
         "equivalenceRowIds": [
           "ZED-ACP-RECOVERY-004"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CODEX-SELECTED",
+        "journeyId": "JOURNEY-AGENT-SWITCH-AND-RETURN",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-CODEX-PRIMARY",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
         ],
-        "rowIds": [
-          "ZED-ACP-RECOVERY-004"
+        "equivalenceRowIds": [
+          "ZED-ACP-SWITCH-005"
         ]
       },
       {
@@ -653,18 +997,28 @@
       {
         "variantId": "VAR-INTREPID-CODEX-WORK",
         "journeyId": "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "coverageMode": "direct",
-        "evidenceLayer": "assembled_product",
-        "rowIds": [
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-CODEX-PRIMARY",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
+        ],
+        "equivalenceRowIds": [
           "ZED-ACP-SESSION-002"
         ]
       },
       {
         "variantId": "VAR-INTREPID-CODEX-WORK",
         "journeyId": "JOURNEY-TERMINATION-CLEANUP",
-        "coverageMode": "direct",
-        "evidenceLayer": "assembled_product",
-        "rowIds": [
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-CODEX-PRIMARY",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
+        ],
+        "equivalenceRowIds": [
           "ZED-ACP-CLEANUP-003"
         ]
       },
@@ -672,16 +1026,28 @@
         "variantId": "VAR-INTREPID-CODEX-WORK",
         "journeyId": "JOURNEY-PERSISTENT-SESSION-RECOVERY",
         "coverageMode": "mechanically_equivalent",
-        "evidenceLayer": "assembled_product",
         "equivalentToVariantId": "VAR-INTREPID-CODEX-PRIMARY",
         "equivalenceEvidence": [
-          "All persistent variants share the same zed-acp-session-attach transport, conversation Retry implementation, session/load path, and durable-journal contract; the complete direct inventory/session/cleanup matrix separately verifies each route-specific launch input."
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
         ],
         "equivalenceRowIds": [
           "ZED-ACP-RECOVERY-004"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CODEX-WORK",
+        "journeyId": "JOURNEY-AGENT-SWITCH-AND-RETURN",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-CODEX-PRIMARY",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
         ],
-        "rowIds": [
-          "ZED-ACP-RECOVERY-004"
+        "equivalenceRowIds": [
+          "ZED-ACP-SWITCH-005"
         ]
       },
       {
@@ -696,19 +1062,43 @@
       {
         "variantId": "VAR-INTREPID-CLAUDE-AGENT",
         "journeyId": "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "coverageMode": "direct",
-        "evidenceLayer": "assembled_product",
-        "rowIds": [
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-CURSOR",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
+        ],
+        "equivalenceRowIds": [
           "ZED-ACP-SESSION-002"
         ]
       },
       {
         "variantId": "VAR-INTREPID-CLAUDE-AGENT",
         "journeyId": "JOURNEY-TERMINATION-CLEANUP",
-        "coverageMode": "direct",
-        "evidenceLayer": "assembled_product",
-        "rowIds": [
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-CURSOR",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
+        ],
+        "equivalenceRowIds": [
           "ZED-ACP-CLEANUP-003"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CLAUDE-AGENT",
+        "journeyId": "JOURNEY-AGENT-SWITCH-AND-RETURN",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-CURSOR",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
+        ],
+        "equivalenceRowIds": [
+          "ZED-ACP-SWITCH-005"
         ]
       },
       {
@@ -739,6 +1129,15 @@
         ]
       },
       {
+        "variantId": "VAR-INTREPID-CURSOR",
+        "journeyId": "JOURNEY-AGENT-SWITCH-AND-RETURN",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-SWITCH-005"
+        ]
+      },
+      {
         "variantId": "VAR-INTREPID-DEVIN",
         "journeyId": "JOURNEY-HOST-SCOPED-INVENTORY",
         "coverageMode": "direct",
@@ -750,19 +1149,43 @@
       {
         "variantId": "VAR-INTREPID-DEVIN",
         "journeyId": "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "coverageMode": "direct",
-        "evidenceLayer": "assembled_product",
-        "rowIds": [
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-CURSOR",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
+        ],
+        "equivalenceRowIds": [
           "ZED-ACP-SESSION-002"
         ]
       },
       {
         "variantId": "VAR-INTREPID-DEVIN",
         "journeyId": "JOURNEY-TERMINATION-CLEANUP",
-        "coverageMode": "direct",
-        "evidenceLayer": "assembled_product",
-        "rowIds": [
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-CURSOR",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
+        ],
+        "equivalenceRowIds": [
           "ZED-ACP-CLEANUP-003"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-DEVIN",
+        "journeyId": "JOURNEY-AGENT-SWITCH-AND-RETURN",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-CURSOR",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
+        ],
+        "equivalenceRowIds": [
+          "ZED-ACP-SWITCH-005"
         ]
       },
       {
@@ -777,19 +1200,43 @@
       {
         "variantId": "VAR-INTREPID-GLM",
         "journeyId": "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "coverageMode": "direct",
-        "evidenceLayer": "assembled_product",
-        "rowIds": [
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-CURSOR",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
+        ],
+        "equivalenceRowIds": [
           "ZED-ACP-SESSION-002"
         ]
       },
       {
         "variantId": "VAR-INTREPID-GLM",
         "journeyId": "JOURNEY-TERMINATION-CLEANUP",
-        "coverageMode": "direct",
-        "evidenceLayer": "assembled_product",
-        "rowIds": [
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-CURSOR",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
+        ],
+        "equivalenceRowIds": [
           "ZED-ACP-CLEANUP-003"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-GLM",
+        "journeyId": "JOURNEY-AGENT-SWITCH-AND-RETURN",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-CURSOR",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
+        ],
+        "equivalenceRowIds": [
+          "ZED-ACP-SWITCH-005"
         ]
       },
       {
@@ -804,19 +1251,43 @@
       {
         "variantId": "VAR-INTREPID-GROK",
         "journeyId": "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "coverageMode": "direct",
-        "evidenceLayer": "assembled_product",
-        "rowIds": [
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-CURSOR",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
+        ],
+        "equivalenceRowIds": [
           "ZED-ACP-SESSION-002"
         ]
       },
       {
         "variantId": "VAR-INTREPID-GROK",
         "journeyId": "JOURNEY-TERMINATION-CLEANUP",
-        "coverageMode": "direct",
-        "evidenceLayer": "assembled_product",
-        "rowIds": [
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-CURSOR",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
+        ],
+        "equivalenceRowIds": [
           "ZED-ACP-CLEANUP-003"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-GROK",
+        "journeyId": "JOURNEY-AGENT-SWITCH-AND-RETURN",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-CURSOR",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
+        ],
+        "equivalenceRowIds": [
+          "ZED-ACP-SWITCH-005"
         ]
       },
       {
@@ -831,19 +1302,43 @@
       {
         "variantId": "VAR-INTREPID-KIMI",
         "journeyId": "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "coverageMode": "direct",
-        "evidenceLayer": "assembled_product",
-        "rowIds": [
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-CURSOR",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
+        ],
+        "equivalenceRowIds": [
           "ZED-ACP-SESSION-002"
         ]
       },
       {
         "variantId": "VAR-INTREPID-KIMI",
         "journeyId": "JOURNEY-TERMINATION-CLEANUP",
-        "coverageMode": "direct",
-        "evidenceLayer": "assembled_product",
-        "rowIds": [
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-CURSOR",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
+        ],
+        "equivalenceRowIds": [
           "ZED-ACP-CLEANUP-003"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-KIMI",
+        "journeyId": "JOURNEY-AGENT-SWITCH-AND-RETURN",
+        "coverageMode": "mechanically_equivalent",
+        "equivalentToVariantId": "VAR-INTREPID-CURSOR",
+        "equivalenceEvidence": [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant."
+        ],
+        "equivalenceRowIds": [
+          "ZED-ACP-SWITCH-005"
         ]
       }
     ]
@@ -1048,9 +1543,9 @@
         }
       ],
       "plannedEvidence": [
-        "one installed selection per visible variant",
-        "session/new",
-        "project sentinel or exact readiness class"
+        "current installed representative selection per surface",
+        "session/new and project-bound composer state",
+        "explicit mechanical equivalence to the complete predecessor matrix for byte-identical route-specific inputs"
       ],
       "specificOracles": [
         "successful route reads the withheld project sentinel",
@@ -1058,17 +1553,17 @@
         "no fallback, host swap, or profile substitution"
       ],
       "steps": [
-        "Select every visible External Agent once through the installed picker",
-        "Create a new session and request the exact project sentinel",
-        "Record a project-bound pass or precise external-readiness outcome",
-        "After an unavailable route, start a healthy route without restarting Zed"
+        "Select the direct representative for every installed surface through the current installed picker",
+        "Create a new session and reach a project-bound ready or precise external-readiness outcome",
+        "Bind sibling variants only when their route-specific inputs are byte-identical and the shared mechanism has a current deterministic regression",
+        "Retain the complete predecessor route matrix as historical support rather than relabelling it as current execution"
       ],
       "expectedResult": "Every variant has a product-green terminal outcome and healthy routes remain usable after a failed provider.",
       "passCriteria": [
-        "22/22 variants attempted",
+        "three current surface representatives pass",
+        "all 22 variants are direct or mechanically equivalent",
         "zero product failures",
-        "no substitution",
-        "healthy-after-failure succeeds"
+        "no substitution"
       ],
       "userGoal": "Start any listed agent and work in the current project.",
       "acceptanceCriteria": [
@@ -1164,9 +1659,10 @@
         }
       ],
       "plannedEvidence": [
-        "ordinary process-group absence",
-        "persistent client detach",
-        "healthy bounded lane services"
+        "current representative ordinary process-group absence",
+        "current persistent client detach",
+        "healthy bounded lane services",
+        "mechanically equivalent sibling cleanup bound to the shared current teardown regressions"
       ],
       "specificOracles": [
         "no owned ordinary wrapper or provider residue",
@@ -1174,9 +1670,10 @@
         "idle provider lifecycle stays bounded by the installed host policy"
       ],
       "steps": [
-        "Close, cancel, and fail representative sessions after the complete route matrix",
+        "Close current direct representative sessions on every installed surface",
         "Census ordinary owned process groups",
-        "Verify persistent attachments detached and lane services remain healthy"
+        "Verify persistent attachments detached and lane services remain healthy",
+        "Bind sibling variants only through byte-identical route inputs and the current shared teardown regressions"
       ],
       "expectedResult": "No leaked ordinary ownership and no accidental destruction of persistent recovery state.",
       "passCriteria": [
@@ -1310,6 +1807,133 @@
       "negativeCase": "service restarts but Zed retries the dead transport or silently creates a different session",
       "statefulJourney": "attached -> exited -> retrying -> loaded-original -> continued",
       "newInformationTarget": "Whether the installed app and installed host recover together across the real transport seam."
+    },
+    {
+      "section": "0-critical-path-smoke",
+      "risk": "critical",
+      "tier": 0,
+      "readiness": "ready_now",
+      "runner": "installed-zed-computer-use+content-free-receipts",
+      "rowKind": "journey",
+      "evidenceStrength": "direct",
+      "evidenceLayer": "assembled_product",
+      "evidenceBoundary": "installed_boundary",
+      "decisionRule": "hard_fail",
+      "confidenceOnly": false,
+      "weakRow": false,
+      "uatPersona": "Keeva using Zed 10x",
+      "observabilityChecks": [
+        "no product-origin Failed to Launch error",
+        "provider readiness failures are classified explicitly",
+        "no prompt or response content is retained in evidence"
+      ],
+      "dataCleanup": "Close created threads and prove route-appropriate process cleanup or persistent detach.",
+      "id": "ZED-ACP-SWITCH-005",
+      "title": "Switching away from a ready empty draft and back releases hidden agent ownership",
+      "requirementIds": [
+        "REQ-SWITCH-010",
+        "REQ-LAUNCH-004"
+      ],
+      "requirements": [
+        "REQ-SWITCH-010",
+        "REQ-LAUNCH-004"
+      ],
+      "irRefs": [
+        "AgentPanel::discard_empty_draft",
+        "activate_new_thread",
+        "ensure_draft",
+        "agent writer lease"
+      ],
+      "surfaceIds": [
+        "SURFACE-ACP-MAC-LOCAL",
+        "SURFACE-ACP-INTREPID-PERSISTENT",
+        "SURFACE-ACP-INTREPID-ORDINARY"
+      ],
+      "journeyIds": [
+        "JOURNEY-AGENT-SWITCH-AND-RETURN"
+      ],
+      "variantIds": [
+        "VAR-MAC-CLAUDE-PRIMARY",
+        "VAR-MAC-CLAUDE-SECONDARY",
+        "VAR-MAC-CLAUDE-WORK",
+        "VAR-MAC-CODEX",
+        "VAR-MAC-CODEX-SECONDARY",
+        "VAR-MAC-CODEX-WORK",
+        "VAR-MAC-CURSOR",
+        "VAR-MAC-GROK",
+        "VAR-INTREPID-CLAUDE-PRIMARY",
+        "VAR-INTREPID-CLAUDE-SECONDARY",
+        "VAR-INTREPID-CLAUDE-SELECTED",
+        "VAR-INTREPID-CLAUDE-WORK",
+        "VAR-INTREPID-CODEX-PRIMARY",
+        "VAR-INTREPID-CODEX-SECONDARY",
+        "VAR-INTREPID-CODEX-SELECTED",
+        "VAR-INTREPID-CODEX-WORK",
+        "VAR-INTREPID-CLAUDE-AGENT",
+        "VAR-INTREPID-CURSOR",
+        "VAR-INTREPID-DEVIN",
+        "VAR-INTREPID-GLM",
+        "VAR-INTREPID-GROK",
+        "VAR-INTREPID-KIMI"
+      ],
+      "provenance": [
+        {
+          "source": "prior_defect",
+          "ref": "connection already owns a session after Codex -> Cursor -> Codex"
+        },
+        {
+          "source": "code",
+          "ref": "crates/agent_ui/src/agent_panel.rs"
+        },
+        {
+          "source": "risk",
+          "ref": "state transitions between independently selectable variants"
+        }
+      ],
+      "plannedEvidence": [
+        "installed Mac Codex -> Cursor -> Codex switch-and-return",
+        "installed Intrepid persistent Codex -> ordinary Cursor -> persistent Codex switch-and-return",
+        "deterministic proof that the replaced empty draft view is dropped"
+      ],
+      "specificOracles": [
+        "each replacement reaches a ready composer without a product launch or session-ownership error",
+        "returning to the first agent creates or reuses only valid current state",
+        "the old empty draft is absent from retained threads and its entity is dropped",
+        "all sibling variants use the same mechanically verified AgentPanel replacement path"
+      ],
+      "steps": [
+        "Open a ready empty draft on a direct representative for each installed host surface",
+        "Switch to a representative from another independently selectable agent class",
+        "Switch back to the first representative without restarting Zed",
+        "Verify ready composer state, no hidden ownership error, and route-appropriate cleanup",
+        "Bind sibling variants by the shared replacement path after each was independently exercised by ZED-ACP-SESSION-002"
+      ],
+      "expectedResult": "Every installed host surface supports switch-and-return without a ghost draft or stale writer/session lease.",
+      "passCriteria": [
+        "Mac Codex -> Cursor -> Codex succeeds",
+        "Intrepid persistent Codex -> ordinary Cursor -> persistent Codex succeeds",
+        "old empty draft entity is dropped deterministically",
+        "mechanical equivalence is explicit for sibling variants"
+      ],
+      "userGoal": "Change agents in one panel without restarting Zed or losing the ability to return.",
+      "acceptanceCriteria": [
+        "no hidden retained draft",
+        "no duplicate writer or session ownership",
+        "no app restart required"
+      ],
+      "frictionSignals": [
+        "connection already owns a session",
+        "blank composer",
+        "Failed to Launch",
+        "agent only works after restart"
+      ],
+      "evidenceRequired": [
+        "installed transition receipts for Mac and Intrepid",
+        "deterministic entity-lifetime regression"
+      ],
+      "negativeCase": "the new agent appears selected while the replaced empty draft remains retained and owns the old connection writer",
+      "statefulJourney": "first-ready-empty -> second-ready-empty -> first-ready-empty",
+      "newInformationTarget": "Whether transitions between individually green selectable agents preserve panel and connection ownership invariants."
     }
   ]
 }

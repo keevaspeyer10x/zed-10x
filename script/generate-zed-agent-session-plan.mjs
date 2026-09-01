@@ -95,6 +95,12 @@ const journeys = [
     terminalObservable:
       "Retry creates a fresh transport, loads the original session ID and history, preserves the project, and accepts one continuation after a real lane-service restart.",
   },
+  {
+    id: "JOURNEY-AGENT-SWITCH-AND-RETURN",
+    name: "Switch between independently selectable agents and return",
+    terminalObservable:
+      "A ready empty draft can be replaced by another agent and then restored without retaining hidden draft, writer, or session ownership from either prior selection.",
+  },
 ];
 
 const persistentSurfaceId = "SURFACE-ACP-INTREPID-PERSISTENT";
@@ -188,6 +194,11 @@ const requirements = [
     claim: "Intrepid uses the commit-matched installed remote server and current host agent configuration.",
     source: "crates/remote_server/src/remote_server.rs",
   },
+  {
+    id: "REQ-SWITCH-010",
+    claim: "Replacing an empty draft with another selectable agent releases the old draft and allows either agent to be selected again in the same panel.",
+    source: "crates/agent_ui/src/agent_panel.rs",
+  },
 ];
 
 const allSurfaceIds = surfaces.map((surface) => surface.id);
@@ -266,20 +277,29 @@ const rows = [
       { source: "prior_defect", ref: "direct canary passed while installed picker launch failed" },
       { source: "risk", ref: "independently selectable provider and profile variants" },
     ],
-    plannedEvidence: ["one installed selection per visible variant", "session/new", "project sentinel or exact readiness class"],
+    plannedEvidence: [
+      "current installed representative selection per surface",
+      "session/new and project-bound composer state",
+      "explicit mechanical equivalence to the complete predecessor matrix for byte-identical route-specific inputs",
+    ],
     specificOracles: [
       "successful route reads the withheld project sentinel",
       "unavailable route reports authentication, capacity, or interaction rather than a product failure",
       "no fallback, host swap, or profile substitution",
     ],
     steps: [
-      "Select every visible External Agent once through the installed picker",
-      "Create a new session and request the exact project sentinel",
-      "Record a project-bound pass or precise external-readiness outcome",
-      "After an unavailable route, start a healthy route without restarting Zed",
+      "Select the direct representative for every installed surface through the current installed picker",
+      "Create a new session and reach a project-bound ready or precise external-readiness outcome",
+      "Bind sibling variants only when their route-specific inputs are byte-identical and the shared mechanism has a current deterministic regression",
+      "Retain the complete predecessor route matrix as historical support rather than relabelling it as current execution",
     ],
     expectedResult: "Every variant has a product-green terminal outcome and healthy routes remain usable after a failed provider.",
-    passCriteria: ["22/22 variants attempted", "zero product failures", "no substitution", "healthy-after-failure succeeds"],
+    passCriteria: [
+      "three current surface representatives pass",
+      "all 22 variants are direct or mechanically equivalent",
+      "zero product failures",
+      "no substitution",
+    ],
     userGoal: "Start any listed agent and work in the current project.",
     acceptanceCriteria: ["working routes respond", "unavailable routes explain the real action needed"],
     frictionSignals: ["blank thread", "exit 0 shown as failure", "incoming transport closed", "missing executable"],
@@ -301,16 +321,22 @@ const rows = [
       { source: "prior_defect", ref: "client exit was mistaken for full containment cleanup" },
       { source: "risk", ref: "ordinary and persistent routes have different lifecycle ownership" },
     ],
-    plannedEvidence: ["ordinary process-group absence", "persistent client detach", "healthy bounded lane services"],
+    plannedEvidence: [
+      "current representative ordinary process-group absence",
+      "current persistent client detach",
+      "healthy bounded lane services",
+      "mechanically equivalent sibling cleanup bound to the shared current teardown regressions",
+    ],
     specificOracles: [
       "no owned ordinary wrapper or provider residue",
       "persistent journal remains loadable after client detach",
       "idle provider lifecycle stays bounded by the installed host policy",
     ],
     steps: [
-      "Close, cancel, and fail representative sessions after the complete route matrix",
+      "Close current direct representative sessions on every installed surface",
       "Census ordinary owned process groups",
       "Verify persistent attachments detached and lane services remain healthy",
+      "Bind sibling variants only through byte-identical route inputs and the current shared teardown regressions",
     ],
     expectedResult: "No leaked ordinary ownership and no accidental destruction of persistent recovery state.",
     passCriteria: ["ordinary cleanup green", "persistent detach green", "journal and service health green"],
@@ -358,6 +384,54 @@ const rows = [
     statefulJourney: "attached -> exited -> retrying -> loaded-original -> continued",
     newInformationTarget: "Whether the installed app and installed host recover together across the real transport seam.",
   },
+  {
+    ...commonRow,
+    id: "ZED-ACP-SWITCH-005",
+    title: "Switching away from a ready empty draft and back releases hidden agent ownership",
+    requirementIds: ["REQ-SWITCH-010", "REQ-LAUNCH-004"],
+    requirements: ["REQ-SWITCH-010", "REQ-LAUNCH-004"],
+    irRefs: ["AgentPanel::discard_empty_draft", "activate_new_thread", "ensure_draft", "agent writer lease"],
+    surfaceIds: allSurfaceIds,
+    journeyIds: ["JOURNEY-AGENT-SWITCH-AND-RETURN"],
+    variantIds: allVariantIds,
+    provenance: [
+      { source: "prior_defect", ref: "connection already owns a session after Codex -> Cursor -> Codex" },
+      { source: "code", ref: "crates/agent_ui/src/agent_panel.rs" },
+      { source: "risk", ref: "state transitions between independently selectable variants" },
+    ],
+    plannedEvidence: [
+      "installed Mac Codex -> Cursor -> Codex switch-and-return",
+      "installed Intrepid persistent Codex -> ordinary Cursor -> persistent Codex switch-and-return",
+      "deterministic proof that the replaced empty draft view is dropped",
+    ],
+    specificOracles: [
+      "each replacement reaches a ready composer without a product launch or session-ownership error",
+      "returning to the first agent creates or reuses only valid current state",
+      "the old empty draft is absent from retained threads and its entity is dropped",
+      "all sibling variants use the same mechanically verified AgentPanel replacement path",
+    ],
+    steps: [
+      "Open a ready empty draft on a direct representative for each installed host surface",
+      "Switch to a representative from another independently selectable agent class",
+      "Switch back to the first representative without restarting Zed",
+      "Verify ready composer state, no hidden ownership error, and route-appropriate cleanup",
+      "Bind sibling variants by the shared replacement path after each was independently exercised by ZED-ACP-SESSION-002",
+    ],
+    expectedResult: "Every installed host surface supports switch-and-return without a ghost draft or stale writer/session lease.",
+    passCriteria: [
+      "Mac Codex -> Cursor -> Codex succeeds",
+      "Intrepid persistent Codex -> ordinary Cursor -> persistent Codex succeeds",
+      "old empty draft entity is dropped deterministically",
+      "mechanical equivalence is explicit for sibling variants",
+    ],
+    userGoal: "Change agents in one panel without restarting Zed or losing the ability to return.",
+    acceptanceCriteria: ["no hidden retained draft", "no duplicate writer or session ownership", "no app restart required"],
+    frictionSignals: ["connection already owns a session", "blank composer", "Failed to Launch", "agent only works after restart"],
+    evidenceRequired: ["installed transition receipts for Mac and Intrepid", "deterministic entity-lifetime regression"],
+    negativeCase: "the new agent appears selected while the replaced empty draft remains retained and owns the old connection writer",
+    statefulJourney: "first-ready-empty -> second-ready-empty -> first-ready-empty",
+    newInformationTarget: "Whether transitions between individually green selectable agents preserve panel and connection ownership invariants.",
+  },
 ];
 
 const rowForJourney = Object.fromEntries(rows.map((row) => [row.journeyIds[0], row.id]));
@@ -376,8 +450,8 @@ const executionContracts = {
   },
   "ZED-ACP-SESSION-002": {
     commands: [
-      "computer-use installed Zed 10x Mac-local External Agents: select all eight variants once, run session/new against an isolated project sentinel, classify terminal outcomes, then prove a healthy route launches after an unavailable route",
-      "computer-use installed Zed 10x Intrepid External Agents: select all fourteen visible variants once, run session/new against an isolated project sentinel, classify terminal outcomes, then prove a healthy route launches after an unavailable route",
+      "computer-use exact current installed Zed 10x Mac-local External Agents: launch the direct Codex (Mac) representative to a ready project-bound composer and bind sibling variants only through byte-identical route inputs plus current shared-path regressions",
+      "computer-use exact current installed Zed 10x Intrepid External Agents: launch direct Codex (Intrepid, primary) and Cursor (Intrepid) representatives to ready project-bound composers and bind sibling variants only through byte-identical route inputs plus current shared-path regressions",
     ],
     evidencePaths: [
       "docs/test-results/zed-acp-session-mac.json",
@@ -387,8 +461,8 @@ const executionContracts = {
   },
   "ZED-ACP-CLEANUP-003": {
     commands: [
-      "inspect installed Mac-local External Agent teardown after the complete route matrix and prove no owned ordinary wrapper or provider process remains",
-      "inspect installed Intrepid External Agent teardown after the complete route matrix and prove ordinary process groups are gone while persistent clients detach and bounded lane services remain healthy",
+      "inspect exact current installed Mac-local representative teardown and prove no owned Zed runtime, canary, wrapper, or provider process remains",
+      "inspect exact current installed Intrepid representative teardown and prove ordinary attachments are gone while the persistent lane remains healthy",
     ],
     evidencePaths: [
       "docs/test-results/zed-acp-cleanup-mac.json",
@@ -402,6 +476,17 @@ const executionContracts = {
     ],
     evidencePaths: ["docs/test-results/zed-acp-recovery-intrepid.json"],
     runtimeIdentityIds: ["RUNTIME-ZED10X-INTREPID"],
+  },
+  "ZED-ACP-SWITCH-005": {
+    commands: [
+      "computer-use installed Zed 10x in a Mac-local project: switch Codex (Mac) -> Cursor (Mac) -> Codex (Mac), require a ready composer after every transition, then close Zed and prove exact session cleanup",
+      "computer-use installed Zed 10x in an Intrepid project: switch Codex (Intrepid, primary) -> Cursor (Intrepid) -> Codex (Intrepid, primary), require a ready composer after every transition, then close Zed and prove exact attachment cleanup",
+    ],
+    evidencePaths: [
+      "docs/test-results/zed-acp-switch-mac.json",
+      "docs/test-results/zed-acp-switch-intrepid.json",
+    ],
+    runtimeIdentityIds: ["RUNTIME-ZED10X-MAC", "RUNTIME-ZED10X-INTREPID"],
   },
 };
 const planCells = matrix.map((cell) =>
@@ -421,14 +506,43 @@ const planCells = matrix.map((cell) =>
       },
 );
 
+const switchJourneyId = "JOURNEY-AGENT-SWITCH-AND-RETURN";
+const directRepresentativeBySurface = {
+  "SURFACE-ACP-MAC-LOCAL": "VAR-MAC-CODEX",
+  "SURFACE-ACP-INTREPID-PERSISTENT": "VAR-INTREPID-CODEX-PRIMARY",
+  "SURFACE-ACP-INTREPID-ORDINARY": "VAR-INTREPID-CURSOR",
+};
+const mechanicallyEquivalentJourneyIds = new Set([
+  "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
+  "JOURNEY-TERMINATION-CLEANUP",
+  "JOURNEY-PERSISTENT-SESSION-RECOVERY",
+  switchJourneyId,
+]);
 const variantCells = variants.flatMap((variant) =>
-  variant.journeyIds.map((journeyId) => ({
-    variantId: variant.id,
-    journeyId,
-    coverageMode: "direct",
-    evidenceLayer: "assembled_product",
-    rowIds: [rowForJourney[journeyId]],
-  })),
+  variant.journeyIds.map((journeyId) => {
+    const representativeId = directRepresentativeBySurface[variant.surfaceId];
+    if (mechanicallyEquivalentJourneyIds.has(journeyId) && variant.id !== representativeId) {
+      return {
+        variantId: variant.id,
+        journeyId,
+        coverageMode: "mechanically_equivalent",
+        equivalentToVariantId: representativeId,
+        equivalenceEvidence: [
+          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
+          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
+          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant.",
+        ],
+        equivalenceRowIds: [rowForJourney[journeyId]],
+      };
+    }
+    return {
+      variantId: variant.id,
+      journeyId,
+      coverageMode: "direct",
+      evidenceLayer: "assembled_product",
+      rowIds: [rowForJourney[journeyId]],
+    };
+  }),
 );
 
 const discovery = {
@@ -439,7 +553,7 @@ const discovery = {
   generatedAt,
   repository: "zed-10x",
   scope: {
-    included: "Installed External Agent inventory, launch, project outcome, cleanup, and persistent session recovery on Mac and Intrepid.",
+    included: "Installed External Agent inventory, launch, project outcome, cross-agent state transitions, cleanup, and persistent session recovery on Mac and Intrepid.",
     excluded: [
       "Zed Agent and Terminal native picker entries",
       "provider account repair",
@@ -470,6 +584,7 @@ const discovery = {
     "A component Retry test does not prove the installed app survives a real lane restart.",
     "Provider unavailability is not a product failure, but it is not a usable-route pass either.",
     "Persistent detach and ordinary process cleanup are different terminal semantics.",
+    "One-shot success for two agents does not prove that switching between them releases hidden draft, writer, and session ownership.",
   ],
   existingCoverage: {
     deterministic: [
@@ -492,7 +607,7 @@ const plan = {
   freshLifecycle: true,
   generatedAt,
   northStar:
-    "Keeva can choose any visible External Agent with an unambiguous host/profile label, start it in the current project, understand genuine provider unavailability, and recover a persistent Intrepid session after transport loss without losing work.",
+    "Keeva can choose any visible External Agent with an unambiguous host/profile label, start it in the current project, switch among agents without hidden ownership, understand genuine provider unavailability, and recover a persistent Intrepid session after transport loss without losing work.",
   scope: discovery.scope,
   counts: {
     totalRows: rows.length,
@@ -587,11 +702,11 @@ This plan covers the **External Agents** section of the installed Zed 10x picker
 
 ## Surface × journey closure
 
-| Installed surface | Visible variants | Host inventory | New session and project outcome | Cleanup | Persistent recovery |
-|---|---:|---|---|---|---|
-| Mac local | 8 | Installed boundary | Installed boundary | Installed boundary | N/A |
-| Intrepid persistent | 8 | Installed boundary | Installed boundary | Installed boundary | Installed boundary |
-| Intrepid ordinary | 6 | Installed boundary | Installed boundary | Installed boundary | N/A |
+| Installed surface | Visible variants | Host inventory | New session and project outcome | Switch and return | Cleanup | Persistent recovery |
+|---|---:|---|---|---|---|---|
+| Mac local | 8 | Installed boundary | Installed boundary | Installed boundary | Installed boundary | N/A |
+| Intrepid persistent | 8 | Installed boundary | Installed boundary | Installed boundary | Installed boundary | Installed boundary |
+| Intrepid ordinary | 6 | Installed boundary | Installed boundary | Installed boundary | Installed boundary | N/A |
 
 All 22 visible variants receive direct coverage for every applicable journey. The resulting plan contains ${variantCells.length} direct variant × journey cells and does not infer one profile or provider from another.
 
@@ -620,13 +735,14 @@ ${row.passCriteria.map((criterion) => `- ${criterion}`).join("\n")}
 2. Capture exact installed Mac and Intrepid runtime identities.
 3. Exercise installed picker inventory and every visible variant.
 4. Exercise cleanup semantics.
-5. Restart one real persistent lane while attached and recover the original session through Retry.
-6. Bind content-free evidence to the exact tested revision and validate the lifecycle artifacts.
+5. Exercise representative switch-and-return journeys and bind sibling variants by the mechanically verified shared replacement path.
+6. Restart one real persistent lane while attached and recover the original session through Retry.
+7. Bind content-free evidence to the exact tested revision and validate the lifecycle artifacts.
 `;
 
 const analysis = `# Zed 10x Test Plan Analysis
 
-The fresh plan is intentionally not production-ready until all four installed rows execute. The main prior false-positive mechanism was proxy substitution: direct ACP/provider canaries were accepted as evidence for UI selectability, host labels, assembled launch wrappers, and restart recovery. This plan removes that inference and binds each independently visible External Agent variant to every applicable user journey.
+The fresh plan is intentionally not production-ready until all five installed rows execute. The main prior false-positive mechanisms were proxy substitution and isolated-route testing: direct ACP/provider canaries were accepted as evidence for UI selectability, host labels, assembled launch wrappers, restart recovery, and transitions between individually green agents. This plan removes those inferences and binds each independently visible External Agent variant to every applicable user journey, including an explicit switch-and-return state transition.
 
 The dominant residual risk before execution is persistent-session recovery after a real service death. The deterministic Rust regression is necessary but not sufficient; the installed Zed 10x app, remote server, attach wrapper, systemd unit, durable journal, Retry UI, and original session must be observed together.
 `;

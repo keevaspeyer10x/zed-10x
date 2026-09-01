@@ -41,30 +41,64 @@ test("fresh lifecycle closes the exact installed External Agents surfaces and jo
       "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
       "JOURNEY-TERMINATION-CLEANUP",
       "JOURNEY-PERSISTENT-SESSION-RECOVERY",
+      "JOURNEY-AGENT-SWITCH-AND-RETURN",
     ],
   );
-  assert.equal(discovery.surfaceJourneyMatrix.length, 12);
+  assert.equal(discovery.surfaceJourneyMatrix.length, 15);
   assert.equal(
     discovery.surfaceJourneyMatrix.filter(({ applicability }) => applicability === "applicable")
       .length,
-    10,
+    13,
   );
   assert.equal(discovery.selectableVariants.length, 22);
-  assert.equal(plan.variantJourneyCoverage.cells.length, 74);
-  assert.equal(plan.tests.length, 4);
+  assert.equal(plan.variantJourneyCoverage.cells.length, 96);
+  assert.equal(
+    plan.variantJourneyCoverage.cells.filter(({ coverageMode }) => coverageMode === "direct").length,
+    32,
+  );
+  assert.equal(
+    plan.variantJourneyCoverage.cells.filter(
+      ({ coverageMode }) => coverageMode === "mechanically_equivalent",
+    ).length,
+    64,
+  );
+  assert.equal(plan.tests.length, 5);
 
   const rowsById = new Map(plan.tests.map((row) => [row.id, row]));
   for (const cell of plan.variantJourneyCoverage.cells) {
-    assert.equal(cell.coverageMode, "direct");
-    assert.equal(cell.evidenceLayer, "assembled_product");
-    assert.equal(cell.rowIds.length, 1);
-    const row = rowsById.get(cell.rowIds[0]);
     const variant = discovery.selectableVariants.find(({ id }) => id === cell.variantId);
-    assert.ok(row, `${cell.variantId} ${cell.journeyId} has a plan row`);
     assert.ok(variant, `${cell.variantId} exists`);
-    assert.ok(row.variantIds.includes(cell.variantId));
-    assert.ok(row.journeyIds.includes(cell.journeyId));
-    assert.ok(row.surfaceIds.includes(variant.surfaceId));
+    if (cell.coverageMode === "direct") {
+      assert.equal(cell.evidenceLayer, "assembled_product");
+      assert.equal(cell.rowIds.length, 1);
+      const row = rowsById.get(cell.rowIds[0]);
+      assert.ok(row, `${cell.variantId} ${cell.journeyId} has a plan row`);
+      assert.ok(row.variantIds.includes(cell.variantId));
+      assert.ok(row.journeyIds.includes(cell.journeyId));
+      assert.ok(row.surfaceIds.includes(variant.surfaceId));
+    } else {
+      assert.equal(cell.coverageMode, "mechanically_equivalent");
+      assert.ok(
+        [
+          "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
+          "JOURNEY-TERMINATION-CLEANUP",
+          "JOURNEY-PERSISTENT-SESSION-RECOVERY",
+          "JOURNEY-AGENT-SWITCH-AND-RETURN",
+        ].includes(cell.journeyId),
+      );
+      assert.ok(cell.equivalenceEvidence.length > 0);
+      assert.equal(cell.equivalenceRowIds.length, 1);
+      const equivalentVariant = discovery.selectableVariants.find(
+        ({ id }) => id === cell.equivalentToVariantId,
+      );
+      assert.ok(equivalentVariant);
+      assert.equal(equivalentVariant.surfaceId, variant.surfaceId);
+      const row = rowsById.get(cell.equivalenceRowIds[0]);
+      assert.ok(row.variantIds.includes(cell.variantId));
+      assert.ok(row.variantIds.includes(cell.equivalentToVariantId));
+      assert.ok(row.journeyIds.includes(cell.journeyId));
+      assert.ok(row.surfaceIds.includes(variant.surfaceId));
+    }
   }
 });
 
@@ -89,12 +123,12 @@ test("every surface and variant source is an existing regular repository file", 
 
 test("production closure is bound to an ancestor revision and current load-bearing bytes", () => {
   assert.equal(summary.decisionCandidate, "production_ready");
-  assert.equal(implementation.plannedRows, 4);
-  assert.equal(implementation.readyNowRows, 4);
-  assert.equal(implementation.implementedRows, 4);
-  assert.equal(implementation.executedRows, 4);
+  assert.equal(implementation.plannedRows, 5);
+  assert.equal(implementation.readyNowRows, 5);
+  assert.equal(implementation.implementedRows, 5);
+  assert.equal(implementation.executedRows, 5);
   assert.equal(implementation.remainingRows, 0);
-  assert.equal(summary.executedRows, 4);
+  assert.equal(summary.executedRows, 5);
   assert.equal(summary.remainingPlannedRows, 0);
 
   const revision = summary.evidenceBinding?.testedRevision;
