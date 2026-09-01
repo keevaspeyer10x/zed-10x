@@ -174,6 +174,50 @@ mod unix {
     }
 
     #[test]
+    #[allow(clippy::disallowed_methods)] // This process-boundary test inspects the real child.
+    fn env_exec_reaps_descendants_after_the_direct_command_exits() -> anyhow::Result<()> {
+        use std::io::{BufRead as _, BufReader};
+
+        let script = "sleep 60 & printf '%s\\n' \"$!\"";
+        let mut child = Command::new(env!("CARGO_BIN_EXE_remote_server"))
+            .args(["env-exec", "--", "/bin/sh", "-c", script])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()?;
+        let mut stdin = child.stdin.take().expect("piped stdin");
+        stdin.write_all(&remote::encode_stdin_environment(&HashMap::default())?)?;
+        stdin.flush()?;
+
+        let stdout = child.stdout.take().expect("piped stdout");
+        let mut reader = BufReader::new(stdout);
+        let mut pid_line = String::new();
+        reader.read_line(&mut pid_line)?;
+        let descendant_pid = pid_line.trim().parse::<u32>()?;
+
+        let status = wait_with_timeout_for(&mut child, Duration::from_secs(5));
+        if status.is_err() {
+            let _ = Command::new("kill")
+                .args(["-KILL", &descendant_pid.to_string()])
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .status();
+        }
+        let status = status.context("env-exec did not terminate after its command exited")?;
+        assert!(status.success(), "the direct command exited successfully");
+
+        let still_running = Command::new("kill")
+            .args(["-0", &descendant_pid.to_string()])
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()?
+            .success();
+        assert!(!still_running, "command descendant survived its owner exit");
+        drop(stdin);
+        Ok(())
+    }
+
+    #[test]
     #[allow(clippy::disallowed_methods)] // This process-boundary test needs bounded child polling.
     fn env_exec_rejects_invalid_frames_finitely_before_exec() -> anyhow::Result<()> {
         for (case_index, frame) in [

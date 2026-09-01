@@ -322,7 +322,18 @@ fn execute_env_exec(command: Vec<OsString>) -> anyhow::Result<()> {
             .recv()
             .context("waiting for stdin environment command")?
         {
-            Event::ChildExited(status) => break status.context("waiting for command exit")?,
+            Event::ChildExited(status) => {
+                let status = status.context("waiting for command exit")?;
+                // The direct command can exit while a worker it spawned still
+                // owns the inherited stdout or stderr pipe. Reap the remaining
+                // process group before joining the forwarding threads.
+                // SAFETY: `child_pid` is the process-group identifier created
+                // for this command immediately above.
+                unsafe {
+                    libc::killpg(child_pid, libc::SIGKILL);
+                }
+                break status;
+            }
             Event::TransportClosed(result) => {
                 transport_closed = true;
                 if let Err(error) = result {
@@ -331,7 +342,15 @@ fn execute_env_exec(command: Vec<OsString>) -> anyhow::Result<()> {
 
                 match event_rx.recv_timeout(TRANSPORT_CLOSE_GRACE) {
                     Ok(Event::ChildExited(status)) => {
-                        break status.context("waiting for command exit")?;
+                        let status = status.context("waiting for command exit")?;
+                        // The leader exited during the grace period; terminate
+                        // any descendants that still own inherited pipes.
+                        // SAFETY: `child_pid` is the process-group identifier
+                        // created for this command immediately above.
+                        unsafe {
+                            libc::killpg(child_pid, libc::SIGKILL);
+                        }
+                        break status;
                     }
                     Ok(Event::TransportClosed(_)) => continue,
                     Err(mpsc::RecvTimeoutError::Timeout) => {
