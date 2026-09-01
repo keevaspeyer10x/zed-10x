@@ -104,6 +104,11 @@ const journeys = [
 ];
 
 const persistentSurfaceId = "SURFACE-ACP-INTREPID-PERSISTENT";
+const routeSpecificJourneyIds = [
+  "JOURNEY-HOST-SCOPED-INVENTORY",
+  "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
+  "JOURNEY-TERMINATION-CLEANUP",
+];
 const applicableJourneyIds = (surfaceId) =>
   journeys
     .filter(
@@ -118,7 +123,7 @@ const variants = surfaceDefinitions.flatMap((surface) =>
     id: variant.id,
     name: variant.label,
     surfaceId: surface.id,
-    journeyIds: applicableJourneyIds(surface.id),
+    journeyIds: routeSpecificJourneyIds,
     sourceRef: "docs/test-plan-inputs/zed-agent-picker-inventory.json",
     configuredEntries: variant.configuredEntries,
   })),
@@ -204,9 +209,13 @@ const requirements = [
 
 const allSurfaceIds = surfaces.map((surface) => surface.id);
 const allVariantIds = variants.map((variant) => variant.id);
-const persistentVariantIds = variants
-  .filter((variant) => variant.surfaceId === persistentSurfaceId)
-  .map((variant) => variant.id);
+const recoveryVariantIds = ["VAR-INTREPID-CODEX-PRIMARY"];
+const switchVariantIds = [
+  "VAR-MAC-CODEX",
+  "VAR-MAC-CURSOR",
+  "VAR-INTREPID-CODEX-PRIMARY",
+  "VAR-INTREPID-CURSOR",
+];
 
 const commonRow = {
   section: "0-critical-path-smoke",
@@ -279,9 +288,9 @@ const rows = [
       { source: "risk", ref: "independently selectable provider and profile variants" },
     ],
     plannedEvidence: [
-      "current installed representative selection per surface",
-      "session/new and project-bound composer state",
-      "explicit mechanical equivalence to the complete predecessor matrix for byte-identical route-specific inputs",
+      "current installed selection of every visible route",
+      "per-route session/new and project-bound outcome",
+      "per-route content-free receipt from the complete current matrix",
     ],
     specificOracles: [
       "successful route reads the withheld project sentinel",
@@ -289,15 +298,13 @@ const rows = [
       "no fallback, host swap, or profile substitution",
     ],
     steps: [
-      "Select the direct representative for every installed surface through the current installed picker",
-      "Create a new session and reach a project-bound ready or precise external-readiness outcome",
-      "Bind sibling variants only when their route-specific inputs are byte-identical and the shared mechanism has a current deterministic regression",
-      "Retain the complete predecessor route matrix as historical support rather than relabelling it as current execution",
+      "Select every visible route through the current installed provider-launch boundary",
+      "For each route, create a new session and reach a project-bound ready or precise external-readiness outcome",
+      "Reject a missing receipt, product-origin failure, substitution, or incomplete matrix",
     ],
     expectedResult: "Every variant has a product-green terminal outcome and healthy routes remain usable after a failed provider.",
     passCriteria: [
-      "three current surface representatives pass",
-      "all 22 variants are direct or mechanically equivalent",
+      "all 22 current variants have direct route receipts",
       "zero product failures",
       "no substitution",
     ],
@@ -323,10 +330,9 @@ const rows = [
       { source: "risk", ref: "ordinary and persistent routes have different lifecycle ownership" },
     ],
     plannedEvidence: [
-      "current representative ordinary process-group absence",
+      "current per-route ordinary process-group absence",
       "current persistent client detach",
       "healthy bounded lane services",
-      "mechanically equivalent sibling cleanup bound to the shared current teardown regressions",
     ],
     specificOracles: [
       "no owned ordinary wrapper or provider residue",
@@ -334,10 +340,9 @@ const rows = [
       "idle provider lifecycle stays bounded by the installed host policy",
     ],
     steps: [
-      "Close current direct representative sessions on every installed surface",
-      "Census ordinary owned process groups",
+      "Close every current route launched by the complete route matrix",
+      "Require every route receipt to prove its owned process group is gone",
       "Verify persistent attachments detached and lane services remain healthy",
-      "Bind sibling variants only through byte-identical route inputs and the current shared teardown regressions",
     ],
     expectedResult: "No leaked ordinary ownership and no accidental destruction of persistent recovery state.",
     passCriteria: ["ordinary cleanup green", "persistent detach green", "journal and service health green"],
@@ -357,7 +362,7 @@ const rows = [
     irRefs: ["LoadError::Exited", "restart_connection", "session/load", "durable journal"],
     surfaceIds: [persistentSurfaceId],
     journeyIds: ["JOURNEY-PERSISTENT-SESSION-RECOVERY"],
-    variantIds: persistentVariantIds,
+    variantIds: recoveryVariantIds,
     provenance: [
       { source: "prior_defect", ref: "zed-acp-session-attach peer closed before client input after lane OOM kill" },
       { source: "code", ref: "crates/agent_ui/src/conversation_view.rs" },
@@ -400,7 +405,7 @@ const rows = [
     ],
     surfaceIds: allSurfaceIds,
     journeyIds: ["JOURNEY-AGENT-SWITCH-AND-RETURN"],
-    variantIds: allVariantIds,
+    variantIds: switchVariantIds,
     provenance: [
       { source: "prior_defect", ref: "connection already owns a session after Codex -> Cursor -> Codex" },
       { source: "code", ref: "crates/agent_ui/src/agent_panel.rs" },
@@ -417,14 +422,12 @@ const rows = [
       "returning to the first agent creates or reuses only valid current state",
       "the old empty draft is absent from retained threads and its entity is dropped",
       "the retained non-empty thread remains available while a new thread for the same single-owner adapter gets a separate connection",
-      "all sibling variants use the same mechanically verified AgentPanel replacement path",
     ],
     steps: [
       "Exercise both a ready empty draft and a non-empty retained thread on a direct representative for each installed host surface",
       "Switch to a representative from another independently selectable agent class",
       "Switch back to the first representative without restarting Zed",
       "Verify ready composer state, retained history usability, no hidden ownership error, and route-appropriate cleanup",
-      "Bind sibling variants by the shared replacement path after each was independently exercised by ZED-ACP-SESSION-002",
     ],
     expectedResult:
       "Every installed host surface supports switch-and-return across empty and retained states without a ghost draft, stale connection, or session-ownership collision.",
@@ -433,7 +436,6 @@ const rows = [
       "Intrepid persistent Codex -> ordinary Cursor -> persistent Codex succeeds",
       "old empty draft entity is dropped deterministically",
       "retained non-empty single-owner threads use distinct connections",
-      "mechanical equivalence is explicit for sibling variants",
     ],
     userGoal: "Change agents in one panel without restarting Zed or losing the ability to return.",
     acceptanceCriteria: [
@@ -472,8 +474,8 @@ const executionContracts = {
   },
   "ZED-ACP-SESSION-002": {
     commands: [
-      "computer-use exact current installed Zed 10x Mac-local External Agents: launch the direct Codex (Mac) representative to a ready project-bound composer and bind sibling variants only through byte-identical route inputs plus current shared-path regressions",
-      "computer-use exact current installed Zed 10x Intrepid External Agents: launch direct Codex (Intrepid, primary) and Cursor (Intrepid) representatives to ready project-bound composers and bind sibling variants only through byte-identical route inputs plus current shared-path regressions",
+      "run the complete current installed Mac-local route matrix and require a direct content-free receipt for every visible route",
+      "run the complete current installed Intrepid route matrix and require a direct content-free receipt for every persistent and ordinary visible route",
     ],
     evidencePaths: [
       "docs/test-results/zed-acp-session-mac.json",
@@ -483,8 +485,8 @@ const executionContracts = {
   },
   "ZED-ACP-CLEANUP-003": {
     commands: [
-      "inspect exact current installed Mac-local representative teardown and prove no owned Zed runtime, canary, wrapper, or provider process remains",
-      "inspect exact current installed Intrepid representative teardown and prove ordinary attachments are gone while the persistent lane remains healthy",
+      "require every current Mac-local route receipt to prove its owned process group is gone, then prove no matrix wrapper or provider process remains",
+      "require every current Intrepid route receipt to prove its attachment process group is gone, then prove ordinary providers are gone while persistent lanes remain healthy",
     ],
     evidencePaths: [
       "docs/test-results/zed-acp-cleanup-mac.json",
@@ -529,43 +531,14 @@ const planCells = matrix.map((cell) =>
       },
 );
 
-const switchJourneyId = "JOURNEY-AGENT-SWITCH-AND-RETURN";
-const directRepresentativeBySurface = {
-  "SURFACE-ACP-MAC-LOCAL": "VAR-MAC-CODEX",
-  "SURFACE-ACP-INTREPID-PERSISTENT": "VAR-INTREPID-CODEX-PRIMARY",
-  "SURFACE-ACP-INTREPID-ORDINARY": "VAR-INTREPID-CURSOR",
-};
-const mechanicallyEquivalentJourneyIds = new Set([
-  "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-  "JOURNEY-TERMINATION-CLEANUP",
-  "JOURNEY-PERSISTENT-SESSION-RECOVERY",
-  switchJourneyId,
-]);
 const variantCells = variants.flatMap((variant) =>
-  variant.journeyIds.map((journeyId) => {
-    const representativeId = directRepresentativeBySurface[variant.surfaceId];
-    if (mechanicallyEquivalentJourneyIds.has(journeyId) && variant.id !== representativeId) {
-      return {
-        variantId: variant.id,
-        journeyId,
-        coverageMode: "mechanically_equivalent",
-        equivalentToVariantId: representativeId,
-        equivalenceEvidence: [
-          "The exact current installed runtime directly exercises one representative on the same surface and journey.",
-          "The complete predecessor route matrix directly exercised this variant; current route-specific manifest and launch inputs are byte-identical.",
-          "Current deterministic regressions prove the shared launch, replacement, transport, and cleanup mechanism used by the representative and sibling variant.",
-        ],
-        equivalenceRowIds: [rowForJourney[journeyId]],
-      };
-    }
-    return {
+  variant.journeyIds.map((journeyId) => ({
       variantId: variant.id,
       journeyId,
       coverageMode: "direct",
       evidenceLayer: "assembled_product",
       rowIds: [rowForJourney[journeyId]],
-    };
-  }),
+    })),
 );
 
 const discovery = {
@@ -731,7 +704,7 @@ This plan covers the **External Agents** section of the installed Zed 10x picker
 | Intrepid persistent | 8 | Installed boundary | Installed boundary | Installed boundary | Installed boundary | Installed boundary |
 | Intrepid ordinary | 6 | Installed boundary | Installed boundary | Installed boundary | Installed boundary | N/A |
 
-All 22 visible variants receive direct coverage for every applicable journey. The resulting plan contains ${variantCells.length} direct variant × journey cells and does not infer one profile or provider from another.
+All 22 visible variants receive direct coverage for inventory, launch outcome, and cleanup. The resulting plan contains ${variantCells.length} direct route-specific variant × journey cells and does not infer one profile or provider from another. Stateful switch and persistent recovery are separate surface-level journeys exercised on the named representatives whose shared product state they target.
 
 ## Tier 0 rows
 
@@ -758,7 +731,7 @@ ${row.passCriteria.map((criterion) => `- ${criterion}`).join("\n")}
 2. Capture exact installed Mac and Intrepid runtime identities.
 3. Exercise installed picker inventory and every visible variant.
 4. Exercise cleanup semantics.
-5. Exercise representative switch-and-return journeys and bind sibling variants by the mechanically verified shared replacement path.
+5. Exercise the named representative switch-and-return journeys as surface-level state transitions.
 6. Restart one real persistent lane while attached and recover the original session through Retry.
 7. Bind content-free evidence to the exact tested revision and validate the lifecycle artifacts.
 `;

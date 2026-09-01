@@ -221,9 +221,9 @@
         }
       ],
       "plannedEvidence": [
-        "current installed representative selection per surface",
-        "session/new and project-bound composer state",
-        "explicit mechanical equivalence to the complete predecessor matrix for byte-identical route-specific inputs"
+        "current installed selection of every visible route",
+        "per-route session/new and project-bound outcome",
+        "per-route content-free receipt from the complete current matrix"
       ],
       "specificOracles": [
         "successful route reads the withheld project sentinel",
@@ -231,15 +231,13 @@
         "no fallback, host swap, or profile substitution"
       ],
       "steps": [
-        "Select the direct representative for every installed surface through the current installed picker",
-        "Create a new session and reach a project-bound ready or precise external-readiness outcome",
-        "Bind sibling variants only when their route-specific inputs are byte-identical and the shared mechanism has a current deterministic regression",
-        "Retain the complete predecessor route matrix as historical support rather than relabelling it as current execution"
+        "Select every visible route through the current installed provider-launch boundary",
+        "For each route, create a new session and reach a project-bound ready or precise external-readiness outcome",
+        "Reject a missing receipt, product-origin failure, substitution, or incomplete matrix"
       ],
       "expectedResult": "Every variant has a product-green terminal outcome and healthy routes remain usable after a failed provider.",
       "passCriteria": [
-        "three current surface representatives pass",
-        "all 22 variants are direct or mechanically equivalent",
+        "all 22 current variants have direct route receipts",
         "zero product failures",
         "no substitution"
       ],
@@ -261,8 +259,8 @@
       "negativeCase": "a direct provider canary passes while the installed route wrapper, cwd, or transport fails",
       "newInformationTarget": "Whether every user-selectable route works through the real assembled launch path.",
       "commands": [
-        "computer-use exact current installed Zed 10x Mac-local External Agents: launch the direct Codex (Mac) representative to a ready project-bound composer and bind sibling variants only through byte-identical route inputs plus current shared-path regressions",
-        "computer-use exact current installed Zed 10x Intrepid External Agents: launch direct Codex (Intrepid, primary) and Cursor (Intrepid) representatives to ready project-bound composers and bind sibling variants only through byte-identical route inputs plus current shared-path regressions"
+        "run the complete current installed Mac-local route matrix and require a direct content-free receipt for every visible route",
+        "run the complete current installed Intrepid route matrix and require a direct content-free receipt for every persistent and ordinary visible route"
       ],
       "evidencePaths": [
         "docs/test-results/zed-acp-current-installed-uat.json"
@@ -352,10 +350,9 @@
         }
       ],
       "plannedEvidence": [
-        "current representative ordinary process-group absence",
+        "current per-route ordinary process-group absence",
         "current persistent client detach",
-        "healthy bounded lane services",
-        "mechanically equivalent sibling cleanup bound to the shared current teardown regressions"
+        "healthy bounded lane services"
       ],
       "specificOracles": [
         "no owned ordinary wrapper or provider residue",
@@ -363,10 +360,9 @@
         "idle provider lifecycle stays bounded by the installed host policy"
       ],
       "steps": [
-        "Close current direct representative sessions on every installed surface",
-        "Census ordinary owned process groups",
-        "Verify persistent attachments detached and lane services remain healthy",
-        "Bind sibling variants only through byte-identical route inputs and the current shared teardown regressions"
+        "Close every current route launched by the complete route matrix",
+        "Require every route receipt to prove its owned process group is gone",
+        "Verify persistent attachments detached and lane services remain healthy"
       ],
       "expectedResult": "No leaked ordinary ownership and no accidental destruction of persistent recovery state.",
       "passCriteria": [
@@ -392,8 +388,8 @@
       "negativeCase": "attachment exits but an ordinary child leaks, or persistent cleanup deletes recovery state",
       "newInformationTarget": "Whether cleanup matches each route's real ownership semantics.",
       "commands": [
-        "inspect exact current installed Mac-local representative teardown and prove no owned Zed runtime, canary, wrapper, or provider process remains",
-        "inspect exact current installed Intrepid representative teardown and prove ordinary attachments are gone while the persistent lane remains healthy"
+        "require every current Mac-local route receipt to prove its owned process group is gone, then prove no matrix wrapper or provider process remains",
+        "require every current Intrepid route receipt to prove its attachment process group is gone, then prove ordinary providers are gone while persistent lanes remain healthy"
       ],
       "evidencePaths": [
         "docs/test-results/zed-acp-current-installed-uat.json"
@@ -450,14 +446,7 @@
         "JOURNEY-PERSISTENT-SESSION-RECOVERY"
       ],
       "variantIds": [
-        "VAR-INTREPID-CLAUDE-PRIMARY",
-        "VAR-INTREPID-CLAUDE-SECONDARY",
-        "VAR-INTREPID-CLAUDE-SELECTED",
-        "VAR-INTREPID-CLAUDE-WORK",
-        "VAR-INTREPID-CODEX-PRIMARY",
-        "VAR-INTREPID-CODEX-SECONDARY",
-        "VAR-INTREPID-CODEX-SELECTED",
-        "VAR-INTREPID-CODEX-WORK"
+        "VAR-INTREPID-CODEX-PRIMARY"
       ],
       "provenance": [
         {
@@ -575,28 +564,10 @@
         "JOURNEY-AGENT-SWITCH-AND-RETURN"
       ],
       "variantIds": [
-        "VAR-MAC-CLAUDE-PRIMARY",
-        "VAR-MAC-CLAUDE-SECONDARY",
-        "VAR-MAC-CLAUDE-WORK",
         "VAR-MAC-CODEX",
-        "VAR-MAC-CODEX-SECONDARY",
-        "VAR-MAC-CODEX-WORK",
         "VAR-MAC-CURSOR",
-        "VAR-MAC-GROK",
-        "VAR-INTREPID-CLAUDE-PRIMARY",
-        "VAR-INTREPID-CLAUDE-SECONDARY",
-        "VAR-INTREPID-CLAUDE-SELECTED",
-        "VAR-INTREPID-CLAUDE-WORK",
         "VAR-INTREPID-CODEX-PRIMARY",
-        "VAR-INTREPID-CODEX-SECONDARY",
-        "VAR-INTREPID-CODEX-SELECTED",
-        "VAR-INTREPID-CODEX-WORK",
-        "VAR-INTREPID-CLAUDE-AGENT",
-        "VAR-INTREPID-CURSOR",
-        "VAR-INTREPID-DEVIN",
-        "VAR-INTREPID-GLM",
-        "VAR-INTREPID-GROK",
-        "VAR-INTREPID-KIMI"
+        "VAR-INTREPID-CURSOR"
       ],
       "provenance": [
         {
@@ -622,23 +593,20 @@
         "each replacement reaches a ready composer without a product launch or session-ownership error",
         "returning to the first agent creates or reuses only valid current state",
         "the old empty draft is absent from retained threads and its entity is dropped",
-        "the retained non-empty thread remains available while a new thread for the same single-owner adapter gets a separate connection",
-        "all sibling variants use the same mechanically verified AgentPanel replacement path"
+        "the retained non-empty thread remains available while a new thread for the same single-owner adapter gets a separate connection"
       ],
       "steps": [
         "Exercise both a ready empty draft and a non-empty retained thread on a direct representative for each installed host surface",
         "Switch to a representative from another independently selectable agent class",
         "Switch back to the first representative without restarting Zed",
-        "Verify ready composer state, retained history usability, no hidden ownership error, and route-appropriate cleanup",
-        "Bind sibling variants by the shared replacement path after each was independently exercised by ZED-ACP-SESSION-002"
+        "Verify ready composer state, retained history usability, no hidden ownership error, and route-appropriate cleanup"
       ],
       "expectedResult": "Every installed host surface supports switch-and-return across empty and retained states without a ghost draft, stale connection, or session-ownership collision.",
       "passCriteria": [
         "Mac Codex -> Cursor -> Codex succeeds",
         "Intrepid persistent Codex -> ordinary Cursor -> persistent Codex succeeds",
         "old empty draft entity is dropped deterministically",
-        "retained non-empty single-owner threads use distinct connections",
-        "mechanical equivalence is explicit for sibling variants"
+        "retained non-empty single-owner threads use distinct connections"
       ],
       "userGoal": "Change agents in one panel without restarting Zed or losing the ability to return.",
       "acceptanceCriteria": [

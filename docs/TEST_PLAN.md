@@ -16,7 +16,7 @@ This plan covers the **External Agents** section of the installed Zed 10x picker
 | Intrepid persistent | 8 | Installed boundary | Installed boundary | Installed boundary | Installed boundary | Installed boundary |
 | Intrepid ordinary | 6 | Installed boundary | Installed boundary | Installed boundary | Installed boundary | N/A |
 
-Every applicable variant × journey cell is covered. The plan contains 32 direct cells and 64 mechanically equivalent cells whose shared product path has a current deterministic regression; no provider-health result is inferred from a sibling profile.
+All 22 visible variants receive direct coverage for inventory, launch outcome, and cleanup: 66 direct route-specific cells. Stateful switch and persistent recovery are separate surface-level journeys exercised on the named representatives whose shared product state they target; no provider or profile result is inferred from another route.
 
 ## Tier 0 rows
 
@@ -45,14 +45,12 @@ Pass criteria:
 **Expected:** Every variant has a product-green terminal outcome and healthy routes remain usable after a failed provider.
 
 Steps:
-1. Select the direct representative for every installed surface through the current installed picker
-2. Create a new session and reach a project-bound ready or precise external-readiness outcome
-3. Bind sibling variants only when their route-specific inputs are byte-identical and the shared mechanism has a current deterministic regression
-4. Retain the complete predecessor route matrix as historical support rather than relabelling it as current execution
+1. Select every visible route through the current installed provider-launch boundary
+2. For each route, create a new session and reach a project-bound ready or precise external-readiness outcome
+3. Reject a missing receipt, product-origin failure, substitution, or incomplete matrix
 
 Pass criteria:
-- three current surface representatives pass
-- all 22 variants are direct or mechanically equivalent
+- all 22 current variants have direct route receipts
 - zero product failures
 - no substitution
 
@@ -64,10 +62,9 @@ Pass criteria:
 **Expected:** No leaked ordinary ownership and no accidental destruction of persistent recovery state.
 
 Steps:
-1. Close current direct representative sessions on every installed surface
-2. Census ordinary owned process groups
+1. Close every current route launched by the complete route matrix
+2. Require every route receipt to prove its owned process group is gone
 3. Verify persistent attachments detached and lane services remain healthy
-4. Bind sibling variants only through byte-identical route inputs and the current shared teardown regressions
 
 Pass criteria:
 - ordinary cleanup green
@@ -78,7 +75,7 @@ Pass criteria:
 
 **Surfaces:** SURFACE-ACP-INTREPID-PERSISTENT<br>
 **Journey:** JOURNEY-PERSISTENT-SESSION-RECOVERY<br>
-**Variants:** 8 direct variants<br>
+**Variants:** 1 named representative<br>
 **Expected:** The screenshot failure becomes a finite recoverable interruption rather than a lost or blank session.
 
 Steps:
@@ -98,7 +95,7 @@ Pass criteria:
 
 **Surfaces:** SURFACE-ACP-MAC-LOCAL, SURFACE-ACP-INTREPID-PERSISTENT, SURFACE-ACP-INTREPID-ORDINARY<br>
 **Journey:** JOURNEY-AGENT-SWITCH-AND-RETURN<br>
-**Variants:** 22 direct variants<br>
+**Variants:** 4 named transition participants<br>
 **Expected:** Every installed host surface supports switch-and-return across empty and retained states without a ghost draft, stale connection, or session-ownership collision.
 
 Steps:
@@ -113,14 +110,13 @@ Pass criteria:
 - Intrepid persistent Codex -> ordinary Cursor -> persistent Codex succeeds
 - old empty draft entity is dropped deterministically
 - retained non-empty single-owner threads use distinct connections
-- mechanical equivalence is explicit for sibling variants
 
 ## Execution order
 
 1. Run deterministic inventory and Retry regressions.
 2. Capture exact installed Mac and Intrepid runtime identities.
-3. Exercise installed picker inventory and every visible variant.
+3. Exercise installed picker inventory and every visible route directly.
 4. Exercise cleanup semantics.
-5. Exercise representative switch-and-return journeys and bind sibling variants by the mechanically verified shared replacement path.
+5. Exercise the named representative switch-and-return journeys as surface-level state transitions.
 6. Restart one real persistent lane while attached and recover the original session through Retry.
 7. Bind content-free evidence to the exact tested revision and validate the lifecycle artifacts.

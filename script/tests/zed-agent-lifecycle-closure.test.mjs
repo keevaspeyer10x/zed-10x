@@ -51,16 +51,10 @@ test("fresh lifecycle closes the exact installed External Agents surfaces and jo
     13,
   );
   assert.equal(discovery.selectableVariants.length, 22);
-  assert.equal(plan.variantJourneyCoverage.cells.length, 96);
+  assert.equal(plan.variantJourneyCoverage.cells.length, 66);
   assert.equal(
     plan.variantJourneyCoverage.cells.filter(({ coverageMode }) => coverageMode === "direct").length,
-    32,
-  );
-  assert.equal(
-    plan.variantJourneyCoverage.cells.filter(
-      ({ coverageMode }) => coverageMode === "mechanically_equivalent",
-    ).length,
-    64,
+    66,
   );
   assert.equal(plan.tests.length, 5);
 
@@ -68,38 +62,25 @@ test("fresh lifecycle closes the exact installed External Agents surfaces and jo
   for (const cell of plan.variantJourneyCoverage.cells) {
     const variant = discovery.selectableVariants.find(({ id }) => id === cell.variantId);
     assert.ok(variant, `${cell.variantId} exists`);
-    if (cell.coverageMode === "direct") {
-      assert.equal(cell.evidenceLayer, "assembled_product");
-      assert.equal(cell.rowIds.length, 1);
-      const row = rowsById.get(cell.rowIds[0]);
-      assert.ok(row, `${cell.variantId} ${cell.journeyId} has a plan row`);
-      assert.ok(row.variantIds.includes(cell.variantId));
-      assert.ok(row.journeyIds.includes(cell.journeyId));
-      assert.ok(row.surfaceIds.includes(variant.surfaceId));
-    } else {
-      assert.equal(cell.coverageMode, "mechanically_equivalent");
-      assert.ok(
-        [
-          "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-          "JOURNEY-TERMINATION-CLEANUP",
-          "JOURNEY-PERSISTENT-SESSION-RECOVERY",
-          "JOURNEY-AGENT-SWITCH-AND-RETURN",
-        ].includes(cell.journeyId),
-      );
-      assert.ok(cell.equivalenceEvidence.length > 0);
-      assert.equal(cell.equivalenceRowIds.length, 1);
-      const equivalentVariant = discovery.selectableVariants.find(
-        ({ id }) => id === cell.equivalentToVariantId,
-      );
-      assert.ok(equivalentVariant);
-      assert.equal(equivalentVariant.surfaceId, variant.surfaceId);
-      const row = rowsById.get(cell.equivalenceRowIds[0]);
-      assert.ok(row.variantIds.includes(cell.variantId));
-      assert.ok(row.variantIds.includes(cell.equivalentToVariantId));
-      assert.ok(row.journeyIds.includes(cell.journeyId));
-      assert.ok(row.surfaceIds.includes(variant.surfaceId));
-    }
+    assert.equal(cell.coverageMode, "direct");
+    assert.equal(cell.evidenceLayer, "assembled_product");
+    assert.equal(cell.rowIds.length, 1);
+    const row = rowsById.get(cell.rowIds[0]);
+    assert.ok(row, `${cell.variantId} ${cell.journeyId} has a plan row`);
+    assert.ok(row.variantIds.includes(cell.variantId));
+    assert.ok(row.journeyIds.includes(cell.journeyId));
+    assert.ok(row.surfaceIds.includes(variant.surfaceId));
   }
+
+  assert.deepEqual(rowsById.get("ZED-ACP-RECOVERY-004").variantIds, [
+    "VAR-INTREPID-CODEX-PRIMARY",
+  ]);
+  assert.deepEqual(rowsById.get("ZED-ACP-SWITCH-005").variantIds, [
+    "VAR-MAC-CODEX",
+    "VAR-MAC-CURSOR",
+    "VAR-INTREPID-CODEX-PRIMARY",
+    "VAR-INTREPID-CURSOR",
+  ]);
 });
 
 test("every surface and variant source is an existing regular repository file", () => {

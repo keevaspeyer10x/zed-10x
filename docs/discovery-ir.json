@@ -455,8 +455,7 @@
       "journeyIds": [
         "JOURNEY-HOST-SCOPED-INVENTORY",
         "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "JOURNEY-TERMINATION-CLEANUP",
-        "JOURNEY-AGENT-SWITCH-AND-RETURN"
+        "JOURNEY-TERMINATION-CLEANUP"
       ],
       "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
       "configuredEntries": [
@@ -470,8 +469,7 @@
       "journeyIds": [
         "JOURNEY-HOST-SCOPED-INVENTORY",
         "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "JOURNEY-TERMINATION-CLEANUP",
-        "JOURNEY-AGENT-SWITCH-AND-RETURN"
+        "JOURNEY-TERMINATION-CLEANUP"
       ],
       "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
       "configuredEntries": [
@@ -485,8 +483,7 @@
       "journeyIds": [
         "JOURNEY-HOST-SCOPED-INVENTORY",
         "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "JOURNEY-TERMINATION-CLEANUP",
-        "JOURNEY-AGENT-SWITCH-AND-RETURN"
+        "JOURNEY-TERMINATION-CLEANUP"
       ],
       "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
       "configuredEntries": [
@@ -500,8 +497,7 @@
       "journeyIds": [
         "JOURNEY-HOST-SCOPED-INVENTORY",
         "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "JOURNEY-TERMINATION-CLEANUP",
-        "JOURNEY-AGENT-SWITCH-AND-RETURN"
+        "JOURNEY-TERMINATION-CLEANUP"
       ],
       "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
       "configuredEntries": [
@@ -515,8 +511,7 @@
       "journeyIds": [
         "JOURNEY-HOST-SCOPED-INVENTORY",
         "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "JOURNEY-TERMINATION-CLEANUP",
-        "JOURNEY-AGENT-SWITCH-AND-RETURN"
+        "JOURNEY-TERMINATION-CLEANUP"
       ],
       "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
       "configuredEntries": [
@@ -530,8 +525,7 @@
       "journeyIds": [
         "JOURNEY-HOST-SCOPED-INVENTORY",
         "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "JOURNEY-TERMINATION-CLEANUP",
-        "JOURNEY-AGENT-SWITCH-AND-RETURN"
+        "JOURNEY-TERMINATION-CLEANUP"
       ],
       "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
       "configuredEntries": [
@@ -545,8 +539,7 @@
       "journeyIds": [
         "JOURNEY-HOST-SCOPED-INVENTORY",
         "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "JOURNEY-TERMINATION-CLEANUP",
-        "JOURNEY-AGENT-SWITCH-AND-RETURN"
+        "JOURNEY-TERMINATION-CLEANUP"
       ],
       "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
       "configuredEntries": [
@@ -560,8 +553,7 @@
       "journeyIds": [
         "JOURNEY-HOST-SCOPED-INVENTORY",
         "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "JOURNEY-TERMINATION-CLEANUP",
-        "JOURNEY-AGENT-SWITCH-AND-RETURN"
+        "JOURNEY-TERMINATION-CLEANUP"
       ],
       "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
       "configuredEntries": [
@@ -575,9 +567,7 @@
       "journeyIds": [
         "JOURNEY-HOST-SCOPED-INVENTORY",
         "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "JOURNEY-TERMINATION-CLEANUP",
-        "JOURNEY-PERSISTENT-SESSION-RECOVERY",
-        "JOURNEY-AGENT-SWITCH-AND-RETURN"
+        "JOURNEY-TERMINATION-CLEANUP"
       ],
       "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
       "configuredEntries": [
@@ -591,9 +581,7 @@
       "journeyIds": [
         "JOURNEY-HOST-SCOPED-INVENTORY",
         "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "JOURNEY-TERMINATION-CLEANUP",
-        "JOURNEY-PERSISTENT-SESSION-RECOVERY",
-        "JOURNEY-AGENT-SWITCH-AND-RETURN"
+        "JOURNEY-TERMINATION-CLEANUP"
       ],
       "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
       "configuredEntries": [
@@ -607,9 +595,7 @@
       "journeyIds": [
         "JOURNEY-HOST-SCOPED-INVENTORY",
         "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "JOURNEY-TERMINATION-CLEANUP",
-        "JOURNEY-PERSISTENT-SESSION-RECOVERY",
-        "JOURNEY-AGENT-SWITCH-AND-RETURN"
+        "JOURNEY-TERMINATION-CLEANUP"
       ],
       "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
       "configuredEntries": [
@@ -623,9 +609,7 @@
       "journeyIds": [
         "JOURNEY-HOST-SCOPED-INVENTORY",
         "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "JOURNEY-TERMINATION-CLEANUP",
-        "JOURNEY-PERSISTENT-SESSION-RECOVERY",
-        "JOURNEY-AGENT-SWITCH-AND-RETURN"
+        "JOURNEY-TERMINATION-CLEANUP"
       ],
       "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
       "configuredEntries": [
@@ -639,9 +623,7 @@
       "journeyIds": [
         "JOURNEY-HOST-SCOPED-INVENTORY",
         "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "JOURNEY-TERMINATION-CLEANUP",
-        "JOURNEY-PERSISTENT-SESSION-RECOVERY",
-        "JOURNEY-AGENT-SWITCH-AND-RETURN"
+        "JOURNEY-TERMINATION-CLEANUP"
       ],
       "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
       "configuredEntries": [
@@ -655,9 +637,7 @@
       "journeyIds": [
         "JOURNEY-HOST-SCOPED-INVENTORY",
         "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "JOURNEY-TERMINATION-CLEANUP",
-        "JOURNEY-PERSISTENT-SESSION-RECOVERY",
-        "JOURNEY-AGENT-SWITCH-AND-RETURN"
+        "JOURNEY-TERMINATION-CLEANUP"
       ],
       "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
       "configuredEntries": [
@@ -671,9 +651,7 @@
       "journeyIds": [
         "JOURNEY-HOST-SCOPED-INVENTORY",
         "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "JOURNEY-TERMINATION-CLEANUP",
-        "JOURNEY-PERSISTENT-SESSION-RECOVERY",
-        "JOURNEY-AGENT-SWITCH-AND-RETURN"
+        "JOURNEY-TERMINATION-CLEANUP"
       ],
       "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
       "configuredEntries": [
@@ -687,9 +665,7 @@
       "journeyIds": [
         "JOURNEY-HOST-SCOPED-INVENTORY",
         "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "JOURNEY-TERMINATION-CLEANUP",
-        "JOURNEY-PERSISTENT-SESSION-RECOVERY",
-        "JOURNEY-AGENT-SWITCH-AND-RETURN"
+        "JOURNEY-TERMINATION-CLEANUP"
       ],
       "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
       "configuredEntries": [
@@ -703,8 +679,7 @@
       "journeyIds": [
         "JOURNEY-HOST-SCOPED-INVENTORY",
         "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "JOURNEY-TERMINATION-CLEANUP",
-        "JOURNEY-AGENT-SWITCH-AND-RETURN"
+        "JOURNEY-TERMINATION-CLEANUP"
       ],
       "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
       "configuredEntries": [
@@ -718,8 +693,7 @@
       "journeyIds": [
         "JOURNEY-HOST-SCOPED-INVENTORY",
         "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "JOURNEY-TERMINATION-CLEANUP",
-        "JOURNEY-AGENT-SWITCH-AND-RETURN"
+        "JOURNEY-TERMINATION-CLEANUP"
       ],
       "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
       "configuredEntries": [
@@ -733,8 +707,7 @@
       "journeyIds": [
         "JOURNEY-HOST-SCOPED-INVENTORY",
         "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "JOURNEY-TERMINATION-CLEANUP",
-        "JOURNEY-AGENT-SWITCH-AND-RETURN"
+        "JOURNEY-TERMINATION-CLEANUP"
       ],
       "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
       "configuredEntries": [
@@ -748,8 +721,7 @@
       "journeyIds": [
         "JOURNEY-HOST-SCOPED-INVENTORY",
         "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "JOURNEY-TERMINATION-CLEANUP",
-        "JOURNEY-AGENT-SWITCH-AND-RETURN"
+        "JOURNEY-TERMINATION-CLEANUP"
       ],
       "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
       "configuredEntries": [
@@ -764,8 +736,7 @@
       "journeyIds": [
         "JOURNEY-HOST-SCOPED-INVENTORY",
         "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "JOURNEY-TERMINATION-CLEANUP",
-        "JOURNEY-AGENT-SWITCH-AND-RETURN"
+        "JOURNEY-TERMINATION-CLEANUP"
       ],
       "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
       "configuredEntries": [
@@ -779,8 +750,7 @@
       "journeyIds": [
         "JOURNEY-HOST-SCOPED-INVENTORY",
         "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "JOURNEY-TERMINATION-CLEANUP",
-        "JOURNEY-AGENT-SWITCH-AND-RETURN"
+        "JOURNEY-TERMINATION-CLEANUP"
       ],
       "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
       "configuredEntries": [

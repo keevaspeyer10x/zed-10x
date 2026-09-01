@@ -138,11 +138,11 @@
       },
       {
         "path": "crates/remote_server/src/server.rs",
-        "sha256": "2df8862a93e35a147940dcb2a36a54419fae78e333200a79201c652bbd731572"
+        "sha256": "3bc2747545f1c8a8b4d45f9c7bcb08e35ca72c1a9883fcd803f901bbd94ae9e7"
       },
       {
         "path": "crates/remote_server/tests/env_exec.rs",
-        "sha256": "bcf01c8cdf59f891b980d0b415227dc78d0fbd8bda325c620e34399713db18a2"
+        "sha256": "9184ea059ad0e3463595caaf9150031817b14caf2037c23a21662d0b26e9d8de"
       },
       {
         "path": "crates/project/src/agent_server_store.rs",

@@ -304,6 +304,53 @@ fn execute_env_exec_guardian(
         CommandExited(std::io::Result<()>),
     }
 
+    struct ProcessGroupCleanupGuard {
+        process_group_id: i32,
+        armed: bool,
+    }
+
+    impl ProcessGroupCleanupGuard {
+        fn new(process_group_id: i32) -> Self {
+            Self {
+                process_group_id,
+                armed: true,
+            }
+        }
+
+        fn disarm(&mut self) {
+            self.armed = false;
+        }
+    }
+
+    impl Drop for ProcessGroupCleanupGuard {
+        fn drop(&mut self) {
+            if !self.armed {
+                return;
+            }
+
+            // This guard is armed immediately after spawn, before the provider
+            // identity is published. It therefore closes the last orphaning
+            // window when report publication or any later guardian setup fails.
+            // SAFETY: the guardian created this process group and still owns
+            // its child leader. Drop cannot return errors, so cleanup is best
+            // effort and bounded by SIGKILL followed by waitpid.
+            unsafe {
+                libc::killpg(self.process_group_id, libc::SIGKILL);
+            }
+            loop {
+                let result =
+                    unsafe { libc::waitpid(self.process_group_id, std::ptr::null_mut(), 0) };
+                if result >= 0 {
+                    break;
+                }
+                let error = std::io::Error::last_os_error();
+                if error.kind() != std::io::ErrorKind::Interrupted {
+                    break;
+                }
+            }
+        }
+    }
+
     fn wait_without_reaping(pid: i32) -> std::io::Result<()> {
         loop {
             let mut info = std::mem::MaybeUninit::<libc::siginfo_t>::zeroed();
@@ -364,6 +411,8 @@ fn execute_env_exec_guardian(
         .stdin(Stdio::inherit())
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit());
+    #[cfg(debug_assertions)]
+    command.env_remove("ZED_ENV_EXEC_TEST_GUARDIAN_REPORT_DELAY_MS");
     // The provider gets its own checked session and process group. Every
     // ordinary worker it spawns inherits that group unless it deliberately
     // daemonizes, which is outside the ACP provider contract.
@@ -380,6 +429,14 @@ fn execute_env_exec_guardian(
         .spawn()
         .context("executing guarded stdin environment command")?;
     let child_pid = child.id() as i32;
+    let mut cleanup_guard = ProcessGroupCleanupGuard::new(child_pid);
+    #[cfg(debug_assertions)]
+    if let Ok(delay_ms) = std::env::var("ZED_ENV_EXEC_TEST_GUARDIAN_REPORT_DELAY_MS") {
+        let delay_ms = delay_ms
+            .parse::<u64>()
+            .context("parsing guardian report test delay")?;
+        thread::sleep(Duration::from_millis(delay_ms));
+    }
     writeln!(report, "{child_pid}").context("reporting guarded command identity")?;
     report
         .flush()
@@ -413,6 +470,7 @@ fn execute_env_exec_guardian(
             result.context("watching stdin environment command owner")?;
             kill_process_group(child_pid).context("terminating orphaned command group")?;
             child.wait().context("reaping orphaned command leader")?;
+            cleanup_guard.disarm();
             writeln!(report, "clean").ok();
             report.flush().ok();
             anyhow::bail!("stdin environment command owner exited")
@@ -429,6 +487,7 @@ fn execute_env_exec_guardian(
                 return Err(error).context("reaping remaining command group");
             }
             let status = child.wait().context("reaping stdin environment command")?;
+            cleanup_guard.disarm();
             writeln!(report, "clean").ok();
             report.flush().ok();
             if status.success() {

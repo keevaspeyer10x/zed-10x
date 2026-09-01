@@ -100,6 +100,30 @@ mod unix {
         }
     }
 
+    #[allow(clippy::disallowed_methods)] // This process-boundary helper inspects a real child.
+    fn wait_for_any_child(parent_pid: u32) -> anyhow::Result<u32> {
+        let deadline = Instant::now() + EXIT_TIMEOUT;
+        loop {
+            let output = Command::new("ps").args(["-axo", "pid=,ppid="]).output()?;
+            for line in String::from_utf8(output.stdout)?.lines() {
+                let mut fields = line.split_whitespace();
+                let Some(pid) = fields.next().and_then(|value| value.parse::<u32>().ok()) else {
+                    continue;
+                };
+                let Some(ppid) = fields.next().and_then(|value| value.parse::<u32>().ok()) else {
+                    continue;
+                };
+                if ppid == parent_pid {
+                    return Ok(pid);
+                }
+            }
+            if Instant::now() >= deadline {
+                anyhow::bail!("child process did not appear under {parent_pid}");
+            }
+            thread::sleep(Duration::from_millis(10));
+        }
+    }
+
     #[test]
     #[allow(clippy::disallowed_methods)] // This process-boundary test needs the real binary.
     fn env_exec_transfers_environment_without_argv_exposure_and_preserves_stdin()
@@ -295,6 +319,54 @@ mod unix {
         assert!(
             survivors.is_empty(),
             "command group survived env-exec supervisor death: {survivors:?}"
+        );
+        drop(stdin);
+        Ok(())
+    }
+
+    #[test]
+    #[allow(clippy::disallowed_methods)] // This process-boundary test kills the real supervisor.
+    fn env_exec_reaps_its_command_group_when_supervisor_dies_before_identity_report()
+    -> anyhow::Result<()> {
+        let script = "trap '' HUP TERM; (trap '' HUP TERM; while :; do sleep 60; done) & while :; do sleep 60; done";
+        let mut supervisor = Command::new(env!("CARGO_BIN_EXE_remote_server"))
+            .args(["env-exec", "--", "/bin/sh", "-c", script])
+            .env("ZED_ENV_EXEC_TEST_GUARDIAN_REPORT_DELAY_MS", "5000")
+            .stdin(Stdio::piped())
+            .stdout(Stdio::null())
+            .stderr(Stdio::piped())
+            .spawn()?;
+        let mut stdin = supervisor.stdin.take().expect("piped stdin");
+        stdin.write_all(&remote::encode_stdin_environment(&HashMap::default())?)?;
+        stdin.flush()?;
+
+        let guardian_pid = wait_for_child_process(supervisor.id(), "env-exec-guardian")?;
+        let command_pid = wait_for_any_child(guardian_pid)?;
+        let descendant_pid = wait_for_any_child(command_pid)?;
+
+        supervisor.kill()?;
+        supervisor.wait()?;
+
+        let deadline = Instant::now() + Duration::from_secs(7);
+        let survivors = loop {
+            let survivors = [guardian_pid, command_pid, descendant_pid]
+                .into_iter()
+                .filter(|pid| unsafe { libc::kill(*pid as i32, 0) } == 0)
+                .collect::<Vec<_>>();
+            if survivors.is_empty() || Instant::now() >= deadline {
+                break survivors;
+            }
+            thread::sleep(Duration::from_millis(10));
+        };
+        if !survivors.is_empty() {
+            unsafe {
+                libc::killpg(command_pid as i32, libc::SIGKILL);
+                libc::kill(guardian_pid as i32, libc::SIGKILL);
+            }
+        }
+        assert!(
+            survivors.is_empty(),
+            "command group survived pre-report supervisor death: {survivors:?}"
         );
         drop(stdin);
         Ok(())
