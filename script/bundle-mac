@@ -401,6 +401,7 @@ function sign_app_binaries() {
             echo "Opening $installed_app_path"
             open "$installed_app_path"
         fi
+        return
     elif [ "$open_result" = true ]; then
         open "$app_path"
     fi

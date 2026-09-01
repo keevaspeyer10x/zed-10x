@@ -599,6 +599,20 @@ test("bundle-mac refreshes LaunchServices only after the installed bundle verifi
   assert.ok(successOffset > registrationOffset);
 });
 
+test("bundle-mac stops after local installation instead of reusing the moved staging app", () => {
+  const repositoryRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../..");
+  const bundleScript = fs.readFileSync(path.join(repositoryRoot, "script", "bundle-mac"), "utf8");
+  const localInstallStart = bundleScript.indexOf('if [ "$local_install" = true ]; then');
+  const openOnlyStart = bundleScript.indexOf('elif [ "$open_result" = true ]; then', localInstallStart);
+
+  assert.ok(localInstallStart > 0);
+  assert.ok(openOnlyStart > localInstallStart);
+  assert.match(
+    bundleScript.slice(localInstallStart, openOnlyStart),
+    /echo "Installed application bundle: \$installed_app_path"[\s\S]*\n\s*return\n/,
+  );
+});
+
 test("release credentials are visible only to the signing step", () => {
   const repositoryRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../..");
   const workflow = fs.readFileSync(path.join(repositoryRoot, ".github", "workflows", "zed-10x-release.yml"), "utf8");
