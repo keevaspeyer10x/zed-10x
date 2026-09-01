@@ -5,6 +5,8 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  statSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { createHash } from "node:crypto";
@@ -23,6 +25,31 @@ const fakeNpm = path.join(
   repositoryRoot,
   "script/tests/fixtures/fake-npm-exec.py",
 );
+
+test("terminal evidence remains durable through a symlinked parent directory", () => {
+  const root = mkdtempSync(path.join(tmpdir(), "zed-acp-symlink-parent-"));
+  const realDirectory = path.join(root, "real");
+  const linkedDirectory = path.join(root, "linked");
+  mkdirSync(realDirectory);
+  symlinkSync(realDirectory, linkedDirectory, "dir");
+  const output = path.join(linkedDirectory, "receipt.json");
+  const source = String.raw`
+import importlib.util, pathlib, sys
+path = pathlib.Path(sys.argv[1])
+spec = importlib.util.spec_from_file_location("zed_acp_live_canary", path)
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+module.write_exclusive(pathlib.Path(sys.argv[2]), {"status": "pass"})
+`;
+  const result = spawnSync("/usr/bin/python3", ["-c", source, canary, output], {
+    cwd: repositoryRoot,
+    encoding: "utf8",
+    timeout: 15_000,
+  });
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(JSON.parse(readFileSync(output, "utf8")), { status: "pass" });
+  assert.equal(statSync(output).mode & 0o777, 0o600);
+});
 
 function runCanary(
   mode,
