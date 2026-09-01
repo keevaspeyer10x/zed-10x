@@ -1922,15 +1922,35 @@ impl AgentPanel {
                 self._draft_editor_observation = None;
                 self.retained_threads.insert(draft_id, draft);
             } else if *draft.read(cx).agent_key() != self.selected_agent {
-                let old_draft_id = draft.read(cx).thread_id;
-                ThreadMetadataStore::global(cx).update(cx, |store, cx| {
-                    store.delete(old_draft_id, cx);
-                });
-                self.draft_thread = None;
-                self._draft_editor_observation = None;
+                self.discard_empty_draft(&draft, cx);
             }
         }
         self.activate_draft(focus, source, window, cx);
+    }
+
+    /// Drop an empty ephemeral draft without letting `set_base_view` retain
+    /// its live agent connection in the background. This matters for agents
+    /// whose transport owns an exclusive writer lease: a hidden empty draft
+    /// must not prevent the replacement draft from connecting.
+    fn discard_empty_draft(&mut self, draft: &Entity<ConversationView>, cx: &mut Context<Self>) {
+        let draft_entity_id = draft.entity_id();
+        let draft_thread_id = draft.read(cx).thread_id;
+
+        if matches!(
+            &self.base_view,
+            BaseView::AgentThread { conversation_view }
+                if conversation_view.entity_id() == draft_entity_id
+        ) {
+            self.base_view = BaseView::Uninitialized;
+            self._active_draft_reclaim_observation = None;
+        }
+
+        self.retained_threads.remove(&draft_thread_id);
+        ThreadMetadataStore::global(cx).update(cx, |store, cx| {
+            store.delete(draft_thread_id, cx);
+        });
+        self.draft_thread = None;
+        self._draft_editor_observation = None;
     }
 
     fn draft_has_content(&self, draft: &Entity<ConversationView>, cx: &App) -> bool {
@@ -3338,7 +3358,7 @@ impl AgentPanel {
         cx: &mut Context<Self>,
     ) -> Entity<ConversationView> {
         let desired_agent = self.selected_agent(cx);
-        if let Some(draft) = &self.draft_thread {
+        if let Some(draft) = self.draft_thread.clone() {
             let draft_entity = draft.entity_id();
             let agent_matches = *draft.read(cx).agent_key() == desired_agent;
             let has_editor_content = draft.read(cx).root_thread_view().is_some_and(|tv| {
@@ -3368,13 +3388,7 @@ impl AgentPanel {
 
             // Clean up the old empty draft's metadata so it doesn't
             // linger as a ghost entry in the sidebar.
-            let old_draft_id = draft.read(cx).thread_id;
-            ThreadMetadataStore::global(cx).update(cx, |store, cx| {
-                store.delete(old_draft_id, cx);
-            });
-
-            self.draft_thread = None;
-            self._draft_editor_observation = None;
+            self.discard_empty_draft(&draft, cx);
         }
 
         let thread = self.create_agent_thread_with_server(
@@ -13895,12 +13909,16 @@ mod tests {
             panel.activate_draft(true, AgentThreadSource::AgentPanel, window, cx);
         });
 
-        let first_draft_id = panel.read_with(cx, |panel, cx| {
+        let (first_draft_id, first_thread_id, first_draft) = panel.read_with(cx, |panel, cx| {
             assert!(panel.draft_thread.is_some());
             assert_eq!(panel.selected_agent, Agent::NativeAgent);
             let draft = panel.draft_thread.as_ref().unwrap();
             assert_eq!(*draft.read(cx).agent_key(), Agent::NativeAgent);
-            draft.entity_id()
+            (
+                draft.entity_id(),
+                draft.read(cx).thread_id,
+                draft.downgrade(),
+            )
         });
 
         // Switch selected_agent to a custom agent, then activate_draft again.
@@ -13912,6 +13930,7 @@ mod tests {
             panel.selected_agent = custom_agent.clone();
             panel.activate_draft(true, AgentThreadSource::AgentPanel, window, cx);
         });
+        cx.run_until_parked();
 
         panel.read_with(cx, |panel, cx| {
             let draft = panel.draft_thread.as_ref().expect("draft should exist");
@@ -13925,7 +13944,15 @@ mod tests {
                 custom_agent,
                 "the new draft should use the custom agent"
             );
+            assert!(
+                !panel.retained_threads.contains_key(&first_thread_id),
+                "the replaced empty draft must not retain its agent connection in the background"
+            );
         });
+        assert!(
+            first_draft.upgrade().is_none(),
+            "the replaced empty draft view and its live agent connection must be dropped"
+        );
 
         // Calling activate_draft again with the same agent should return the
         // cached draft (no replacement).
