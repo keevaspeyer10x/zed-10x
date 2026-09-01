@@ -55,7 +55,8 @@
       "passedRows": 5,
       "failedRows": 0,
       "artifact": "docs/test-results/summary.json",
-      "currentInstalledReceipt": "docs/test-results/zed-acp-current-installed-uat.json"
+      "currentInstalledRouteReceipt": "docs/test-results/zed-acp-current-route-closure.json",
+      "ancestorAssembledUiReceipt": "docs/test-results/zed-acp-current-installed-uat.json"
     },
     "5-analysis": {
       "status": "complete",
@@ -70,7 +71,9 @@
     "6-tracking": {
       "status": "complete",
       "openTestPlanDefects": 0,
-      "releaseResidual": "Rebuild the protected merged revision, reinstall it on both hosts, and run the post-merge consumer canary."
+      "releaseResidual": "Rebuild the protected merged revision, reinstall it on both hosts, and run the post-merge consumer canary.",
+      "externalRouteResidual": "Claude (Intrepid, work) requires provider-account reauthentication; its product launch and cleanup path was healthy and this does not block Zed product readiness."
     }
-  }
+  },
+  "completedAt": "2026-09-01T16:22:17Z"
 }

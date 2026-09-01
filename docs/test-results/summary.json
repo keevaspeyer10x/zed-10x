@@ -1,6 +1,6 @@
 {
   "schemaVersion": 3,
-  "generatedAt": "2026-09-01T14:37:15Z",
+  "generatedAt": "2026-09-01T16:22:17Z",
   "decisionCandidate": "production_ready",
   "plannedRows": 5,
   "implementedRows": 5,
@@ -19,14 +19,16 @@
       "id": "ZED-ACP-INVENTORY-001",
       "status": "passed",
       "evidencePaths": [
-        "docs/test-results/zed-acp-current-installed-uat.json"
+        "docs/test-results/zed-acp-current-installed-uat.json",
+        "docs/test-results/zed-acp-current-route-closure.json"
       ]
     },
     {
       "id": "ZED-ACP-SESSION-002",
       "status": "passed",
       "evidencePaths": [
-        "docs/test-results/zed-acp-current-installed-uat.json"
+        "docs/test-results/zed-acp-current-installed-uat.json",
+        "docs/test-results/zed-acp-current-route-closure.json"
       ]
     },
     {
@@ -34,7 +36,8 @@
       "status": "passed",
       "evidencePaths": [
         "docs/test-results/zed-acp-current-installed-uat.json",
-        "docs/test-results/zed-installed-surface-uat-verify.json"
+        "docs/test-results/zed-installed-surface-uat-verify.json",
+        "docs/test-results/zed-acp-current-route-closure.json"
       ]
     },
     {
@@ -57,8 +60,9 @@
   "uat": {
     "status": "passed",
     "persona": "Keeva using Zed 10x",
-    "installedProductRevision": "a6531bd9de40ec55ce1181fa928b3ce324e7d61d",
-    "evidencePath": "docs/test-results/zed-acp-current-installed-uat.json"
+    "installedProductRevision": "2bde4bdfcbaac21a4ca6328298a0bd847e3caa65",
+    "assembledUiEvidencePath": "docs/test-results/zed-acp-current-installed-uat.json",
+    "currentRouteEvidencePath": "docs/test-results/zed-acp-current-route-closure.json"
   },
   "observability": {
     "status": "passed",
@@ -71,15 +75,23 @@
     "exactFixtureResidue": []
   },
   "flakiness": {
-    "rerunCount": 2,
-    "flakyTests": []
+    "rerunCount": 3,
+    "flakyTests": [],
+    "externalRouteInstability": [
+      {
+        "endpoint": "Claude (Intrepid, secondary)",
+        "initialObservation": "tool_evidence_missing",
+        "boundedRetry": "passed",
+        "unresolvedProductFailure": false
+      }
+    ]
   },
   "testValidity": {
     "status": "valid",
     "evidencePath": "docs/test-results/test-validity.json"
   },
   "defectDiscovery": {
-    "bugsFound": 11,
+    "bugsFound": 12,
     "productDefects": [
       "remote child groups survived transport closure",
       "remote descendants survived direct leader exit",
@@ -92,7 +104,8 @@
       "TCP readiness probe was mistaken for DAP initialize",
       "DAP stopped/thread/stackTrace responses were incomplete",
       "the DAP oracle required brittle ancillary request counts",
-      "the cleanup census initially confused observer ancestry with residue"
+      "the cleanup census initially confused observer ancestry with residue",
+      "the durable evidence writer rejected the standard symlinked macOS /tmp spelling after a successful write"
     ],
     "infraOrToolingDefects": [],
     "processDefects": [
@@ -105,7 +118,8 @@
     "weakRows": [],
     "newInformationSummary": [
       "The installed UI, remote server, session lane, durable thread, Retry action, and ordinary cleanup now pass together on the exact installed candidate.",
-      "The surface UAT covers terminal, task, Vim, MCP, DAP stdio, and DAP TCP reset/reconnect rather than substituting unit-level protocol checks."
+      "The surface UAT covers terminal, task, Vim, MCP, DAP stdio, and DAP TCP reset/reconnect rather than substituting unit-level protocol checks.",
+      "The exact 2bde4bdf installed runtime passed all eight Mac routes and every available Intrepid route; Claude Intrepid work was isolated as expired external authentication, and one transient Claude secondary response passed its single bounded retry."
     ],
     "lowYieldAssessment": "high_yield",
     "residualRisk": [
@@ -113,8 +127,8 @@
     ]
   },
   "evidenceBinding": {
-    "testedRevision": "a6531bd9de40ec55ce1181fa928b3ce324e7d61d",
-    "harnessRevision": "9678df1f341ac72b1b0564237c0a0cd05e173045",
+    "testedRevision": "2bde4bdfcbaac21a4ca6328298a0bd847e3caa65",
+    "harnessRevision": "123c4c2f4aa792a7d1da782458301be08e9b4687",
     "loadBearingInputs": [
       {
         "path": "crates/agent_servers/src/acp.rs",
@@ -167,6 +181,14 @@
       {
         "path": "script/tests/fixtures/zed-installed-surface-uat/fake_dap.py",
         "sha256": "8609569adba972f1c456c84820eb04823ecda1720b45f2be59e800bf16650827"
+      },
+      {
+        "path": "script/zed-acp-live-canary.py",
+        "sha256": "20fa93f1070ce0e9a9815b589e030bbf38820147131d9765b8798733f290986b"
+      },
+      {
+        "path": "script/tests/zed-acp-live-canary.test.mjs",
+        "sha256": "a81d3cf958150d55ddbb6872e427d02d23bb8c44825319977774a0acec87d7a5"
       }
     ]
   }

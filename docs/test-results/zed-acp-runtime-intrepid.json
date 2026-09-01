@@ -2,20 +2,26 @@
   "schemaVersion": 1,
   "id": "RUNTIME-ZED10X-INTREPID",
   "kind": "installed_artifact",
-  "value": "zed-remote-server-linux-x86_64@a6531bd9de40ec55ce1181fa928b3ce324e7d61d:sha256=0b92d3a35a640028d624e9339a5f38c6e863a068a992b55bb1329655e8435ff5",
+  "value": "zed-remote-server-linux-x86_64@2bde4bdfcbaac21a4ca6328298a0bd847e3caa65:sha256=83fe8ff3cda3700452b0e58da485f96f38dc40bca8b4997fdc417ba577c251f7",
   "surfaceIds": [
     "SURFACE-ACP-INTREPID-PERSISTENT",
     "SURFACE-ACP-INTREPID-ORDINARY"
   ],
   "observations": [
     {
-      "rowId": "ZED-ACP-CURRENT-INSTALLED-UAT",
-      "command": "bind the current installed Intrepid runtime, picker inventory, provider-backed switch/recovery journey, assembled surface UAT, and cleanup to the exact source revision",
-      "evidencePath": "docs/test-results/zed-acp-current-installed-uat.json",
-      "evidenceSha256": "65eaeab60063c3b96ca211ecdcbcd24fe1982b9f02a14b2061aeb0546e77c8ab"
+      "rowId": "ZED-ACP-CURRENT-ROUTE-CLOSURE",
+      "command": "bind the exact installed Intrepid runtime to every configured Intrepid route, one real project read per available route, explicit external unavailability, and exact route cleanup",
+      "evidencePath": "docs/test-results/zed-acp-current-route-closure.json",
+      "evidenceSha256": "15225a347b1823521b480a0f681af862095c4dac63cb176f557b86603dce2567"
     }
   ],
   "historicalObservations": [
+    {
+      "rowId": "ZED-ACP-CURRENT-INSTALLED-UAT",
+      "command": "bind the ancestor installed Intrepid runtime, picker inventory, provider-backed switch/recovery journey, assembled surface UAT, and cleanup to its exact source revision",
+      "evidencePath": "docs/test-results/zed-acp-current-installed-uat.json",
+      "evidenceSha256": "65eaeab60063c3b96ca211ecdcbcd24fe1982b9f02a14b2061aeb0546e77c8ab"
+    },
     {
       "rowId": "ZED-ACP-INVENTORY-001",
       "command": "computer-use installed Zed 10x in an Intrepid project: open External Agents and verify the exact eight persistent plus six ordinary Intrepid variants, unique consistent labels, and no Mac or alias-only entries",
@@ -42,8 +48,8 @@
     }
   ],
   "capture": {
-    "command": "bind the current installed Intrepid runtime, picker inventory, provider-backed switch/recovery journey, assembled surface UAT, and cleanup to the exact source revision",
-    "evidencePath": "docs/test-results/zed-acp-current-installed-uat.json",
-    "evidenceSha256": "65eaeab60063c3b96ca211ecdcbcd24fe1982b9f02a14b2061aeb0546e77c8ab"
+    "command": "bind the exact installed Intrepid runtime to every configured Intrepid route, one real project read per available route, explicit external unavailability, and exact route cleanup",
+    "evidencePath": "docs/test-results/zed-acp-current-route-closure.json",
+    "evidenceSha256": "15225a347b1823521b480a0f681af862095c4dac63cb176f557b86603dce2567"
   }
 }

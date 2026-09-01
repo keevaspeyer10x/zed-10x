@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "status": "passed",
-  "sourceCommit": "9678df1f341ac72b1b0564237c0a0cd05e173045",
-  "sourceTree": "10a846b44cb0586c15984e4f6eb1ce6c45853528",
-  "installedProductCommit": "a6531bd9de40ec55ce1181fa928b3ce324e7d61d",
-  "installedCandidateDifference": "The final descendant changes strengthen the tracked installed-UAT DAP oracle, Retry and draft-lifecycle assertions, and remote provider containment when either the supervisor or its guardian fails. The exact merged revision remains subject to a fresh post-merge install and canary.",
+  "sourceCommit": "123c4c2f4aa792a7d1da782458301be08e9b4687",
+  "sourceTree": "83e0af633776b9f53a5cdf697207249d86ed1a60",
+  "installedProductCommit": "2bde4bdfcbaac21a4ca6328298a0bd847e3caa65",
+  "installedCandidateDifference": "The only descendant change after the exact installed product revision makes content-free canary receipts durable when their existing parent is reached through a symlink and adds its direct regression. No product runtime source changed. The exact merged revision remains subject to a fresh post-merge install and canary.",
   "testedWorkingTree": false,
   "testedWorkingTreeChanges": [],
   "suites": [
@@ -12,7 +12,7 @@
       "name": "changed-rust-matrix",
       "command": "./script/cargo test --locked -p agent_servers -p agent_ui -p remote_server --all-targets -- --test-threads=1",
       "status": "passed",
-      "tests": 515,
+      "tests": 516,
       "failed": 0,
       "scope": "all targets for the changed agent protocol, UI lifecycle, remote server, and process-boundary owners"
     },
@@ -31,7 +31,7 @@
       "name": "changed-node-contracts",
       "command": "node --test script/tests/*.test.mjs",
       "status": "passed",
-      "tests": 139,
+      "tests": 140,
       "failed": 0,
       "skipped": 0
     },
@@ -56,11 +56,11 @@
       "name": "mac-bundle",
       "command": "./script/bundle-mac -d -i",
       "status": "passed",
-      "installedCommit": "a6531bd9de40ec55ce1181fa928b3ce324e7d61d",
+      "installedCommit": "2bde4bdfcbaac21a4ca6328298a0bd847e3caa65",
       "installedWorkingTree": false,
       "signatureVerified": true,
-      "runtimeSha256": "cc1eaff34b1680c79d8422420ff6c38e6e7610effee90c38234b95d21b94c6c5",
-      "remoteRuntimeSha256": "0b92d3a35a640028d624e9339a5f38c6e863a068a992b55bb1329655e8435ff5"
+      "runtimeSha256": "43462ee667b6ba08a2807cd5d2ea45e49eab272816bffcc5397df8f370d8aa9a",
+      "remoteRuntimeSha256": "83fe8ff3cda3700452b0e58da485f96f38dc40bca8b4997fdc417ba577c251f7"
     }
   ]
 }

@@ -99,6 +99,14 @@
       "fix": "Inspect the visible composer before any retry, use the documented xdotool-style key names, and click the visible Send control exactly once.",
       "regression": "The first marker appeared once, received one exact response, and the recovery journey continued without replay.",
       "status": "contained_without_duplicate_effect"
+    },
+    {
+      "id": "HARNESS-MACOS-SYMLINKED-EVIDENCE-PARENT",
+      "category": "test_bug",
+      "symptom": "A successful content-free matrix write was reported as failed when the output parent used macOS's standard /tmp symlink spelling and the directory fsync applied O_NOFOLLOW to that spelling.",
+      "fix": "Resolve the already-existing parent directory before opening it with O_NOFOLLOW for the final directory fsync while retaining O_EXCL publication for the receipt itself.",
+      "regression": "terminal evidence remains durable through a symlinked parent directory",
+      "status": "fixed"
     }
   ],
   "coverageClosureDefects": [
@@ -173,7 +181,7 @@
       "intrepidPath": "docs/test-results/zed-acp-cleanup-intrepid.json",
       "status": "passed_historical_support_only"
     },
-    "currentInstalledClosure": {
+    "ancestorInstalledUiClosure": {
       "path": "docs/test-results/zed-acp-current-installed-uat.json",
       "status": "passed",
       "installedProductRevision": "a6531bd9de40ec55ce1181fa928b3ce324e7d61d",
@@ -184,6 +192,25 @@
         "persistent recovery",
         "switch-and-return",
         "assembled surface UAT"
+      ]
+    },
+    "currentInstalledRouteClosure": {
+      "path": "docs/test-results/zed-acp-current-route-closure.json",
+      "sha256": "15225a347b1823521b480a0f681af862095c4dac63cb176f557b86603dce2567",
+      "status": "passed_with_external_unavailability",
+      "installedProductRevision": "2bde4bdfcbaac21a4ca6328298a0bd847e3caa65",
+      "configuredRouteCount": 24,
+      "passedRouteCount": 23,
+      "externalUnavailableRouteCount": 1,
+      "unresolvedProductFailureCount": 0,
+      "boundedRetryCount": 1,
+      "covers": [
+        "all configured Mac routes",
+        "all configured Intrepid routes",
+        "real project reads",
+        "ordinary bounded retry",
+        "external authentication classification",
+        "exact route cleanup"
       ]
     }
   }
