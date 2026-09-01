@@ -1,0 +1,19 @@
+{
+  "host": "intrepid",
+  "journeys": {
+    "processResidue": [],
+    "receiptSha256": {
+      "dapStdio": "2e178c629e7c2ab1a6f4a39031670e5f8625bab3757b013845d82c9b5c70437d",
+      "dapTcp": "949d287deba3940d4b6a74fbda2f152c3cdb86a8d2f3072bc210b09c41345af9",
+      "mcp": "6ddd3ee612791693d25d9019010d91984cd8c14b9179f9769d9952d487429dec",
+      "task": "a63f9aab3aeb557209639b19ad2835c62bd2af7c402ba0fd6b37cc36e9fbbcfc",
+      "terminal": "4d12405c996fd368edf5b51cc05488b03e9385c396ad1b545b97f3ebfd824671",
+      "vim": "302cebc185811cc44013a28c3e346618477728363e9b424b81f6493383954931"
+    },
+    "status": "passed"
+  },
+  "logPrivacyMatches": [],
+  "remoteProject": "/home/keeva/uat/zed-a6531bd9",
+  "schemaVersion": 1,
+  "status": "passed"
+}

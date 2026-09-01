@@ -15,6 +15,7 @@ def write_receipt(
     tcp_connection_count: int = 0,
     reset_initialize_count: int = 0,
     reset_delay_ms: int = 0,
+    transport_closed: bool = False,
 ) -> None:
     os.makedirs(".uat", mode=0o700, exist_ok=True)
     name = "dap-tcp.json" if mode == "tcp" else "dap-stdio.json"
@@ -30,6 +31,7 @@ def write_receipt(
                 "tcpConnectionCount": tcp_connection_count,
                 "resetInitializeCount": reset_initialize_count,
                 "resetDelayMs": reset_delay_ms,
+                "transportClosed": transport_closed,
             }
         )
     with open(os.path.join(".uat", name), "w", encoding="utf-8") as output:
@@ -81,18 +83,24 @@ reset_initialize_count = 0
 write_receipt(mode, events)
 server = None
 connection = None
+pending_request = None
 if mode == "tcp":
     server = socket.socket()
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server.bind(("127.0.0.1", port))
     server.listen(1)
     if reset_first_initialize:
-        connection, _ = server.accept()
-        tcp_connection_count += 1
-        first_reader = connection.makefile("rb")
-        first_request = read_message(first_reader)
+        while True:
+            connection, _ = server.accept()
+            first_reader = connection.makefile("rb")
+            first_request = read_message(first_reader)
+            if first_request is not None:
+                break
+            first_reader.close()
+            connection.close()
         if first_request is None or first_request.get("command") != "initialize":
             raise RuntimeError("first TCP request was not initialize")
+        tcp_connection_count += 1
         reset_initialize_count += 1
         write_receipt(
             mode,
@@ -109,9 +117,15 @@ if mode == "tcp":
             struct.pack("ii", 1, 0),
         )
         connection.close()
-    connection, _ = server.accept()
+    while True:
+        connection, _ = server.accept()
+        reader = connection.makefile("rb")
+        pending_request = read_message(reader)
+        if pending_request is not None:
+            break
+        reader.close()
+        connection.close()
     tcp_connection_count += 1
-    reader = connection.makefile("rb")
     writer = connection.makefile("wb")
 else:
     reader = sys.stdin.buffer
@@ -119,7 +133,8 @@ else:
 
 sequence = 1
 while True:
-    request = read_message(reader)
+    request = pending_request if pending_request is not None else read_message(reader)
+    pending_request = None
     if request is None:
         break
     command = request.get("command")
@@ -141,7 +156,9 @@ while True:
             "supportsTerminateRequest": True,
         }
     elif command == "threads":
-        body = {"threads": []}
+        body = {"threads": [{"id": 1, "name": "zed-uat-main"}]}
+    elif command == "stackTrace":
+        body = {"stackFrames": [], "totalFrames": 0}
     else:
         body = {}
     send_message(
@@ -160,7 +177,19 @@ while True:
         send_message(writer, {"seq": sequence, "type": "event", "event": "initialized"})
         sequence += 1
     if command == "configurationDone":
-        send_message(writer, {"seq": sequence, "type": "event", "event": "terminated"})
+        send_message(
+            writer,
+            {
+                "seq": sequence,
+                "type": "event",
+                "event": "stopped",
+                "body": {
+                    "reason": "entry",
+                    "threadId": 1,
+                    "allThreadsStopped": True,
+                },
+            },
+        )
         sequence += 1
     if command in ("disconnect", "terminate"):
         break
@@ -169,3 +198,12 @@ if connection is not None:
     connection.close()
 if server is not None:
     server.close()
+if mode == "tcp":
+    write_receipt(
+        mode,
+        events,
+        tcp_connection_count=tcp_connection_count,
+        reset_initialize_count=reset_initialize_count,
+        reset_delay_ms=reset_delay_ms,
+        transport_closed=True,
+    )
