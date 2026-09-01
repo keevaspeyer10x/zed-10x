@@ -218,6 +218,61 @@ mod unix {
     }
 
     #[test]
+    #[allow(clippy::disallowed_methods)] // This process-boundary test kills the real supervisor.
+    fn env_exec_reaps_its_command_group_when_the_supervisor_is_killed() -> anyhow::Result<()> {
+        use std::io::{BufRead as _, BufReader};
+
+        let script = "trap '' HUP TERM; (trap '' HUP TERM; while :; do sleep 60; done) & descendant=$!; printf '%s %s\\n' \"$$\" \"$descendant\"; while :; do sleep 60; done";
+        let mut supervisor = Command::new(env!("CARGO_BIN_EXE_remote_server"))
+            .args(["env-exec", "--", "/bin/sh", "-c", script])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()?;
+        let mut stdin = supervisor.stdin.take().expect("piped stdin");
+        stdin.write_all(&remote::encode_stdin_environment(&HashMap::default())?)?;
+        stdin.flush()?;
+
+        let stdout = supervisor.stdout.take().expect("piped stdout");
+        let mut reader = BufReader::new(stdout);
+        let mut pid_line = String::new();
+        reader.read_line(&mut pid_line)?;
+        let mut pids = pid_line.split_whitespace().map(str::parse::<u32>);
+        let command_pid = pids.next().context("missing command pid")??;
+        let descendant_pid = pids.next().context("missing descendant pid")??;
+        assert!(pids.next().is_none(), "unexpected pid output: {pid_line:?}");
+
+        supervisor.kill()?;
+        supervisor.wait()?;
+
+        let deadline = Instant::now() + Duration::from_secs(2);
+        let survivors = loop {
+            let survivors = [command_pid, descendant_pid]
+                .into_iter()
+                .filter(|pid| unsafe { libc::kill(*pid as i32, 0) } == 0)
+                .collect::<Vec<_>>();
+            if survivors.is_empty() || Instant::now() >= deadline {
+                break survivors;
+            }
+            thread::sleep(Duration::from_millis(10));
+        };
+
+        if !survivors.is_empty() {
+            // The pre-fix implementation leaks this process group. Keep the RED
+            // test itself hygienic so a failed assertion never leaves it behind.
+            unsafe {
+                libc::killpg(command_pid as i32, libc::SIGKILL);
+            }
+        }
+        assert!(
+            survivors.is_empty(),
+            "command group survived env-exec supervisor death: {survivors:?}"
+        );
+        drop(stdin);
+        Ok(())
+    }
+
+    #[test]
     #[allow(clippy::disallowed_methods)] // This process-boundary test needs bounded child polling.
     fn env_exec_rejects_invalid_frames_finitely_before_exec() -> anyhow::Result<()> {
         for (case_index, frame) in [

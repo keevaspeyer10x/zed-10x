@@ -20,7 +20,8 @@
     "criticalJourneys": 4,
     "applicableSurfaceJourneyCells": 10,
     "selectableVariants": 22,
-    "directVariantJourneyCells": 74
+    "directVariantJourneyCells": 67,
+    "mechanicallyEquivalentVariantJourneyCells": 7
   },
   "surfaceJourneyCoverage": {
     "cells": [
@@ -376,8 +377,15 @@
       {
         "variantId": "VAR-INTREPID-CLAUDE-PRIMARY",
         "journeyId": "JOURNEY-PERSISTENT-SESSION-RECOVERY",
-        "coverageMode": "direct",
+        "coverageMode": "mechanically_equivalent",
         "evidenceLayer": "assembled_product",
+        "equivalentToVariantId": "VAR-INTREPID-CODEX-PRIMARY",
+        "equivalenceEvidence": [
+          "All persistent variants share the same zed-acp-session-attach transport, conversation Retry implementation, session/load path, and durable-journal contract; the complete direct inventory/session/cleanup matrix separately verifies each route-specific launch input."
+        ],
+        "equivalenceRowIds": [
+          "ZED-ACP-RECOVERY-004"
+        ],
         "rowIds": [
           "ZED-ACP-RECOVERY-004"
         ]
@@ -412,8 +420,15 @@
       {
         "variantId": "VAR-INTREPID-CLAUDE-SECONDARY",
         "journeyId": "JOURNEY-PERSISTENT-SESSION-RECOVERY",
-        "coverageMode": "direct",
+        "coverageMode": "mechanically_equivalent",
         "evidenceLayer": "assembled_product",
+        "equivalentToVariantId": "VAR-INTREPID-CODEX-PRIMARY",
+        "equivalenceEvidence": [
+          "All persistent variants share the same zed-acp-session-attach transport, conversation Retry implementation, session/load path, and durable-journal contract; the complete direct inventory/session/cleanup matrix separately verifies each route-specific launch input."
+        ],
+        "equivalenceRowIds": [
+          "ZED-ACP-RECOVERY-004"
+        ],
         "rowIds": [
           "ZED-ACP-RECOVERY-004"
         ]
@@ -448,8 +463,15 @@
       {
         "variantId": "VAR-INTREPID-CLAUDE-SELECTED",
         "journeyId": "JOURNEY-PERSISTENT-SESSION-RECOVERY",
-        "coverageMode": "direct",
+        "coverageMode": "mechanically_equivalent",
         "evidenceLayer": "assembled_product",
+        "equivalentToVariantId": "VAR-INTREPID-CODEX-PRIMARY",
+        "equivalenceEvidence": [
+          "All persistent variants share the same zed-acp-session-attach transport, conversation Retry implementation, session/load path, and durable-journal contract; the complete direct inventory/session/cleanup matrix separately verifies each route-specific launch input."
+        ],
+        "equivalenceRowIds": [
+          "ZED-ACP-RECOVERY-004"
+        ],
         "rowIds": [
           "ZED-ACP-RECOVERY-004"
         ]
@@ -484,8 +506,15 @@
       {
         "variantId": "VAR-INTREPID-CLAUDE-WORK",
         "journeyId": "JOURNEY-PERSISTENT-SESSION-RECOVERY",
-        "coverageMode": "direct",
+        "coverageMode": "mechanically_equivalent",
         "evidenceLayer": "assembled_product",
+        "equivalentToVariantId": "VAR-INTREPID-CODEX-PRIMARY",
+        "equivalenceEvidence": [
+          "All persistent variants share the same zed-acp-session-attach transport, conversation Retry implementation, session/load path, and durable-journal contract; the complete direct inventory/session/cleanup matrix separately verifies each route-specific launch input."
+        ],
+        "equivalenceRowIds": [
+          "ZED-ACP-RECOVERY-004"
+        ],
         "rowIds": [
           "ZED-ACP-RECOVERY-004"
         ]
@@ -556,8 +585,15 @@
       {
         "variantId": "VAR-INTREPID-CODEX-SECONDARY",
         "journeyId": "JOURNEY-PERSISTENT-SESSION-RECOVERY",
-        "coverageMode": "direct",
+        "coverageMode": "mechanically_equivalent",
         "evidenceLayer": "assembled_product",
+        "equivalentToVariantId": "VAR-INTREPID-CODEX-PRIMARY",
+        "equivalenceEvidence": [
+          "All persistent variants share the same zed-acp-session-attach transport, conversation Retry implementation, session/load path, and durable-journal contract; the complete direct inventory/session/cleanup matrix separately verifies each route-specific launch input."
+        ],
+        "equivalenceRowIds": [
+          "ZED-ACP-RECOVERY-004"
+        ],
         "rowIds": [
           "ZED-ACP-RECOVERY-004"
         ]
@@ -592,8 +628,15 @@
       {
         "variantId": "VAR-INTREPID-CODEX-SELECTED",
         "journeyId": "JOURNEY-PERSISTENT-SESSION-RECOVERY",
-        "coverageMode": "direct",
+        "coverageMode": "mechanically_equivalent",
         "evidenceLayer": "assembled_product",
+        "equivalentToVariantId": "VAR-INTREPID-CODEX-PRIMARY",
+        "equivalenceEvidence": [
+          "All persistent variants share the same zed-acp-session-attach transport, conversation Retry implementation, session/load path, and durable-journal contract; the complete direct inventory/session/cleanup matrix separately verifies each route-specific launch input."
+        ],
+        "equivalenceRowIds": [
+          "ZED-ACP-RECOVERY-004"
+        ],
         "rowIds": [
           "ZED-ACP-RECOVERY-004"
         ]
@@ -628,8 +671,15 @@
       {
         "variantId": "VAR-INTREPID-CODEX-WORK",
         "journeyId": "JOURNEY-PERSISTENT-SESSION-RECOVERY",
-        "coverageMode": "direct",
+        "coverageMode": "mechanically_equivalent",
         "evidenceLayer": "assembled_product",
+        "equivalentToVariantId": "VAR-INTREPID-CODEX-PRIMARY",
+        "equivalenceEvidence": [
+          "All persistent variants share the same zed-acp-session-attach transport, conversation Retry implementation, session/load path, and durable-journal contract; the complete direct inventory/session/cleanup matrix separately verifies each route-specific launch input."
+        ],
+        "equivalenceRowIds": [
+          "ZED-ACP-RECOVERY-004"
+        ],
         "rowIds": [
           "ZED-ACP-RECOVERY-004"
         ]

@@ -36,8 +36,15 @@ expose prelude bytes or environment values.
    remote user's home directory.
 3. Zed writes and flushes the private frame before any ACP, MCP, DAP, or shell
    protocol bytes.
-4. The remote server validates the frame, applies the environment, and replaces
-   itself with the requested child.
+4. The remote server validates the frame, applies the environment, and starts a
+   guardian that owns the requested child session and process group.
+5. The supervisor retains the sole writer of a private liveness channel. Normal
+   transport closure and abrupt supervisor death both close that channel; the
+   guardian then kills the provider process group before reaping its leader.
+
+The containment contract covers the requested process and ordinary descendants
+that remain in its inherited process group. A provider that deliberately
+daemonizes into another session is outside the external-agent process contract.
 
 ACP, shell commands, context-server stdio, DAP stdio, and DAP TCP use this
 state machine. For TCP debug adapters the bootstrap input is closed after the
@@ -83,6 +90,8 @@ Changes to this contract require all of the following:
   terminal-mode restoration, application stdin preservation, and cleanup;
 - per-consumer ordering tests proving the prelude precedes ACP, MCP, DAP, or
   shell input;
+- a real process-boundary test that kills the `env-exec` supervisor with
+  `SIGKILL` and proves a stubborn command leader and descendant do not survive;
 - installed Mac-to-remote journeys for terminal, task, shell command, ACP,
   context server, and representative stdio/TCP debug adapters;
 - a content-free process/log audit and ordinary cleanup proof.

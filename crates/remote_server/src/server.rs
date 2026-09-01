@@ -87,6 +87,13 @@ pub enum Commands {
         command: Vec<OsString>,
     },
     #[command(hide = true)]
+    EnvExecGuardian {
+        #[arg(long)]
+        owner_fd: i32,
+        #[arg(required = true, trailing_var_arg = true)]
+        command: Vec<OsString>,
+    },
+    #[command(hide = true)]
     EnvExecPty {
         #[arg(long)]
         ready_marker: String,
@@ -135,6 +142,10 @@ pub fn run(command: Commands) -> anyhow::Result<()> {
         .context("running proxy on the remote server"),
         Commands::EnvExec { command } => {
             execute_env_exec(command).context("starting command with stdin environment")
+        }
+        Commands::EnvExecGuardian { owner_fd, command } => {
+            execute_env_exec_guardian(owner_fd, command)
+                .context("guarding stdin environment command")
         }
         Commands::EnvExecPty {
             ready_marker,
@@ -251,10 +262,169 @@ impl std::io::Read for UnbufferedStdin {
 }
 
 #[cfg(unix)]
+fn set_close_on_exec(fd: std::os::fd::RawFd, close_on_exec: bool) -> std::io::Result<()> {
+    // SAFETY: callers pass an open descriptor owned by this process.
+    let flags = unsafe { libc::fcntl(fd, libc::F_GETFD) };
+    if flags < 0 {
+        return Err(std::io::Error::last_os_error());
+    }
+    let flags = if close_on_exec {
+        flags | libc::FD_CLOEXEC
+    } else {
+        flags & !libc::FD_CLOEXEC
+    };
+    // SAFETY: `fd` remains open and `flags` is an F_GETFD-derived bitset.
+    if unsafe { libc::fcntl(fd, libc::F_SETFD, flags) } < 0 {
+        return Err(std::io::Error::last_os_error());
+    }
+    Ok(())
+}
+
+#[cfg(unix)]
+#[allow(clippy::disallowed_methods)] // This synchronous boundary owns a real process group.
+fn execute_env_exec_guardian(owner_fd: i32, command: Vec<OsString>) -> anyhow::Result<()> {
+    use std::{
+        io::Read as _,
+        os::{fd::FromRawFd as _, unix::process::CommandExt as _},
+        process::{Command, Stdio},
+        sync::mpsc,
+        thread,
+    };
+
+    enum Event {
+        OwnerExited(std::io::Result<()>),
+        CommandExited(std::io::Result<()>),
+    }
+
+    fn wait_without_reaping(pid: i32) -> std::io::Result<()> {
+        loop {
+            let mut info = std::mem::MaybeUninit::<libc::siginfo_t>::zeroed();
+            // Keep the exited leader as a zombie until the owner has killed its
+            // process group. This prevents PID/PGID reuse from redirecting the
+            // cleanup signal at an unrelated process group.
+            // SAFETY: `info` points to writable storage for one `siginfo_t`.
+            let result = unsafe {
+                libc::waitid(
+                    libc::P_PID,
+                    pid as libc::id_t,
+                    info.as_mut_ptr(),
+                    libc::WEXITED | libc::WNOWAIT,
+                )
+            };
+            if result == 0 {
+                return Ok(());
+            }
+            let error = std::io::Error::last_os_error();
+            if error.kind() != std::io::ErrorKind::Interrupted {
+                return Err(error);
+            }
+        }
+    }
+
+    fn kill_process_group(process_group_id: i32) -> std::io::Result<()> {
+        // SAFETY: the guardian created this process group and retains its
+        // unreaped leader until after this call.
+        if unsafe { libc::killpg(process_group_id, libc::SIGKILL) } == 0 {
+            return Ok(());
+        }
+        let error = std::io::Error::last_os_error();
+        if error.raw_os_error() == Some(libc::ESRCH) {
+            Ok(())
+        } else {
+            Err(error)
+        }
+    }
+
+    anyhow::ensure!(owner_fd >= 0, "owner liveness descriptor is invalid");
+    let (program, arguments) = command
+        .split_first()
+        .context("stdin environment command is missing")?;
+
+    set_close_on_exec(owner_fd, true).context("protecting owner liveness descriptor")?;
+    // SAFETY: this hidden command receives exclusive ownership of `owner_fd`
+    // from its parent and reconstructs exactly one File for it.
+    let mut owner = unsafe { File::from_raw_fd(owner_fd) };
+
+    let mut command = Command::new(program);
+    command
+        .args(arguments)
+        .stdin(Stdio::inherit())
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit());
+    // The provider gets its own checked session and process group. Every
+    // ordinary worker it spawns inherits that group unless it deliberately
+    // daemonizes, which is outside the ACP provider contract.
+    unsafe {
+        command.pre_exec(|| {
+            if libc::setsid() < 0 {
+                Err(std::io::Error::last_os_error())
+            } else {
+                Ok(())
+            }
+        });
+    }
+    let mut child = command
+        .spawn()
+        .context("executing guarded stdin environment command")?;
+    let child_pid = child.id() as i32;
+
+    let (event_tx, event_rx) = mpsc::channel();
+    let owner_tx = event_tx.clone();
+    thread::spawn(move || {
+        let result = loop {
+            let mut buffer = [0_u8; 1];
+            match owner.read(&mut buffer) {
+                Ok(0) => break Ok(()),
+                Ok(_) => continue,
+                Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
+                Err(error) => break Err(error),
+            }
+        };
+        owner_tx.send(Event::OwnerExited(result)).ok();
+    });
+    thread::spawn(move || {
+        event_tx
+            .send(Event::CommandExited(wait_without_reaping(child_pid)))
+            .ok();
+    });
+
+    match event_rx
+        .recv()
+        .context("waiting for guarded stdin environment command")?
+    {
+        Event::OwnerExited(result) => {
+            result.context("watching stdin environment command owner")?;
+            kill_process_group(child_pid).context("terminating orphaned command group")?;
+            child.wait().context("reaping orphaned command leader")?;
+            anyhow::bail!("stdin environment command owner exited")
+        }
+        Event::CommandExited(result) => {
+            result.context("observing stdin environment command exit")?;
+            if let Err(error) = kill_process_group(child_pid)
+                // Darwin reports EPERM when the process group contains only
+                // its unreaped zombie leader. A group with a live same-user
+                // descendant remains signalable; the descendant regression
+                // below exercises that distinct case.
+                && error.raw_os_error() != Some(libc::EPERM)
+            {
+                return Err(error).context("reaping remaining command group");
+            }
+            let status = child.wait().context("reaping stdin environment command")?;
+            if status.success() {
+                Ok(())
+            } else {
+                anyhow::bail!("stdin environment command exited with {status}")
+            }
+        }
+    }
+}
+
+#[cfg(unix)]
 #[allow(clippy::disallowed_methods)] // This synchronous process boundary proxies stdio threads.
 fn execute_env_exec(command: Vec<OsString>) -> anyhow::Result<()> {
     use std::{
         io::Write as _,
+        os::{fd::AsRawFd as _, unix::net::UnixStream, unix::process::CommandExt as _},
         process::{Command, ExitStatus, Stdio},
         sync::mpsc,
         thread,
@@ -267,27 +437,49 @@ fn execute_env_exec(command: Vec<OsString>) -> anyhow::Result<()> {
 
     const TRANSPORT_CLOSE_GRACE: Duration = Duration::from_secs(2);
 
-    let (program, arguments) = command
-        .split_first()
-        .context("stdin environment command is missing")?;
+    anyhow::ensure!(!command.is_empty(), "stdin environment command is missing");
     let mut stdin = UnbufferedStdin {
         deadline: Instant::now() + STDIN_ENVIRONMENT_READ_TIMEOUT,
     };
     let environment =
         remote::read_stdin_environment(&mut stdin).context("reading stdin environment frame")?;
 
-    let mut command = Command::new(program);
-    command
-        .args(arguments)
+    let current_exe = std::env::current_exe().context("resolving env-exec guardian")?;
+    let (owner_reader, owner_writer) =
+        UnixStream::pair().context("creating env-exec owner liveness pipe")?;
+    let owner_fd = owner_reader.as_raw_fd();
+    set_close_on_exec(owner_fd, true).context("protecting env-exec liveness reader")?;
+    set_close_on_exec(owner_writer.as_raw_fd(), true)
+        .context("protecting env-exec liveness writer")?;
+    let mut guardian = Command::new(current_exe);
+    guardian
+        .arg("env-exec-guardian")
+        .args(["--owner-fd", &owner_fd.to_string(), "--"])
+        .args(command)
         .envs(environment)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
-    util::set_pre_exec_to_start_new_session(&mut command);
-    let mut child = command
+    // The child must retain only the liveness reader across exec. The writer
+    // remains exclusively owned by this supervisor, so SIGKILL closes it and
+    // wakes the guardian without any catchable-signal dependency.
+    unsafe {
+        guardian.pre_exec(move || {
+            let flags = libc::fcntl(owner_fd, libc::F_GETFD);
+            if flags < 0 || libc::fcntl(owner_fd, libc::F_SETFD, flags & !libc::FD_CLOEXEC) < 0 {
+                return Err(std::io::Error::last_os_error());
+            }
+            if libc::setsid() < 0 {
+                return Err(std::io::Error::last_os_error());
+            }
+            Ok(())
+        });
+    }
+    let mut child = guardian
         .spawn()
-        .context("executing stdin environment command")?;
-    let child_pid = child.id() as i32;
+        .context("executing stdin environment command guardian")?;
+    drop(owner_reader);
+    let mut owner_writer = Some(owner_writer);
     let mut child_stdin = child.stdin.take().context("taking command stdin")?;
     let mut child_stdout = child.stdout.take().context("taking command stdout")?;
     let mut child_stderr = child.stderr.take().context("taking command stderr")?;
@@ -324,14 +516,6 @@ fn execute_env_exec(command: Vec<OsString>) -> anyhow::Result<()> {
         {
             Event::ChildExited(status) => {
                 let status = status.context("waiting for command exit")?;
-                // The direct command can exit while a worker it spawned still
-                // owns the inherited stdout or stderr pipe. Reap the remaining
-                // process group before joining the forwarding threads.
-                // SAFETY: `child_pid` is the process-group identifier created
-                // for this command immediately above.
-                unsafe {
-                    libc::killpg(child_pid, libc::SIGKILL);
-                }
                 break status;
             }
             Event::TransportClosed(result) => {
@@ -343,26 +527,14 @@ fn execute_env_exec(command: Vec<OsString>) -> anyhow::Result<()> {
                 match event_rx.recv_timeout(TRANSPORT_CLOSE_GRACE) {
                     Ok(Event::ChildExited(status)) => {
                         let status = status.context("waiting for command exit")?;
-                        // The leader exited during the grace period; terminate
-                        // any descendants that still own inherited pipes.
-                        // SAFETY: `child_pid` is the process-group identifier
-                        // created for this command immediately above.
-                        unsafe {
-                            libc::killpg(child_pid, libc::SIGKILL);
-                        }
                         break status;
                     }
                     Ok(Event::TransportClosed(_)) => continue,
                     Err(mpsc::RecvTimeoutError::Timeout) => {
-                        // A remote command that ignores stdin EOF must not outlive
-                        // the SSH/ACP transport that owns it. The child starts a
-                        // fresh session, so killing its process group also reaps
-                        // workers that the provider spawned.
-                        // SAFETY: `child_pid` names the process-group leader created
-                        // immediately above; SIGKILL cannot be handled or ignored.
-                        unsafe {
-                            libc::killpg(child_pid, libc::SIGKILL);
-                        }
+                        // Closing the sole writer tells the guardian that its
+                        // transport owner is gone. The same EOF is generated by
+                        // the kernel if this supervisor is killed abruptly.
+                        drop(owner_writer.take());
                     }
                     Err(mpsc::RecvTimeoutError::Disconnected) => {
                         anyhow::bail!("stdin environment command monitor disconnected")

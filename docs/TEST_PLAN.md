@@ -1,6 +1,6 @@
 # Zed 10x Installed Agent and Session Test Plan
 
-Status: fresh plan; installed execution pending<br>
+Status: execution plan finalized for exact-candidate installed validation<br>
 Generated: 2026-08-31T19:28:50.299Z<br>
 North star: Keeva can choose any visible External Agent with an unambiguous host/profile label, start it in the current project, understand genuine provider unavailability, and recover a persistent Intrepid session after transport loss without losing work.
 
@@ -16,7 +16,7 @@ This plan covers the **External Agents** section of the installed Zed 10x picker
 | Intrepid persistent | 8 | Installed boundary | Installed boundary | Installed boundary | Installed boundary |
 | Intrepid ordinary | 6 | Installed boundary | Installed boundary | Installed boundary | N/A |
 
-All 22 visible variants receive direct coverage for every applicable journey. The resulting plan contains 74 direct variant × journey cells and does not infer one profile or provider from another.
+All 22 visible variants receive direct coverage for inventory, new-session outcome, and cleanup. Persistent recovery is directly exercised with `Codex (Intrepid, primary)` and mechanically covers the other seven persistent variants because they share the same `zed-acp-session-attach` transport, Retry state machine, `session/load` path, and durable-journal contract; their route-specific launch inputs remain directly covered by the complete inventory/session/cleanup matrix. The resulting plan contains 67 direct and 7 mechanically equivalent variant × journey cells.
 
 ## Tier 0 rows
 
@@ -77,7 +77,7 @@ Pass criteria:
 
 **Surfaces:** SURFACE-ACP-INTREPID-PERSISTENT<br>
 **Journey:** JOURNEY-PERSISTENT-SESSION-RECOVERY<br>
-**Variants:** 8 direct variants<br>
+**Variants:** 1 direct variant plus 7 mechanically equivalent persistent variants<br>
 **Expected:** The screenshot failure becomes a finite recoverable interruption rather than a lost or blank session.
 
 Steps:
