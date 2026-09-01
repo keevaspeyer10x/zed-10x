@@ -73,6 +73,7 @@ jobs:
           cargo test --locked -p agent_servers test_custom_agent_dedicated_connection_setting --lib
           cargo test --locked -p agent_ui test_retained_thread_does_not_share_dedicated_agent_connection --lib
           cargo test --locked -p agent_ui test_superseded_dedicated_connection_can_finish_for_existing_owner --lib
+          cargo test --locked -p agent_ui test_new_external_agent_replaces_mismatched_ephemeral_draft --lib
           cargo test --locked -p agent_ui test_new_workspace_ignores_unavailable_global_last_used_agent --lib
           cargo test --locked -p agent_ui test_pending_registry_agent_waits_for_authoritative_inventory --lib
           cargo test --locked -p agent_ui test_create_thread_with_options_retains_thread_and_restores_agent --lib

@@ -4888,6 +4888,13 @@ pub(crate) mod tests {
             .read_with(cx, |view, _cx| view.root_session_id.clone())
             .expect("the initial dedicated connection should create a session");
         assert_eq!(connect_attempts.load(Ordering::SeqCst), 1);
+        let previous_connection_entry = conversation_view.read_with(cx, |view, cx| {
+            view.connection_store
+                .read(cx)
+                .entry(&view.connection_key)
+                .expect("the initial dedicated connection should remain canonical")
+                .downgrade()
+        });
 
         conversation_view.update(cx, |view, cx| {
             view.set_server_state(
@@ -4906,6 +4913,10 @@ pub(crate) mod tests {
             connect_attempts.load(Ordering::SeqCst),
             2,
             "dedicated Retry must create exactly one fresh transport"
+        );
+        assert!(
+            !previous_connection_entry.is_upgradable(),
+            "dedicated Retry must drop the superseded connection entry before retaining the replacement"
         );
         conversation_view.read_with(cx, |view, cx| {
             let connected = view

@@ -14436,6 +14436,13 @@ mod tests {
         cx.run_until_parked();
 
         let ephemeral_thread_id = crate::test_support::active_thread_id(&panel, cx);
+        let ephemeral_draft = panel.read_with(cx, |panel, _cx| {
+            panel
+                .draft_thread
+                .as_ref()
+                .expect("ephemeral draft should exist")
+                .downgrade()
+        });
         assert_ne!(ephemeral_thread_id, parked_thread_id);
         panel.read_with(cx, |panel, cx| {
             assert_eq!(
@@ -14490,7 +14497,15 @@ mod tests {
                 panel.retained_threads.contains_key(&parked_thread_id),
                 "parked draft should still be in retained_threads"
             );
+            assert!(
+                !panel.retained_threads.contains_key(&ephemeral_thread_id),
+                "the replaced background ephemeral draft must not become retained"
+            );
         });
+        assert!(
+            ephemeral_draft.upgrade().is_none(),
+            "the replaced background ephemeral draft and its connection must be dropped"
+        );
     }
 
     #[gpui::test]
