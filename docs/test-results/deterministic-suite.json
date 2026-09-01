@@ -1,18 +1,18 @@
 {
   "schemaVersion": 1,
   "status": "passed",
-  "sourceCommit": "6bdbadcf0ef65b4ae86972296b63c4208bd7ce08",
-  "sourceTree": "2fe84d1d63e0b052b17ada6b567f788ea9e495ef",
+  "sourceCommit": "9678df1f341ac72b1b0564237c0a0cd05e173045",
+  "sourceTree": "10a846b44cb0586c15984e4f6eb1ce6c45853528",
   "installedProductCommit": "a6531bd9de40ec55ce1181fa928b3ce324e7d61d",
-  "installedCandidateDifference": "The final descendant changes strengthen only the tracked installed-UAT DAP oracle and durable evidence. The exact merged revision remains subject to a fresh post-merge install and canary.",
+  "installedCandidateDifference": "The final descendant changes strengthen the tracked installed-UAT DAP oracle, Retry and draft-lifecycle assertions, and remote provider containment when either the supervisor or its guardian fails. The exact merged revision remains subject to a fresh post-merge install and canary.",
   "testedWorkingTree": false,
   "testedWorkingTreeChanges": [],
   "suites": [
     {
       "name": "changed-rust-matrix",
-      "command": "./script/cargo test -p agent_servers -p agent_ui -p remote_server --all-targets -- --test-threads=1",
+      "command": "./script/cargo test --locked -p agent_servers -p agent_ui -p remote_server --all-targets -- --test-threads=1",
       "status": "passed",
-      "tests": 514,
+      "tests": 515,
       "failed": 0,
       "scope": "all targets for the changed agent protocol, UI lifecycle, remote server, and process-boundary owners"
     },
@@ -29,9 +29,9 @@
     },
     {
       "name": "changed-node-contracts",
-      "command": "node --test script/tests/zed-10x-product-identity.test.mjs script/tests/zed-10x-macos-release.test.mjs script/tests/zed-agent-lifecycle-closure.test.mjs script/tests/zed-agent-picker-uat.test.mjs script/tests/zed-acp-live-canary.test.mjs script/tests/zed-remote-environment-live-canary.test.mjs",
+      "command": "node --test script/tests/*.test.mjs",
       "status": "passed",
-      "tests": 97,
+      "tests": 139,
       "failed": 0,
       "skipped": 0
     },

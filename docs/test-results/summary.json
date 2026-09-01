@@ -114,7 +114,7 @@
   },
   "evidenceBinding": {
     "testedRevision": "a6531bd9de40ec55ce1181fa928b3ce324e7d61d",
-    "harnessRevision": "6bdbadcf0ef65b4ae86972296b63c4208bd7ce08",
+    "harnessRevision": "9678df1f341ac72b1b0564237c0a0cd05e173045",
     "loadBearingInputs": [
       {
         "path": "crates/agent_servers/src/acp.rs",
@@ -130,11 +130,19 @@
       },
       {
         "path": "crates/agent_ui/src/agent_panel.rs",
-        "sha256": "adefa5cf1c0d7fe43835b01defb7268091d9d27d1c3bc754cdb96e6e97eab420"
+        "sha256": "9d2e13452243b164c6d1627a03cb3b4e9546890590d191ba22905b0ffb5e555d"
       },
       {
         "path": "crates/agent_ui/src/conversation_view.rs",
-        "sha256": "abface22e53d93b477db34e050414c986e7b5f89d0536c0b6ff6c1ce42169bff"
+        "sha256": "362ed39a2c4df8a541e2ba4325805277dbf9b3202665023fa788968255e24357"
+      },
+      {
+        "path": "crates/remote_server/src/server.rs",
+        "sha256": "2df8862a93e35a147940dcb2a36a54419fae78e333200a79201c652bbd731572"
+      },
+      {
+        "path": "crates/remote_server/tests/env_exec.rs",
+        "sha256": "bcf01c8cdf59f891b980d0b415227dc78d0fbd8bda325c620e34399713db18a2"
       },
       {
         "path": "crates/project/src/agent_server_store.rs",
