@@ -251,8 +251,21 @@ impl std::io::Read for UnbufferedStdin {
 }
 
 #[cfg(unix)]
+#[allow(clippy::disallowed_methods)] // This synchronous process boundary proxies stdio threads.
 fn execute_env_exec(command: Vec<OsString>) -> anyhow::Result<()> {
-    use std::os::unix::process::CommandExt as _;
+    use std::{
+        io::Write as _,
+        process::{Command, ExitStatus, Stdio},
+        sync::mpsc,
+        thread,
+    };
+
+    enum Event {
+        TransportClosed(std::io::Result<u64>),
+        ChildExited(std::io::Result<ExitStatus>),
+    }
+
+    const TRANSPORT_CLOSE_GRACE: Duration = Duration::from_secs(2);
 
     let (program, arguments) = command
         .split_first()
@@ -263,11 +276,103 @@ fn execute_env_exec(command: Vec<OsString>) -> anyhow::Result<()> {
     let environment =
         remote::read_stdin_environment(&mut stdin).context("reading stdin environment frame")?;
 
-    let error = std::process::Command::new(program)
+    let mut command = Command::new(program);
+    command
         .args(arguments)
         .envs(environment)
-        .exec();
-    Err(error).context("executing stdin environment command")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    util::set_pre_exec_to_start_new_session(&mut command);
+    let mut child = command
+        .spawn()
+        .context("executing stdin environment command")?;
+    let child_pid = child.id() as i32;
+    let mut child_stdin = child.stdin.take().context("taking command stdin")?;
+    let mut child_stdout = child.stdout.take().context("taking command stdout")?;
+    let mut child_stderr = child.stderr.take().context("taking command stderr")?;
+
+    let (event_tx, event_rx) = mpsc::channel();
+    let transport_tx = event_tx.clone();
+    thread::spawn(move || {
+        let result = std::io::copy(&mut std::io::stdin().lock(), &mut child_stdin);
+        drop(child_stdin);
+        transport_tx.send(Event::TransportClosed(result)).ok();
+    });
+
+    let stdout_thread = thread::spawn(move || -> std::io::Result<()> {
+        let mut stdout = std::io::stdout().lock();
+        std::io::copy(&mut child_stdout, &mut stdout)?;
+        stdout.flush()
+    });
+    let stderr_thread = thread::spawn(move || -> std::io::Result<()> {
+        let mut stderr = std::io::stderr().lock();
+        std::io::copy(&mut child_stderr, &mut stderr)?;
+        stderr.flush()
+    });
+
+    thread::spawn(move || {
+        event_tx.send(Event::ChildExited(child.wait())).ok();
+    });
+
+    let mut transport_closed = false;
+    let mut transport_error = None;
+    let status = loop {
+        match event_rx
+            .recv()
+            .context("waiting for stdin environment command")?
+        {
+            Event::ChildExited(status) => break status.context("waiting for command exit")?,
+            Event::TransportClosed(result) => {
+                transport_closed = true;
+                if let Err(error) = result {
+                    transport_error = Some(error);
+                }
+
+                match event_rx.recv_timeout(TRANSPORT_CLOSE_GRACE) {
+                    Ok(Event::ChildExited(status)) => {
+                        break status.context("waiting for command exit")?;
+                    }
+                    Ok(Event::TransportClosed(_)) => continue,
+                    Err(mpsc::RecvTimeoutError::Timeout) => {
+                        // A remote command that ignores stdin EOF must not outlive
+                        // the SSH/ACP transport that owns it. The child starts a
+                        // fresh session, so killing its process group also reaps
+                        // workers that the provider spawned.
+                        // SAFETY: `child_pid` names the process-group leader created
+                        // immediately above; SIGKILL cannot be handled or ignored.
+                        unsafe {
+                            libc::killpg(child_pid, libc::SIGKILL);
+                        }
+                    }
+                    Err(mpsc::RecvTimeoutError::Disconnected) => {
+                        anyhow::bail!("stdin environment command monitor disconnected")
+                    }
+                }
+            }
+        }
+    };
+
+    stdout_thread
+        .join()
+        .map_err(|_| anyhow!("command stdout forwarding thread panicked"))?
+        .context("forwarding command stdout")?;
+    stderr_thread
+        .join()
+        .map_err(|_| anyhow!("command stderr forwarding thread panicked"))?
+        .context("forwarding command stderr")?;
+
+    if let Some(error) = transport_error {
+        return Err(error).context("forwarding command stdin");
+    }
+
+    if status.success() {
+        Ok(())
+    } else if transport_closed {
+        anyhow::bail!("stdin environment command terminated after transport closed: {status}")
+    } else {
+        anyhow::bail!("stdin environment command exited with {status}")
+    }
 }
 
 #[cfg(unix)]

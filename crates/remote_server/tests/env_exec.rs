@@ -18,7 +18,14 @@ mod unix {
     fn wait_with_timeout(
         child: &mut std::process::Child,
     ) -> std::io::Result<std::process::ExitStatus> {
-        let deadline = Instant::now() + EXIT_TIMEOUT;
+        wait_with_timeout_for(child, EXIT_TIMEOUT)
+    }
+
+    fn wait_with_timeout_for(
+        child: &mut std::process::Child,
+        timeout: Duration,
+    ) -> std::io::Result<std::process::ExitStatus> {
+        let deadline = Instant::now() + timeout;
         loop {
             if let Some(status) = child.try_wait()? {
                 return Ok(status);
@@ -116,6 +123,53 @@ mod unix {
             String::from_utf8(output.stdout)?,
             format!("{secret}|{suffix}")
         );
+        Ok(())
+    }
+
+    #[test]
+    #[allow(clippy::disallowed_methods)] // This process-boundary test inspects the real child.
+    fn env_exec_reaps_a_command_group_that_ignores_transport_eof() -> anyhow::Result<()> {
+        use std::io::{BufRead as _, BufReader};
+
+        let script = "trap '' HUP TERM; printf '%s\\n' \"$$\"; while :; do sleep 60; done";
+        let mut child = Command::new(env!("CARGO_BIN_EXE_remote_server"))
+            .args(["env-exec", "--", "/bin/sh", "-c", script])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()?;
+        let mut stdin = child.stdin.take().expect("piped stdin");
+        stdin.write_all(&remote::encode_stdin_environment(&HashMap::default())?)?;
+        stdin.flush()?;
+
+        let stdout = child.stdout.take().expect("piped stdout");
+        let mut reader = BufReader::new(stdout);
+        let mut pid_line = String::new();
+        reader.read_line(&mut pid_line)?;
+        let command_pid = pid_line.trim().parse::<u32>()?;
+
+        drop(stdin);
+        let status = wait_with_timeout_for(&mut child, Duration::from_secs(5));
+        if status.is_err() {
+            let _ = Command::new("kill")
+                .args(["-KILL", &command_pid.to_string()])
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .status();
+        }
+        let status = status.context("env-exec did not terminate after transport EOF")?;
+        assert!(
+            !status.success(),
+            "transport EOF must terminate an otherwise live command group"
+        );
+
+        let still_running = Command::new("kill")
+            .args(["-0", &command_pid.to_string()])
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()?
+            .success();
+        assert!(!still_running, "remote command survived env-exec cleanup");
         Ok(())
     }
 
