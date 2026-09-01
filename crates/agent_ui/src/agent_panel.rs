@@ -7421,6 +7421,7 @@ mod tests {
     use chrono::Utc;
     use feature_flags::FeatureFlagAppExt;
     use fs::FakeFs;
+    use futures::channel::oneshot;
     use gpui::{App, TestAppContext, UpdateGlobal, VisualTestContext};
     use parking_lot::Mutex;
     use project::agent_registry_store::{
@@ -7429,6 +7430,7 @@ mod tests {
     use project::{Project, WorktreePaths};
     use settings::{SettingsStore, WorkingDirectory};
     use std::any::Any;
+    use std::collections::VecDeque;
     use std::sync::atomic::{AtomicUsize, Ordering};
 
     use serde_json::json;
@@ -7491,6 +7493,106 @@ mod tests {
         fn into_any(self: Rc<Self>) -> Rc<dyn Any> {
             self
         }
+    }
+
+    struct DelayedDedicatedConnectionServer {
+        releases: Mutex<VecDeque<oneshot::Receiver<()>>>,
+    }
+
+    impl AgentServer for DelayedDedicatedConnectionServer {
+        fn logo(&self) -> ui::IconName {
+            ui::IconName::ZedAgent
+        }
+
+        fn agent_id(&self) -> AgentId {
+            "Delayed Dedicated Test".into()
+        }
+
+        fn connect(
+            &self,
+            _delegate: AgentServerDelegate,
+            _project: Entity<Project>,
+            cx: &mut App,
+        ) -> Task<Result<Rc<dyn AgentConnection>>> {
+            let release = self
+                .releases
+                .lock()
+                .pop_front()
+                .expect("each connection attempt should have a release signal");
+            cx.spawn(async move |_cx| {
+                release.await.expect("test should release the connection");
+                Ok(Rc::new(StubAgentConnection::new()) as Rc<dyn AgentConnection>)
+            })
+        }
+
+        fn requires_dedicated_connection(&self, _cx: &App) -> bool {
+            true
+        }
+
+        fn into_any(self: Rc<Self>) -> Rc<dyn Any> {
+            self
+        }
+    }
+
+    #[gpui::test]
+    async fn test_superseded_dedicated_connection_can_finish_for_existing_owner(
+        cx: &mut TestAppContext,
+    ) {
+        let (_workspace, panel, mut cx) = setup_workspace_panel(cx).await;
+        let (first_release_tx, first_release_rx) = oneshot::channel();
+        let (second_release_tx, second_release_rx) = oneshot::channel();
+        let server: Rc<dyn AgentServer> = Rc::new(DelayedDedicatedConnectionServer {
+            releases: Mutex::new(VecDeque::from([first_release_rx, second_release_rx])),
+        });
+        let agent = Agent::Custom {
+            id: "Delayed Dedicated Test".into(),
+        };
+
+        let (first_entry, second_entry) = panel.update_in(&mut cx, |panel, _window, cx| {
+            let connection_store = panel.connection_store().clone();
+            let first_entry = connection_store.update(cx, |store, cx| {
+                store.request_fresh_connection(agent.clone(), server.clone(), cx)
+            });
+            let second_entry = connection_store.update(cx, |store, cx| {
+                store.request_fresh_connection(agent.clone(), server.clone(), cx)
+            });
+            (first_entry, second_entry)
+        });
+
+        assert_ne!(first_entry, second_entry);
+        assert_eq!(
+            first_entry.read_with(&cx, |entry, _cx| entry.status()),
+            crate::agent_connection_store::AgentConnectionStatus::Connecting
+        );
+        assert_eq!(
+            second_entry.read_with(&cx, |entry, _cx| entry.status()),
+            crate::agent_connection_store::AgentConnectionStatus::Connecting
+        );
+        panel.read_with(&cx, |panel, cx| {
+            assert_eq!(
+                panel.connection_store().read(cx).entry(&agent),
+                Some(&second_entry),
+                "only the newest dedicated entry should remain canonical"
+            );
+        });
+
+        first_release_tx
+            .send(())
+            .expect("first connection should still be observed");
+        second_release_tx
+            .send(())
+            .expect("second connection should still be observed");
+        cx.run_until_parked();
+
+        assert_eq!(
+            first_entry.read_with(&cx, |entry, _cx| entry.status()),
+            crate::agent_connection_store::AgentConnectionStatus::Connected,
+            "the superseded entry is still owned by its original thread"
+        );
+        assert_eq!(
+            second_entry.read_with(&cx, |entry, _cx| entry.status()),
+            crate::agent_connection_store::AgentConnectionStatus::Connected
+        );
     }
 
     #[gpui::test]

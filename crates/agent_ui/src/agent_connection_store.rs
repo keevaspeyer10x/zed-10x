@@ -194,6 +194,9 @@ impl AgentConnectionStore {
     ) -> Entity<AgentConnectionEntry> {
         let key = self.canonical_agent_key(&key, cx);
         if let Some(existing_key) = self.equivalent_entry_key(&key, cx) {
+            // Replace only the store's canonical cache entry. Existing thread
+            // views retain their own entry (and its in-flight connect task), so
+            // a superseded entry must still be allowed to finish independently.
             self.entries.remove(&existing_key);
         }
         self.request_connection(key, server, cx)

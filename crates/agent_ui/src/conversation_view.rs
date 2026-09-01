@@ -4873,6 +4873,58 @@ pub(crate) mod tests {
     }
 
     #[gpui::test]
+    async fn test_retry_load_refreshes_dedicated_transport_and_preserves_session_id(
+        cx: &mut TestAppContext,
+    ) {
+        use std::sync::atomic::Ordering;
+
+        init_test(cx);
+
+        let connection = StubAgentConnection::new().with_supports_load_session(true);
+        let (server, fail, connect_attempts) = FlakyAgentServer::new_dedicated(connection);
+        fail.store(false, Ordering::SeqCst);
+        let (conversation_view, cx) = setup_conversation_view(server, cx).await;
+        let original_session_id = conversation_view
+            .read_with(cx, |view, _cx| view.root_session_id.clone())
+            .expect("the initial dedicated connection should create a session");
+        assert_eq!(connect_attempts.load(Ordering::SeqCst), 1);
+
+        conversation_view.update(cx, |view, cx| {
+            view.set_server_state(
+                ServerState::LoadError {
+                    error: LoadError::Other("incoming_transport_closed".into()),
+                },
+                cx,
+            );
+        });
+        conversation_view.update_in(cx, |view, window, cx| {
+            view.retry_load(window, cx);
+        });
+        cx.run_until_parked();
+
+        assert_eq!(
+            connect_attempts.load(Ordering::SeqCst),
+            2,
+            "dedicated Retry must create exactly one fresh transport"
+        );
+        conversation_view.read_with(cx, |view, cx| {
+            let connected = view
+                .as_connected()
+                .expect("dedicated Retry should reconnect the agent");
+            assert_eq!(connected.active_id.as_ref(), Some(&original_session_id));
+            assert_eq!(
+                view.active_thread()
+                    .expect("dedicated Retry should restore the original thread")
+                    .read(cx)
+                    .thread
+                    .read(cx)
+                    .session_id(),
+                &original_session_id
+            );
+        });
+    }
+
+    #[gpui::test]
     async fn test_auth_required_on_initial_connect(cx: &mut TestAppContext) {
         init_test(cx);
 
@@ -5946,11 +5998,33 @@ pub(crate) mod tests {
         connection: StubAgentConnection,
         fail: Arc<std::sync::atomic::AtomicBool>,
         connect_attempts: Arc<std::sync::atomic::AtomicUsize>,
+        dedicated_connection: bool,
     }
 
     impl FlakyAgentServer {
         pub(crate) fn new(
             connection: StubAgentConnection,
+        ) -> (
+            Self,
+            Arc<std::sync::atomic::AtomicBool>,
+            Arc<std::sync::atomic::AtomicUsize>,
+        ) {
+            Self::new_with_connection_policy(connection, false)
+        }
+
+        fn new_dedicated(
+            connection: StubAgentConnection,
+        ) -> (
+            Self,
+            Arc<std::sync::atomic::AtomicBool>,
+            Arc<std::sync::atomic::AtomicUsize>,
+        ) {
+            Self::new_with_connection_policy(connection, true)
+        }
+
+        fn new_with_connection_policy(
+            connection: StubAgentConnection,
+            dedicated_connection: bool,
         ) -> (
             Self,
             Arc<std::sync::atomic::AtomicBool>,
@@ -5963,6 +6037,7 @@ pub(crate) mod tests {
                     connection,
                     fail: fail.clone(),
                     connect_attempts: connect_attempts.clone(),
+                    dedicated_connection,
                 },
                 fail,
                 connect_attempts,
@@ -5994,6 +6069,10 @@ pub(crate) mod tests {
             } else {
                 Task::ready(Ok(Rc::new(self.connection.clone())))
             }
+        }
+
+        fn requires_dedicated_connection(&self, _cx: &App) -> bool {
+            self.dedicated_connection
         }
 
         fn into_any(self: Rc<Self>) -> Rc<dyn Any> {
