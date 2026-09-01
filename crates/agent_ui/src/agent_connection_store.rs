@@ -228,6 +228,8 @@ impl AgentConnectionStore {
         cx.notify();
 
         cx.spawn({
+            // Shadow with a clone so the outer key remains available to the
+            // independent new-version task below.
             let key = key.clone();
             let entry = entry.downgrade();
             async move |this, cx| match connect_task.await {
