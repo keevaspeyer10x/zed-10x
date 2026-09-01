@@ -158,28 +158,33 @@
       "sha256": "00a3bf719784b5dc00851781202b56ae7c04435ec646433b3a68b73496212af7",
       "status": "passed"
     },
-    "freshInstalledInventory": {
+    "historicalPredecessorInstalledInventory": {
       "macPath": "docs/test-results/zed-acp-inventory-mac.json",
       "intrepidPath": "docs/test-results/zed-acp-inventory-intrepid.json",
-      "status": "passed"
+      "status": "passed_historical_support_only"
     },
-    "freshInstalledSessions": {
+    "historicalPredecessorInstalledSessions": {
       "macPath": "docs/test-results/zed-acp-session-mac.json",
       "intrepidPath": "docs/test-results/zed-acp-session-intrepid.json",
-      "status": "passed"
+      "status": "passed_historical_support_only"
     },
-    "freshCleanup": {
+    "historicalPredecessorCleanup": {
       "macPath": "docs/test-results/zed-acp-cleanup-mac.json",
       "intrepidPath": "docs/test-results/zed-acp-cleanup-intrepid.json",
-      "status": "passed"
+      "status": "passed_historical_support_only"
     },
-    "freshPersistentRecovery": {
+    "currentInstalledClosure": {
       "path": "docs/test-results/zed-acp-current-installed-uat.json",
-      "status": "passed"
-    },
-    "freshSwitchAndSurfaceUat": {
-      "path": "docs/test-results/zed-acp-current-installed-uat.json",
-      "status": "passed"
+      "status": "passed",
+      "installedProductRevision": "a6531bd9de40ec55ce1181fa928b3ce324e7d61d",
+      "covers": [
+        "current inventory and route binding",
+        "current session and project outcome",
+        "cleanup",
+        "persistent recovery",
+        "switch-and-return",
+        "assembled surface UAT"
+      ]
     }
   }
 }

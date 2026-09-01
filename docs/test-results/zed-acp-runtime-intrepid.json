@@ -13,7 +13,9 @@
       "command": "bind the current installed Intrepid runtime, picker inventory, provider-backed switch/recovery journey, assembled surface UAT, and cleanup to the exact source revision",
       "evidencePath": "docs/test-results/zed-acp-current-installed-uat.json",
       "evidenceSha256": "65eaeab60063c3b96ca211ecdcbcd24fe1982b9f02a14b2061aeb0546e77c8ab"
-    },
+    }
+  ],
+  "historicalObservations": [
     {
       "rowId": "ZED-ACP-INVENTORY-001",
       "command": "computer-use installed Zed 10x in an Intrepid project: open External Agents and verify the exact eight persistent plus six ordinary Intrepid variants, unique consistent labels, and no Mac or alias-only entries",

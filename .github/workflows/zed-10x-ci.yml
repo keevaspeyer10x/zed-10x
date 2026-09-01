@@ -68,7 +68,11 @@ jobs:
           cargo test --locked -p agent_ui test_store_update_agent_id_preserves_thread_identity --lib
           cargo test --locked -p agent_ui test_serialize_preserves_session_id_in_load_error --lib
           cargo test --locked -p agent_ui test_retry_load_restarts_transport_and_preserves_session_id --lib
+          cargo test --locked -p agent_ui test_retry_load_refreshes_dedicated_transport_and_preserves_session_id --lib
           cargo test --locked -p agent_ui test_retry_after_acp_server_exit_loads_the_original_session --lib
+          cargo test --locked -p agent_servers test_custom_agent_dedicated_connection_setting --lib
+          cargo test --locked -p agent_ui test_retained_thread_does_not_share_dedicated_agent_connection --lib
+          cargo test --locked -p agent_ui test_superseded_dedicated_connection_can_finish_for_existing_owner --lib
           cargo test --locked -p agent_ui test_new_workspace_ignores_unavailable_global_last_used_agent --lib
           cargo test --locked -p agent_ui test_pending_registry_agent_waits_for_authoritative_inventory --lib
           cargo test --locked -p agent_ui test_create_thread_with_options_retains_thread_and_restores_agent --lib
@@ -95,6 +99,12 @@ jobs:
           cargo test --locked -p agent_ui test_cold_removed_draft_load_error_preserves_durable_prompt --lib
           cargo test --locked -p settings_ui rename_preserves_original_name_as_alias --lib
           cargo test --locked -p settings_ui rename_back_drops_the_new_canonical_name_from_aliases --lib
+
+      - name: Test remote command-group lifecycle
+        run: |
+          cargo test --locked -p remote_server --test env_exec unix::env_exec_reaps_a_command_group_that_ignores_transport_eof -- --exact
+          cargo test --locked -p remote_server --test env_exec unix::env_exec_reaps_descendants_after_the_direct_command_exits -- --exact
+          cargo test --locked -p remote_server --test env_exec unix::env_exec_reaps_its_command_group_when_the_supervisor_is_killed -- --exact
 
       - name: Test the Zed 10x updater and release channel
         run: |

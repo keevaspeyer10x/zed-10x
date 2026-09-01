@@ -19,18 +19,14 @@
       "id": "ZED-ACP-INVENTORY-001",
       "status": "passed",
       "evidencePaths": [
-        "docs/test-results/zed-acp-current-installed-uat.json",
-        "docs/test-results/zed-acp-inventory-mac.json",
-        "docs/test-results/zed-acp-inventory-intrepid.json"
+        "docs/test-results/zed-acp-current-installed-uat.json"
       ]
     },
     {
       "id": "ZED-ACP-SESSION-002",
       "status": "passed",
       "evidencePaths": [
-        "docs/test-results/zed-acp-current-installed-uat.json",
-        "docs/test-results/zed-acp-route-matrix-mac-raw.json",
-        "docs/test-results/zed-acp-route-matrix-intrepid-raw.json"
+        "docs/test-results/zed-acp-current-installed-uat.json"
       ]
     },
     {

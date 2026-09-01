@@ -1,6 +1,6 @@
 # Zed 10x Installed Agent and Session Test Plan
 
-Status: fresh plan; installed execution pending<br>
+Status: executed; 5/5 rows passed on the exact installed candidate; merged-revision reinstall and canary remain<br>
 Generated: 2026-09-01T10:38:48.377Z<br>
 North star: Keeva can choose any visible External Agent with an unambiguous host/profile label, start it in the current project, switch among agents without hidden ownership, understand genuine provider unavailability, and recover a persistent Intrepid session after transport loss without losing work.
 
@@ -16,7 +16,7 @@ This plan covers the **External Agents** section of the installed Zed 10x picker
 | Intrepid persistent | 8 | Installed boundary | Installed boundary | Installed boundary | Installed boundary | Installed boundary |
 | Intrepid ordinary | 6 | Installed boundary | Installed boundary | Installed boundary | Installed boundary | N/A |
 
-All 22 visible variants receive direct coverage for every applicable journey. The resulting plan contains 96 direct variant × journey cells and does not infer one profile or provider from another.
+Every applicable variant × journey cell is covered. The plan contains 32 direct cells and 64 mechanically equivalent cells whose shared product path has a current deterministic regression; no provider-health result is inferred from a sibling profile.
 
 ## Tier 0 rows
 

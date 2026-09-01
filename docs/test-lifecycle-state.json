@@ -42,20 +42,35 @@
       "readyNowRows": 5
     },
     "3-implementation": {
-      "status": "in_progress",
+      "status": "complete",
       "plannedRows": 5,
       "readyNowRows": 5,
-      "implementedRows": 0,
-      "remainingRows": 5
+      "implementedRows": 5,
+      "remainingRows": 0,
+      "artifact": "docs/test-implementation-map.json"
     },
     "4-execution": {
-      "status": "pending"
+      "status": "complete",
+      "executedRows": 5,
+      "passedRows": 5,
+      "failedRows": 0,
+      "artifact": "docs/test-results/summary.json",
+      "currentInstalledReceipt": "docs/test-results/zed-acp-current-installed-uat.json"
     },
     "5-analysis": {
-      "status": "pending"
+      "status": "complete",
+      "decisionCandidate": "production_ready",
+      "testValidity": "valid",
+      "artifacts": [
+        "docs/TEST_PLAN_ANALYSIS.md",
+        "docs/test-results/test-validity.json",
+        "docs/test-results/deterministic-suite.json"
+      ]
     },
     "6-tracking": {
-      "status": "pending"
+      "status": "complete",
+      "openTestPlanDefects": 0,
+      "releaseResidual": "Rebuild the protected merged revision, reinstall it on both hosts, and run the post-merge consumer canary."
     }
   }
 }

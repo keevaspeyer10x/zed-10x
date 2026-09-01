@@ -128,8 +128,7 @@
         "computer-use installed Zed 10x in an Intrepid project: open External Agents and verify the exact eight persistent plus six ordinary Intrepid variants, unique consistent labels, and no Mac or alias-only entries"
       ],
       "evidencePaths": [
-        "docs/test-results/zed-acp-inventory-mac.json",
-        "docs/test-results/zed-acp-inventory-intrepid.json"
+        "docs/test-results/zed-acp-current-installed-uat.json"
       ],
       "runtimeIdentityIds": [
         "RUNTIME-ZED10X-MAC",
@@ -266,8 +265,7 @@
         "computer-use exact current installed Zed 10x Intrepid External Agents: launch direct Codex (Intrepid, primary) and Cursor (Intrepid) representatives to ready project-bound composers and bind sibling variants only through byte-identical route inputs plus current shared-path regressions"
       ],
       "evidencePaths": [
-        "docs/test-results/zed-acp-session-mac.json",
-        "docs/test-results/zed-acp-session-intrepid.json"
+        "docs/test-results/zed-acp-current-installed-uat.json"
       ],
       "runtimeIdentityIds": [
         "RUNTIME-ZED10X-MAC",
@@ -398,8 +396,7 @@
         "inspect exact current installed Intrepid representative teardown and prove ordinary attachments are gone while the persistent lane remains healthy"
       ],
       "evidencePaths": [
-        "docs/test-results/zed-acp-cleanup-mac.json",
-        "docs/test-results/zed-acp-cleanup-intrepid.json"
+        "docs/test-results/zed-acp-current-installed-uat.json"
       ],
       "runtimeIdentityIds": [
         "RUNTIME-ZED10X-MAC",
@@ -522,7 +519,7 @@
         "computer-use installed Zed 10x with an existing Codex (Intrepid, primary) session: restart zed-acp-session-host@codex--primary.service, invoke Retry, load the original session, and continue once"
       ],
       "evidencePaths": [
-        "docs/test-results/zed-acp-recovery-intrepid.json"
+        "docs/test-results/zed-acp-current-installed-uat.json"
       ],
       "runtimeIdentityIds": [
         "RUNTIME-ZED10X-INTREPID"
@@ -670,8 +667,7 @@
         "computer-use installed Zed 10x in an Intrepid project: switch Codex (Intrepid, primary) -> Cursor (Intrepid) -> Codex (Intrepid, primary), require a ready composer after every transition, then close Zed and prove exact attachment cleanup"
       ],
       "evidencePaths": [
-        "docs/test-results/zed-acp-switch-mac.json",
-        "docs/test-results/zed-acp-switch-intrepid.json"
+        "docs/test-results/zed-acp-current-installed-uat.json"
       ],
       "runtimeIdentityIds": [
         "RUNTIME-ZED10X-MAC",
