@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "runFinishedAt": "2026-09-01T06:32:54Z",
+  "blacklistedEndpoints": [],
+  "flakinessSignatures": [
+    {
+      "pattern": "computer-use key names are case-sensitive",
+      "count": 1,
+      "hint": "Use the documented xdotool-style key names and verify visible composer state before retrying any send action."
+    }
+  ],
+  "mockTargetsToAvoid": [
+    "Do not substitute direct provider or ACP probes for installed picker, wrapper, transport, and session journeys."
+  ],
+  "clustersResolvedThisRun": [
+    {
+      "clusterKey": "surface_journey_variant_false_closure",
+      "fix": "The fresh lifecycle enumerates every product surface, critical journey, and independently selectable host/profile variant, then requires installed-boundary execution evidence.",
+      "preventInFuture": "Generate the full surface x journey x selectable-variant matrix and reject production readiness when any applicable cell lacks direct assembled-product evidence or a mechanically proved equivalence."
+    },
+    {
+      "clusterKey": "persistent_retry_reused_exited_transport",
+      "fix": "Retry constructs a fresh connection before loading the original persistent session.",
+      "preventInFuture": "Every recoverable external-session journey must cross a real process/service restart and prove original identity, history, project, one continuation, and finite retry behavior."
+    },
+    {
+      "clusterKey": "remote_descendant_lifecycle_escape",
+      "fix": "Remote env-exec owns a process group and reaps descendants after transport EOF and after direct-command exit.",
+      "preventInFuture": "For every external process wrapper, generate both parent-first and transport-first teardown orderings and assert exact descendant absence."
+    },
+    {
+      "clusterKey": "configured_bytes_impersonated_installed_runtime",
+      "fix": "Each installed Mac and Intrepid result is bound to an exact artifact identity and content-free runtime attestation.",
+      "preventInFuture": "Do not accept configuration, source, or direct-client evidence for an installed boundary without exact runtime identity and real-consumer capture."
+    }
+  ],
+  "knownBugCoverage": {
+    "hits": 8,
+    "total": 8,
+    "missed": []
+  },
+  "mutationPrinciples": [
+    {
+      "category": "external_process_and_transport_lifecycle",
+      "productionRisk": "Happy-path launch tests miss failures caused by execution locality, missing installed runtime, transport closure, parent/child exit ordering, and reconnect semantics.",
+      "generateUpfront": "For every user-selectable external execution route, generate installed launch, negative readiness, normal close, transport loss, direct-child exit, service restart, Retry, and original-state continuation rows.",
+      "appliesTo": [
+        "local External Agents",
+        "remote External Agents",
+        "persistent ACP lanes",
+        "ordinary remote wrappers"
+      ],
+      "evidenceFromRun": "three product defects and repeated prior user-visible launch failures",
+      "phase2Instruction": "Treat lifecycle ownership and restart orderings as first-class user journeys, not helper-level implementation details."
+    }
+  ],
+  "runtimeCapabilityGaps": [
+    {
+      "capability": "optional independent reviewer routes",
+      "action": "Keep explicit provider readiness diagnostics; use the documented successful review route without inventing an all-provider-green floor."
+    },
+    {
+      "capability": "public macOS distribution signing and notarization",
+      "action": "Out of scope for Keeva's private local app; retain ad-hoc signing unless a public release is later authorized and credentials exist."
+    }
+  ]
+}

@@ -75,6 +75,14 @@
       "fix": "Keep the original file descriptor pinned for the full route lifetime, compare its live identity with the pathname immediately before unlink, never unlink while process-group cleanup is unproven, and close both ownership descriptors on every path.",
       "regression": "ephemeral cleanup refuses a route-replaced sentinel across 100 consecutive Linux-shaped runs and never unlinks while route cleanup is unproven",
       "status": "fixed"
+    },
+    {
+      "id": "HARNESS-COMPUTER-USE-KEY-CASING",
+      "category": "test_driver_error",
+      "symptom": "The recovery driver used unsupported Enter key casing after typing the first marker.",
+      "fix": "Inspect the visible composer before any retry, use the documented xdotool-style key names, and click the visible Send control exactly once.",
+      "regression": "The first marker appeared once, received one exact response, and the recovery journey continued without replay.",
+      "status": "contained_without_duplicate_effect"
     }
   ],
   "coverageClosureDefects": [
@@ -93,6 +101,22 @@
       "fix": "Require assembled_product evidence for direct variant cells, exercise every visible installed picker entry, and retain exact route evidence for every configured entry including alias-collapsed routes.",
       "regression": "shared validator rejects provider-only direct cells; Zed plan separates the exhaustive configured route matrix from exhaustive visible installed-picker UAT",
       "status": "fixed_and_executed"
+    },
+    {
+      "id": "PLAN-SURFACE-JOURNEY-VARIANT-CLOSURE",
+      "category": "process_bug",
+      "symptom": "The earlier plan did not mechanically intersect every product surface, critical user journey, and independently selectable variant, so multiple real user paths remained untested.",
+      "fix": "Discover and validate the full surface x journey x selectable-variant matrix, requiring installed-boundary evidence for every applicable direct cell.",
+      "regression": "The fresh plan closes 3 surfaces, 4 journeys, 22 selectable variants, and 74 direct variant-journey cells.",
+      "status": "fixed_and_executed"
+    },
+    {
+      "id": "PLAN-STATEFUL-RESTART-ORDERING",
+      "category": "process_bug",
+      "symptom": "Happy-path launch checks did not cross a real persistent-service restart, Retry, original-session load, continuation, and final cleanup boundary.",
+      "fix": "Make stateful disruption/recovery a first-class journey and bind the real UI transition to service invocation, session, project, history, and cleanup identities.",
+      "regression": "A real codex--primary lane restart produced one Retry, restored the original thread, and completed one post-recovery continuation.",
+      "status": "fixed_and_executed"
     }
   ],
   "negativeControl": {
@@ -103,7 +127,7 @@
     "interpretation": "Expected fail-closed safety behavior, not a route-health acceptance result."
   },
   "reviewTooling": {
-    "multimindsAudit": "invalid_zero_of_nine_after_outer_timeout",
+    "multimindsDoctor": "ready_route_available_with_optional_degraded_diagnostics",
     "usedAsAcceptanceEvidence": false,
     "independentExactDiffReview": "required_on_the_final_exact_candidate_before_merge"
   },
@@ -116,6 +140,25 @@
     "installedPickerJourney": {
       "path": "docs/test-results/installed-picker-uat.json",
       "sha256": "00a3bf719784b5dc00851781202b56ae7c04435ec646433b3a68b73496212af7",
+      "status": "passed"
+    },
+    "freshInstalledInventory": {
+      "macPath": "docs/test-results/zed-acp-inventory-mac.json",
+      "intrepidPath": "docs/test-results/zed-acp-inventory-intrepid.json",
+      "status": "passed"
+    },
+    "freshInstalledSessions": {
+      "macPath": "docs/test-results/zed-acp-session-mac.json",
+      "intrepidPath": "docs/test-results/zed-acp-session-intrepid.json",
+      "status": "passed"
+    },
+    "freshCleanup": {
+      "macPath": "docs/test-results/zed-acp-cleanup-mac.json",
+      "intrepidPath": "docs/test-results/zed-acp-cleanup-intrepid.json",
+      "status": "passed"
+    },
+    "freshPersistentRecovery": {
+      "path": "docs/test-results/zed-acp-recovery-intrepid.json",
       "status": "passed"
     }
   }

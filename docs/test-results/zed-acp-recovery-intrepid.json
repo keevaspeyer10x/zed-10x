@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "id": "ZED-ACP-RECOVERY-004",
+  "command": "computer-use installed Zed 10x with an existing Codex (Intrepid, primary) session: restart zed-acp-session-host@codex--primary.service, invoke Retry, load the original session, and continue once",
+  "status": "passed",
+  "runtimeIdentity": "zed-remote-server-linux-x86_64@fb1fb76791553cfdd807ab7efd3850d228ce1ed4:sha256=02713af960f213199a9a7662c2e1256916cc0f754ead69167721edb05b0c8db7",
+  "observedAt": "2026-09-01T06:32:54Z",
+  "surfaceId": "SURFACE-ACP-INTREPID-PERSISTENT",
+  "agentId": "Codex (Intrepid, primary)",
+  "contentFreeIdentity": {
+    "sessionIdSha256": "d536c8fcb84c8c634c422dcdfced2192a85db996057c2dce206767e95f2ae933",
+    "threadIdSha256": "17c5de06275d209755e6f951a0a0427857791c2f569ce663a654956769d61953",
+    "projectPathSha256": "67a8cbcf5b5b7a21d307579149c349199b402376d40e7c5cbef14533827bf8a8"
+  },
+  "service": {
+    "unit": "zed-acp-session-host@codex--primary.service",
+    "before": {
+      "invocationId": "78f1c31c323b49d3ad10ee7b2f39ee13",
+      "mainPid": 3168398,
+      "execMainPid": 3168398,
+      "activeState": "active",
+      "subState": "running"
+    },
+    "after": {
+      "invocationId": "981cddd1eb5a451384886fa6ad1b361f",
+      "mainPid": 1223264,
+      "execMainPid": 1223264,
+      "activeState": "active",
+      "subState": "running"
+    },
+    "invocationReplaced": true,
+    "mainPidMatchesExecMainPid": true
+  },
+  "journey": {
+    "stateTransitions": [
+      "attached",
+      "continued-before-restart",
+      "service-restarted",
+      "recoverable-failure-visible",
+      "retry-invoked",
+      "original-session-loaded",
+      "continued-after-restart"
+    ],
+    "retryCount": 1,
+    "sameSessionId": true,
+    "sameThreadId": true,
+    "sameProject": true,
+    "historyRestored": true,
+    "newThreadCreated": false,
+    "beforeMarker": {
+      "responseSha256": "1c31efc12f1eab043ec7e6e5de2a25848f8623e6fb1bbdaa2373287c05047b58",
+      "returnedExactly": true
+    },
+    "afterMarker": {
+      "responseSha256": "092459a1a6f09fca6f31581d19a2a9d24c9ffcb7ab4ac1a8c3824031705a2acc",
+      "returnedExactly": true
+    }
+  },
+  "recoverableFailure": {
+    "visible": true,
+    "retryVisible": true,
+    "classifiedCause": "peer_closed_before_client_input",
+    "repeatLoopObserved": false
+  },
+  "cleanup": {
+    "normalQuit": true,
+    "remainingExactRemoteRuntimeProcessCount": 0,
+    "persistentLaneRemainedHealthy": true,
+    "persistentLaneInvocationId": "981cddd1eb5a451384886fa6ad1b361f"
+  },
+  "supplementalEvidence": [
+    {
+      "path": "docs/test-results/zed-acp-recovery-intrepid-after-retry.jpeg",
+      "sha256": "3b69da16842847b8319092c23bbc6fe8b3d87f4502ca8a0333eabae74c84d8ef"
+    }
+  ]
+}

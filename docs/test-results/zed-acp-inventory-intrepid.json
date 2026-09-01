@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "id": "ZED-ACP-INVENTORY-001",
+  "command": "computer-use installed Zed 10x in an Intrepid project: open External Agents and verify the exact eight persistent plus six ordinary Intrepid variants, unique consistent labels, and no Mac or alias-only entries",
+  "status": "passed",
+  "runtimeIdentity": "zed-remote-server-linux-x86_64@fb1fb76791553cfdd807ab7efd3850d228ce1ed4:sha256=02713af960f213199a9a7662c2e1256916cc0f754ead69167721edb05b0c8db7",
+  "observedAt": "2026-09-01T06:12:14Z",
+  "surfaceIds": [
+    "SURFACE-ACP-INTREPID-PERSISTENT",
+    "SURFACE-ACP-INTREPID-ORDINARY"
+  ],
+  "persistentVariantCount": 8,
+  "ordinaryVariantCount": 6,
+  "labels": [
+    "Claude (Intrepid, primary)",
+    "Claude (Intrepid, secondary)",
+    "Claude (Intrepid, selected)",
+    "Claude (Intrepid, work)",
+    "Claude Agent (Intrepid)",
+    "Codex (Intrepid, primary)",
+    "Codex (Intrepid, secondary)",
+    "Codex (Intrepid, selected)",
+    "Codex (Intrepid, work)",
+    "Cursor (Intrepid)",
+    "Devin (Intrepid)",
+    "GLM (Intrepid)",
+    "Grok Build (Intrepid)",
+    "Kimi (Intrepid)"
+  ],
+  "duplicateCount": 0,
+  "offHostCount": 0,
+  "supplementalEvidence": [
+    {
+      "path": "docs/test-results/zed-acp-picker-intrepid.jpeg",
+      "sha256": "2493bad1d6b0ac6de616a09d22630d5ef8c86b02680b1489b2a4b32e3d3dd6e5"
+    }
+  ]
+}

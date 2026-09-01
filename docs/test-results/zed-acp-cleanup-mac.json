@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "ZED-ACP-CLEANUP-003",
+  "command": "inspect installed Mac-local External Agent teardown after the complete route matrix and prove no owned ordinary wrapper or provider process remains",
+  "status": "passed",
+  "runtimeIdentity": "Zed 10x.app@fb1fb76791553cfdd807ab7efd3850d228ce1ed4:sha256=ed62732c2517b06b0ef59b013949ffa89a1ed5d3537b86f3ec299d6fe1850690",
+  "observedAt": "2026-09-01T06:09:05Z",
+  "normalQuit": true,
+  "capturedProcessIds": [
+    91566,
+    91684
+  ],
+  "capturedProcessIdsCleared": true,
+  "remainingZedCursorProcessCount": 0,
+  "remainingZedRuntimeProcessCount": 0
+}

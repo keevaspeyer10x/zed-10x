@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "ZED-ACP-SESSION-002",
+  "command": "computer-use installed Zed 10x Mac-local External Agents: select all eight variants once, run session/new against an isolated project sentinel, classify terminal outcomes, then prove a healthy route launches after an unavailable route",
+  "status": "passed",
+  "runtimeIdentity": "Zed 10x.app@fb1fb76791553cfdd807ab7efd3850d228ce1ed4:sha256=ed62732c2517b06b0ef59b013949ffa89a1ed5d3537b86f3ec299d6fe1850690",
+  "observedAt": "2026-09-01T06:08:53Z",
+  "attemptedVariantCount": 8,
+  "productFailureCount": 0,
+  "currentRuntimeClosure": {
+    "representative": "Cursor (Mac)",
+    "sessionNewUsable": true,
+    "capturedProcessIds": [
+      91566,
+      91684
+    ],
+    "allVariantLoadBearingInputsUnchangedSinceCompleteMatrix": true
+  },
+  "supplementalEvidence": [
+    {
+      "path": "docs/test-results/zed-acp-route-matrix-mac-raw.json",
+      "sha256": "feb33e6ed7d7bcf89619d21983ca5d1fb7b001bf08750e12e018fd144dd46e78"
+    }
+  ]
+}

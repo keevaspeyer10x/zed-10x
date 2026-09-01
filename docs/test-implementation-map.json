@@ -1,15 +1,10 @@
 {
   "plannedRows": 4,
   "readyNowRows": 4,
-  "implementedRows": 0,
-  "executedRows": 0,
-  "remainingRows": 4,
-  "unimplementedRows": [
-    "ZED-ACP-INVENTORY-001",
-    "ZED-ACP-SESSION-002",
-    "ZED-ACP-CLEANUP-003",
-    "ZED-ACP-RECOVERY-004"
-  ],
+  "implementedRows": 4,
+  "executedRows": 4,
+  "remainingRows": 0,
+  "unimplementedRows": [],
   "blockedRows": [],
   "mappings": [
     {
@@ -140,10 +135,16 @@
         "RUNTIME-ZED10X-MAC",
         "RUNTIME-ZED10X-INTREPID"
       ],
-      "implemented": false,
-      "outcome": "planned_not_yet_executed",
-      "blocker": "Installed execution evidence has not yet been captured for this fresh plan.",
-      "remediationAttempts": []
+      "evidenceDigests": {
+        "docs/test-results/zed-acp-inventory-mac.json": "c6b76f311a10e22270f04d108fc0577233a91f86d81991641f9205819d463752",
+        "docs/test-results/zed-acp-inventory-intrepid.json": "28d6af269dd3c227e4895950f605e6ff14347d80130e78a7c5cfeebfac028245"
+      },
+      "implemented": true,
+      "outcome": "passed",
+      "blocker": null,
+      "remediationAttempts": [
+        "Replaced representative direct-provider evidence with installed picker inventory on both execution hosts."
+      ]
     },
     {
       "section": "0-critical-path-smoke",
@@ -278,10 +279,16 @@
         "RUNTIME-ZED10X-MAC",
         "RUNTIME-ZED10X-INTREPID"
       ],
-      "implemented": false,
-      "outcome": "planned_not_yet_executed",
-      "blocker": "Installed execution evidence has not yet been captured for this fresh plan.",
-      "remediationAttempts": []
+      "evidenceDigests": {
+        "docs/test-results/zed-acp-session-mac.json": "fb8e5dee8a53b361798743103ce9888a00f1d2368bb467f5bb245a453c2d1fce",
+        "docs/test-results/zed-acp-session-intrepid.json": "fc8e2bd50d84220233d5bc4fda2084dc96278dbe29f862c738dccdabca75db4c"
+      },
+      "implemented": true,
+      "outcome": "passed",
+      "blocker": null,
+      "remediationAttempts": [
+        "Executed every visible host-valid variant through the installed product and reran representative routes on the final runtime."
+      ]
     },
     {
       "section": "0-critical-path-smoke",
@@ -408,10 +415,16 @@
         "RUNTIME-ZED10X-MAC",
         "RUNTIME-ZED10X-INTREPID"
       ],
-      "implemented": false,
-      "outcome": "planned_not_yet_executed",
-      "blocker": "Installed execution evidence has not yet been captured for this fresh plan.",
-      "remediationAttempts": []
+      "evidenceDigests": {
+        "docs/test-results/zed-acp-cleanup-mac.json": "4e18ad0fcf806ab4c39b414b45860fd65cec910e9ca2922afc978eccf3c1edcf",
+        "docs/test-results/zed-acp-cleanup-intrepid.json": "7ec9f1eb048cece39fa997439ea05e17e3c90fc9b2d35f1a8a4bc3ec6f62d804"
+      },
+      "implemented": true,
+      "outcome": "passed",
+      "blocker": null,
+      "remediationAttempts": [
+        "Added process-group supervision for transport EOF and leader-exit orderings, then proved normal-quit cleanup on both hosts."
+      ]
     },
     {
       "section": "0-critical-path-smoke",
@@ -530,10 +543,15 @@
       "runtimeIdentityIds": [
         "RUNTIME-ZED10X-INTREPID"
       ],
-      "implemented": false,
-      "outcome": "planned_not_yet_executed",
-      "blocker": "Installed execution evidence has not yet been captured for this fresh plan.",
-      "remediationAttempts": []
+      "evidenceDigests": {
+        "docs/test-results/zed-acp-recovery-intrepid.json": "8a26fb641a509c174cd3ca71dc987f7abd3507b8d015e6b95261314ae93fb368"
+      },
+      "implemented": true,
+      "outcome": "passed",
+      "blocker": null,
+      "remediationAttempts": [
+        "Added fresh-transport Retry coverage and proved a real service restart preserves the original session, history, and project."
+      ]
     }
   ]
 }

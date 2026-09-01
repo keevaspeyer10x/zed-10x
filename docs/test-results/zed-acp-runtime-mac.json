@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "id": "RUNTIME-ZED10X-MAC",
+  "kind": "installed_artifact",
+  "value": "Zed 10x.app@fb1fb76791553cfdd807ab7efd3850d228ce1ed4:sha256=ed62732c2517b06b0ef59b013949ffa89a1ed5d3537b86f3ec299d6fe1850690",
+  "surfaceIds": [
+    "SURFACE-ACP-MAC-LOCAL"
+  ],
+  "observations": [
+    {
+      "rowId": "ZED-ACP-INVENTORY-001",
+      "command": "computer-use installed Zed 10x in a Mac-local project: open External Agents and verify the exact eight Mac variants, unique consistent labels, and no Intrepid or alias-only entries",
+      "evidencePath": "docs/test-results/zed-acp-inventory-mac.json",
+      "evidenceSha256": "c6b76f311a10e22270f04d108fc0577233a91f86d81991641f9205819d463752"
+    },
+    {
+      "rowId": "ZED-ACP-SESSION-002",
+      "command": "computer-use installed Zed 10x Mac-local External Agents: select all eight variants once, run session/new against an isolated project sentinel, classify terminal outcomes, then prove a healthy route launches after an unavailable route",
+      "evidencePath": "docs/test-results/zed-acp-session-mac.json",
+      "evidenceSha256": "fb8e5dee8a53b361798743103ce9888a00f1d2368bb467f5bb245a453c2d1fce"
+    },
+    {
+      "rowId": "ZED-ACP-CLEANUP-003",
+      "command": "inspect installed Mac-local External Agent teardown after the complete route matrix and prove no owned ordinary wrapper or provider process remains",
+      "evidencePath": "docs/test-results/zed-acp-cleanup-mac.json",
+      "evidenceSha256": "4e18ad0fcf806ab4c39b414b45860fd65cec910e9ca2922afc978eccf3c1edcf"
+    }
+  ],
+  "capture": {
+    "command": "computer-use installed Zed 10x in a Mac-local project: open External Agents and verify the exact eight Mac variants, unique consistent labels, and no Intrepid or alias-only entries",
+    "evidencePath": "docs/test-results/zed-acp-inventory-mac.json",
+    "evidenceSha256": "c6b76f311a10e22270f04d108fc0577233a91f86d81991641f9205819d463752"
+  }
+}
