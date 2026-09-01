@@ -128,7 +128,7 @@
   },
   "evidenceBinding": {
     "testedRevision": "2bde4bdfcbaac21a4ca6328298a0bd847e3caa65",
-    "harnessRevision": "123c4c2f4aa792a7d1da782458301be08e9b4687",
+    "harnessRevision": "c47745948b459c1262ca7f5c73d02623b832863a",
     "loadBearingInputs": [
       {
         "path": "crates/agent_servers/src/acp.rs",
@@ -140,7 +140,7 @@
       },
       {
         "path": "crates/agent_ui/src/agent_connection_store.rs",
-        "sha256": "912cbd02d371d942c22be080c8f2fcff04dc7e40579bf369a268cd219044e086"
+        "sha256": "207974c8a689300604763d43a0813183b40ae9dfa9d5bc2dad4dc09e19ad68e0"
       },
       {
         "path": "crates/agent_ui/src/agent_panel.rs",

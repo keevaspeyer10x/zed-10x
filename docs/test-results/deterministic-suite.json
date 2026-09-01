@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "status": "passed",
-  "sourceCommit": "123c4c2f4aa792a7d1da782458301be08e9b4687",
-  "sourceTree": "83e0af633776b9f53a5cdf697207249d86ed1a60",
+  "sourceCommit": "c47745948b459c1262ca7f5c73d02623b832863a",
+  "sourceTree": "0cc9258de4ffe841056fb5d16a92769cd9b4b303",
   "installedProductCommit": "2bde4bdfcbaac21a4ca6328298a0bd847e3caa65",
-  "installedCandidateDifference": "The only descendant change after the exact installed product revision makes content-free canary receipts durable when their existing parent is reached through a symlink and adds its direct regression. No product runtime source changed. The exact merged revision remains subject to a fresh post-merge install and canary.",
+  "installedCandidateDifference": "The descendant changes after the exact installed product revision make content-free canary receipts durable when their existing parent is reached through a symlink, add its direct regression, and clarify an existing Rust ownership boundary without changing behavior. The exact merged revision remains subject to a fresh post-merge install and canary.",
   "testedWorkingTree": false,
   "testedWorkingTreeChanges": [],
   "suites": [
