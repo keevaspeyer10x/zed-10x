@@ -599,6 +599,22 @@ test("bundle-mac refreshes LaunchServices only after the installed bundle verifi
   assert.ok(successOffset > registrationOffset);
 });
 
+test("bundle-mac signs local installs outside file-provider workspaces", () => {
+  const repositoryRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../..");
+  const bundleScript = fs.readFileSync(path.join(repositoryRoot, "script", "bundle-mac"), "utf8");
+  const stageOffset = bundleScript.indexOf(
+    'ditto --norsrc --noextattr --noacl "$assembled_app_path" "$staged_app_path"',
+  );
+  const signOffset = bundleScript.indexOf(
+    'codesign --force --deep --entitlements "$unsigned_entitlements_path"',
+  );
+  const installOffset = bundleScript.indexOf('mv "$app_path" "$installed_app_path"');
+
+  assert.ok(stageOffset > 0, "local installs must leave file-provider workspaces before signing");
+  assert.ok(signOffset > stageOffset, "ad-hoc signing must use the isolated copy");
+  assert.ok(installOffset > signOffset, "only the verified signing candidate may be installed");
+});
+
 test("bundle-mac stops after local installation instead of reusing the moved staging app", () => {
   const repositoryRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../..");
   const bundleScript = fs.readFileSync(path.join(repositoryRoot, "script", "bundle-mac"), "utf8");
