@@ -106,6 +106,7 @@ jobs:
           cargo test --locked -p remote_server --test env_exec unix::env_exec_reaps_a_command_group_that_ignores_transport_eof -- --exact
           cargo test --locked -p remote_server --test env_exec unix::env_exec_reaps_descendants_after_the_direct_command_exits -- --exact
           cargo test --locked -p remote_server --test env_exec unix::env_exec_reaps_its_command_group_when_the_supervisor_is_killed -- --exact
+          cargo test --locked -p remote_server --test env_exec unix::env_exec_reaps_its_command_group_when_the_guardian_is_killed -- --exact
 
       - name: Test the Zed 10x updater and release channel
         run: |
