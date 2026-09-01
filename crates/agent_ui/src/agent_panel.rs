@@ -7463,6 +7463,31 @@ mod tests {
         );
     }
 
+    fn set_test_dedicated_alias_agent_settings(cx: &mut App) {
+        project::agent_server_store::AllAgentServersSettings::override_global(
+            project::agent_server_store::AllAgentServersSettings(
+                [(
+                    "Canonical Dedicated".to_string(),
+                    project::agent_server_store::CustomAgentServerSettings::Custom {
+                        command: project::agent_server_store::AgentServerCommand {
+                            path: PathBuf::from("/usr/bin/false"),
+                            args: Vec::new(),
+                            env: None,
+                        },
+                        aliases: vec!["legacy-dedicated".to_string()],
+                        dedicated_connection: true,
+                        default_mode: None,
+                        default_config_options: HashMap::default(),
+                        favorite_config_option_values: HashMap::default(),
+                    },
+                )]
+                .into_iter()
+                .collect(),
+            ),
+            cx,
+        );
+    }
+
     struct DedicatedConnectionServer {
         connection_count: Arc<AtomicUsize>,
     }
@@ -7672,6 +7697,41 @@ mod tests {
             2,
             "a new thread for an agent with exclusive connection ownership must connect separately"
         );
+    }
+
+    #[gpui::test]
+    async fn test_legacy_alias_resolves_dedicated_policy_before_connection_selection(
+        cx: &mut TestAppContext,
+    ) {
+        let (_workspace, panel, mut cx) = setup_workspace_panel(cx).await;
+        cx.update(|_, cx| set_test_dedicated_alias_agent_settings(cx));
+        cx.run_until_parked();
+
+        let legacy = Agent::Custom {
+            id: "legacy-dedicated".into(),
+        };
+        panel.read_with(&cx, |panel, cx| {
+            let canonical = legacy.canonicalized(&panel.project, cx);
+            assert_eq!(
+                canonical,
+                Agent::Custom {
+                    id: "Canonical Dedicated".into(),
+                },
+                "persisted aliases must resolve before a thread chooses shared or dedicated custody"
+            );
+
+            let server = legacy.server(
+                panel.fs.clone(),
+                panel.thread_store.clone(),
+                &panel.project,
+                cx,
+            );
+            assert_eq!(server.agent_id().as_ref(), "Canonical Dedicated");
+            assert!(
+                server.requires_dedicated_connection(cx),
+                "the pre-connect policy check must read the canonical agent's dedicated setting"
+            );
+        });
     }
 
     fn set_test_registry_agent_settings(cx: &mut App) {
