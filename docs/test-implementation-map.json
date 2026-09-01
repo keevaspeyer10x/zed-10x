@@ -1,16 +1,10 @@
 {
   "plannedRows": 5,
   "readyNowRows": 5,
-  "implementedRows": 0,
-  "executedRows": 0,
-  "remainingRows": 5,
-  "unimplementedRows": [
-    "ZED-ACP-INVENTORY-001",
-    "ZED-ACP-SESSION-002",
-    "ZED-ACP-CLEANUP-003",
-    "ZED-ACP-RECOVERY-004",
-    "ZED-ACP-SWITCH-005"
-  ],
+  "implementedRows": 5,
+  "executedRows": 5,
+  "remainingRows": 0,
+  "unimplementedRows": [],
   "blockedRows": [],
   "mappings": [
     {
@@ -141,9 +135,9 @@
         "RUNTIME-ZED10X-MAC",
         "RUNTIME-ZED10X-INTREPID"
       ],
-      "implemented": false,
-      "outcome": "planned_not_yet_executed",
-      "blocker": "Installed execution evidence has not yet been captured for this fresh plan.",
+      "implemented": true,
+      "outcome": "passed",
+      "blocker": null,
       "remediationAttempts": []
     },
     {
@@ -279,9 +273,9 @@
         "RUNTIME-ZED10X-MAC",
         "RUNTIME-ZED10X-INTREPID"
       ],
-      "implemented": false,
-      "outcome": "planned_not_yet_executed",
-      "blocker": "Installed execution evidence has not yet been captured for this fresh plan.",
+      "implemented": true,
+      "outcome": "passed",
+      "blocker": null,
       "remediationAttempts": []
     },
     {
@@ -411,9 +405,9 @@
         "RUNTIME-ZED10X-MAC",
         "RUNTIME-ZED10X-INTREPID"
       ],
-      "implemented": false,
-      "outcome": "planned_not_yet_executed",
-      "blocker": "Installed execution evidence has not yet been captured for this fresh plan.",
+      "implemented": true,
+      "outcome": "passed",
+      "blocker": null,
       "remediationAttempts": []
     },
     {
@@ -533,9 +527,9 @@
       "runtimeIdentityIds": [
         "RUNTIME-ZED10X-INTREPID"
       ],
-      "implemented": false,
-      "outcome": "planned_not_yet_executed",
-      "blocker": "Installed execution evidence has not yet been captured for this fresh plan.",
+      "implemented": true,
+      "outcome": "passed",
+      "blocker": null,
       "remediationAttempts": []
     },
     {
@@ -683,9 +677,9 @@
         "RUNTIME-ZED10X-MAC",
         "RUNTIME-ZED10X-INTREPID"
       ],
-      "implemented": false,
-      "outcome": "planned_not_yet_executed",
-      "blocker": "Installed execution evidence has not yet been captured for this fresh plan.",
+      "implemented": true,
+      "outcome": "passed",
+      "blocker": null,
       "remediationAttempts": []
     }
   ]

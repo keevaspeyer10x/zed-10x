@@ -31,9 +31,25 @@
     {
       "id": "HARNESS-DAP-THREADS-RESPONSE-SHAPE",
       "category": "test_bug",
-      "symptom": "The fake adapter returned an empty object for threads, which is not a valid DAP ThreadsResponse and produced an avoidable client parse error.",
-      "fix": "Return the protocol-valid empty threads list and retain the full initialize/launch/configure/threads/terminate assertion.",
-      "regression": "installed TCP DAP fixture returns threads: [] and the assembled journey has no invalid-response error",
+      "symptom": "The fake adapter returned an incomplete threads response and terminated immediately after configuration, so the installed client never exercised a valid stopped/thread/stackTrace sequence.",
+      "fix": "Return one valid thread, emit a protocol-valid stopped event, answer stackTrace, and keep the adapter alive for the client's read-only follow-up requests.",
+      "regression": "installed TCP DAP fixture completes initialize/launch/configurationDone/threads/stackTrace with valid response shapes",
+      "status": "fixed"
+    },
+    {
+      "id": "HARNESS-DAP-TCP-READINESS-RECONNECT",
+      "category": "test_bug",
+      "symptom": "The TCP fixture mistook Zed's readiness connection for the first initialize request and therefore rejected the real installed startup order.",
+      "fix": "Accept and close readiness-only connections, reset the first real initialize connection, and require a second initialized transport.",
+      "regression": "TCP fixture tests readiness probe, forced reset, reconnect, and a complete DAP journey",
+      "status": "fixed"
+    },
+    {
+      "id": "HARNESS-DAP-ANCILLARY-REQUEST-BRITTLENESS",
+      "category": "test_bug",
+      "symptom": "The oracle required one exact request list and a terminate request even though Zed may repeat idempotent reads and close the adapter process directly on stop.",
+      "fix": "Require the load-bearing ordered subsequence, validate transport closure separately, and bind final cleanup to exact process absence.",
+      "regression": "missing stackTrace fails while repeated threads requests and direct transport cleanup remain valid",
       "status": "fixed"
     },
     {
@@ -106,8 +122,8 @@
       "id": "PLAN-SURFACE-JOURNEY-VARIANT-CLOSURE",
       "category": "process_bug",
       "symptom": "The earlier plan did not mechanically intersect every product surface, critical user journey, and independently selectable variant, so multiple real user paths remained untested.",
-      "fix": "Discover and validate the full surface x journey x selectable-variant matrix, requiring installed-boundary evidence for every applicable direct cell.",
-      "regression": "The fresh plan closes 3 surfaces, 4 journeys, 22 selectable variants, and 74 direct variant-journey cells.",
+      "fix": "Discover and validate the full surface x journey x selectable-variant matrix, requiring installed-boundary evidence for direct cells and explicit shared-path evidence for mechanically equivalent cells.",
+      "regression": "The fresh plan closes 3 surfaces, 5 journeys, 22 selectable variants, and 96 direct or mechanically equivalent variant-journey cells.",
       "status": "fixed_and_executed"
     },
     {
@@ -115,7 +131,7 @@
       "category": "process_bug",
       "symptom": "Happy-path launch checks did not cross a real persistent-service restart, Retry, original-session load, continuation, and final cleanup boundary.",
       "fix": "Make stateful disruption/recovery a first-class journey and bind the real UI transition to service invocation, session, project, history, and cleanup identities.",
-      "regression": "A real codex--primary lane restart produced one Retry, restored the original thread, and completed one post-recovery continuation.",
+      "regression": "A real codex--secondary lane restart produced one Retry, restored the original thread and ready composer, and did not replay the provider prompt.",
       "status": "fixed_and_executed"
     }
   ],
@@ -158,7 +174,11 @@
       "status": "passed"
     },
     "freshPersistentRecovery": {
-      "path": "docs/test-results/zed-acp-recovery-intrepid.json",
+      "path": "docs/test-results/zed-acp-current-installed-uat.json",
+      "status": "passed"
+    },
+    "freshSwitchAndSurfaceUat": {
+      "path": "docs/test-results/zed-acp-current-installed-uat.json",
       "status": "passed"
     }
   }

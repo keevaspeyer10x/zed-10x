@@ -1,52 +1,169 @@
 {
   "schemaVersion": 3,
-  "generatedAt": "2026-09-01T10:38:48.377Z",
-  "decisionCandidate": "not_ready",
+  "generatedAt": "2026-09-01T14:37:15Z",
+  "decisionCandidate": "production_ready",
   "plannedRows": 5,
-  "implementedRows": 0,
-  "executedRows": 0,
-  "remainingPlannedRows": 5,
+  "implementedRows": 5,
+  "executedRows": 5,
+  "remainingPlannedRows": 0,
   "requirements": {
     "total": 10,
     "covered": 10,
-    "passed": 0,
+    "passed": 10,
     "failed": 0,
     "blocked": 0,
-    "untested": 10
+    "untested": 0
   },
-  "rowResults": [],
+  "rowResults": [
+    {
+      "id": "ZED-ACP-INVENTORY-001",
+      "status": "passed",
+      "evidencePaths": [
+        "docs/test-results/zed-acp-current-installed-uat.json",
+        "docs/test-results/zed-acp-inventory-mac.json",
+        "docs/test-results/zed-acp-inventory-intrepid.json"
+      ]
+    },
+    {
+      "id": "ZED-ACP-SESSION-002",
+      "status": "passed",
+      "evidencePaths": [
+        "docs/test-results/zed-acp-current-installed-uat.json",
+        "docs/test-results/zed-acp-route-matrix-mac-raw.json",
+        "docs/test-results/zed-acp-route-matrix-intrepid-raw.json"
+      ]
+    },
+    {
+      "id": "ZED-ACP-CLEANUP-003",
+      "status": "passed",
+      "evidencePaths": [
+        "docs/test-results/zed-acp-current-installed-uat.json",
+        "docs/test-results/zed-installed-surface-uat-verify.json"
+      ]
+    },
+    {
+      "id": "ZED-ACP-RECOVERY-004",
+      "status": "passed",
+      "evidencePaths": [
+        "docs/test-results/zed-acp-current-installed-uat.json"
+      ]
+    },
+    {
+      "id": "ZED-ACP-SWITCH-005",
+      "status": "passed",
+      "evidencePaths": [
+        "docs/test-results/zed-acp-switch-mac.json",
+        "docs/test-results/zed-acp-switch-intrepid.json",
+        "docs/test-results/zed-acp-current-installed-uat.json"
+      ]
+    }
+  ],
   "uat": {
-    "status": "not_run",
-    "persona": "Keeva using Zed 10x"
+    "status": "passed",
+    "persona": "Keeva using Zed 10x",
+    "installedProductRevision": "a6531bd9de40ec55ce1181fa928b3ce324e7d61d",
+    "evidencePath": "docs/test-results/zed-acp-current-installed-uat.json"
   },
   "observability": {
-    "status": "not_run"
+    "status": "passed",
+    "recoverableFailureClassified": "peer_closed_before_client_input",
+    "logPrivacyMatches": []
   },
   "dataCleanup": {
-    "status": "not_run"
+    "status": "passed",
+    "normalAppQuit": true,
+    "exactFixtureResidue": []
   },
   "flakiness": {
-    "rerunCount": 0,
+    "rerunCount": 2,
     "flakyTests": []
   },
   "testValidity": {
-    "status": "not_run"
+    "status": "valid",
+    "evidencePath": "docs/test-results/test-validity.json"
   },
   "defectDiscovery": {
-    "bugsFound": 0,
-    "productDefects": [],
-    "testHarnessDefects": [],
+    "bugsFound": 11,
+    "productDefects": [
+      "remote child groups survived transport closure",
+      "remote descendants survived direct leader exit",
+      "provider processes could outlive their supervisor",
+      "local app signing mutated file-provider state",
+      "replaced empty drafts remained retained",
+      "single-owner agents could share one connection across sessions"
+    ],
+    "testHarnessDefects": [
+      "TCP readiness probe was mistaken for DAP initialize",
+      "DAP stopped/thread/stackTrace responses were incomplete",
+      "the DAP oracle required brittle ancillary request counts",
+      "the cleanup census initially confused observer ancestry with residue"
+    ],
     "infraOrToolingDefects": [],
     "processDefects": [
-      "The prior lifecycle treated configured routes, visible variants, and direct canaries as interchangeable."
+      "Earlier testing did not close every user-visible surface and stateful journey across the assembled product boundary."
     ],
-    "fixedDuringRun": [],
+    "fixedDuringRun": [
+      "all product and harness defects listed above"
+    ],
     "confidenceOnlyRows": [],
     "weakRows": [],
-    "newInformationSummary": [],
-    "lowYieldAssessment": "mixed",
+    "newInformationSummary": [
+      "The installed UI, remote server, session lane, durable thread, Retry action, and ordinary cleanup now pass together on the exact installed candidate.",
+      "The surface UAT covers terminal, task, Vim, MCP, DAP stdio, and DAP TCP reset/reconnect rather than substituting unit-level protocol checks."
+    ],
+    "lowYieldAssessment": "high_yield",
     "residualRisk": [
-      "Installed execution is pending."
+      "The exact merged revision still requires a fresh build, install, and post-merge canary."
+    ]
+  },
+  "evidenceBinding": {
+    "testedRevision": "a6531bd9de40ec55ce1181fa928b3ce324e7d61d",
+    "harnessRevision": "6bdbadcf0ef65b4ae86972296b63c4208bd7ce08",
+    "loadBearingInputs": [
+      {
+        "path": "crates/agent_servers/src/acp.rs",
+        "sha256": "678b183509564b7261121dcfcc286e6a019d4b3d916524728d40d2674c67cc26"
+      },
+      {
+        "path": "crates/agent_servers/src/custom.rs",
+        "sha256": "5ea9931dea9c056173a54b00e150494fce560496f83fa71b78326376b5dd4e18"
+      },
+      {
+        "path": "crates/agent_ui/src/agent_connection_store.rs",
+        "sha256": "912cbd02d371d942c22be080c8f2fcff04dc7e40579bf369a268cd219044e086"
+      },
+      {
+        "path": "crates/agent_ui/src/agent_panel.rs",
+        "sha256": "adefa5cf1c0d7fe43835b01defb7268091d9d27d1c3bc754cdb96e6e97eab420"
+      },
+      {
+        "path": "crates/agent_ui/src/conversation_view.rs",
+        "sha256": "abface22e53d93b477db34e050414c986e7b5f89d0536c0b6ff6c1ce42169bff"
+      },
+      {
+        "path": "crates/project/src/agent_server_store.rs",
+        "sha256": "57216bb824440c30346689f717804f771f8b9a2354b9b48a258190ab1963c01d"
+      },
+      {
+        "path": "crates/project/src/project_settings.rs",
+        "sha256": "9594d63f671836be5cd7bcbca5a29da7cd7a9f30ca86b04a90716b4d0907fda0"
+      },
+      {
+        "path": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
+        "sha256": "80f4bae3b0a5966e3b9f3a356ad26f0ea27f87dc144451722d56747befc98246"
+      },
+      {
+        "path": "script/zed-installed-surface-uat.py",
+        "sha256": "31e3d01b5781f91ca17471a743b220b04b3839a0a4ca2d830e4e079f05b67e3f"
+      },
+      {
+        "path": "script/tests/zed_installed_surface_uat_test.py",
+        "sha256": "0e90e322082f69ac51cab39c9941f46641cf1f751c5070436e49fde8ed6c1192"
+      },
+      {
+        "path": "script/tests/fixtures/zed-installed-surface-uat/fake_dap.py",
+        "sha256": "8609569adba972f1c456c84820eb04823ecda1720b45f2be59e800bf16650827"
+      }
     ]
   }
 }

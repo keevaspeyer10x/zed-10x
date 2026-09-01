@@ -1,22 +1,24 @@
 {
   "schemaVersion": 1,
   "status": "passed",
-  "sourceCommit": "5aeae9f3fb8ad57cfe84eca7cb8663d58ca94d82",
-  "sourceTree": "787d58af5d35c474d0256e67bfa69aba20f9c0d0",
-  "installedProductCommit": "658ad7c73805733d584c19cc063ef36d2ef612c4",
-  "installedCandidateDifference": "The later candidate commits harden the tracked UAT cleanup census, its tests, and evidence; they do not change product runtime behavior. The exact merged commit remains subject to a fresh post-merge install and canary.",
+  "sourceCommit": "6bdbadcf0ef65b4ae86972296b63c4208bd7ce08",
+  "sourceTree": "2fe84d1d63e0b052b17ada6b567f788ea9e495ef",
+  "installedProductCommit": "a6531bd9de40ec55ce1181fa928b3ce324e7d61d",
+  "installedCandidateDifference": "The final descendant changes strengthen only the tracked installed-UAT DAP oracle and durable evidence. The exact merged revision remains subject to a fresh post-merge install and canary.",
   "testedWorkingTree": false,
   "testedWorkingTreeChanges": [],
   "suites": [
     {
-      "name": "remote-consumer-rust-matrix",
-      "command": "cargo test -p remote -p remote_server -p terminal -p context_server -p dap -p project -p agent_servers -p vim --all-targets -- --test-threads=1",
+      "name": "changed-rust-matrix",
+      "command": "./script/cargo test -p agent_servers -p agent_ui -p remote_server --all-targets -- --test-threads=1",
       "status": "passed",
-      "scope": "all targets for every changed remote consumer and protocol owner"
+      "tests": 514,
+      "failed": 0,
+      "scope": "all targets for the changed agent protocol, UI lifecycle, remote server, and process-boundary owners"
     },
     {
-      "name": "remote-consumer-clippy",
-      "command": "./script/clippy -p remote -p remote_server -p terminal -p context_server -p dap -p project -p agent_servers -p vim",
+      "name": "changed-rust-clippy",
+      "command": "./script/clippy -p agent_servers -p agent_ui -p remote_server",
       "status": "passed",
       "scope": "release, all targets, all features"
     },
@@ -27,9 +29,9 @@
     },
     {
       "name": "changed-node-contracts",
-      "command": "node --test script/tests/zed-10x-product-identity.test.mjs script/tests/zed-acp-live-canary.test.mjs script/tests/zed-remote-environment-live-canary.test.mjs",
+      "command": "node --test script/tests/zed-10x-product-identity.test.mjs script/tests/zed-10x-macos-release.test.mjs script/tests/zed-agent-lifecycle-closure.test.mjs script/tests/zed-agent-picker-uat.test.mjs script/tests/zed-acp-live-canary.test.mjs script/tests/zed-remote-environment-live-canary.test.mjs",
       "status": "passed",
-      "tests": 25,
+      "tests": 97,
       "failed": 0,
       "skipped": 0
     },
@@ -42,21 +44,23 @@
       "name": "installed-surface-uat-runner",
       "command": "python3 -m unittest script.tests.zed_installed_surface_uat_test",
       "status": "passed",
-      "tests": 9,
+      "tests": 11,
       "failed": 0,
       "skipped": 1,
       "skipReason": "The Linux procfs ancestry regression is exercised by Linux CI; macOS has no /proc.",
       "linuxProcfsFocusedCommand": "python3 -m unittest script.tests.zed_installed_surface_uat_test.InstalledSurfaceUatTests.test_remote_collection_script_excludes_ancestors_but_reports_matching_sibling",
       "linuxProcfsFocusedStatus": "passed on Intrepid",
-      "scope": "tracked production-shaped fixture rendering, strong journey oracles, delayed true TCP RST, valid DAP response shapes, resize observation, direnv authorization, and reuse-safe cleanup rejection"
+      "scope": "tracked production-shaped fixture rendering, readiness probe plus true TCP RST/reconnect, valid stopped/thread/stackTrace response shapes, ordered load-bearing DAP events, resize observation, direnv authorization, and reuse-safe cleanup rejection"
     },
     {
       "name": "mac-bundle",
       "command": "./script/bundle-mac -d -i",
       "status": "passed",
-      "installedCommit": "658ad7c73805733d584c19cc063ef36d2ef612c4",
+      "installedCommit": "a6531bd9de40ec55ce1181fa928b3ce324e7d61d",
       "installedWorkingTree": false,
-      "signatureVerified": true
+      "signatureVerified": true,
+      "runtimeSha256": "cc1eaff34b1680c79d8422420ff6c38e6e7610effee90c38234b95d21b94c6c5",
+      "remoteRuntimeSha256": "0b92d3a35a640028d624e9339a5f38c6e863a068a992b55bb1329655e8435ff5"
     }
   ]
 }

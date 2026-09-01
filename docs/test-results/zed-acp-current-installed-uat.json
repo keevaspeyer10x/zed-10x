@@ -1,0 +1,129 @@
+{
+  "schemaVersion": 1,
+  "status": "passed",
+  "observedAt": "2026-09-01T14:37:15Z",
+  "sourceRevision": "a6531bd9de40ec55ce1181fa928b3ce324e7d61d",
+  "installedRuntime": {
+    "mac": {
+      "path": "/Applications/Zed 10x.app/Contents/MacOS/zed-10x-runtime",
+      "sha256": "cc1eaff34b1680c79d8422420ff6c38e6e7610effee90c38234b95d21b94c6c5"
+    },
+    "intrepid": {
+      "path": "/home/keeva/.zed-10x-server/zed-remote-server-dev-1.14.0+dev.a6531bd9de40ec55ce1181fa928b3ce324e7d61d",
+      "sha256": "0b92d3a35a640028d624e9339a5f38c6e863a068a992b55bb1329655e8435ff5"
+    }
+  },
+  "inventory": {
+    "mac": {
+      "variantCount": 8,
+      "duplicateCount": 0,
+      "offHostCount": 0,
+      "labels": [
+        "Claude (Mac, primary)",
+        "Claude (Mac, secondary)",
+        "Claude (Mac, work)",
+        "Codex (Mac)",
+        "Codex (Mac, secondary)",
+        "Codex (Mac, work)",
+        "Cursor (Mac)",
+        "Grok Build (Mac)"
+      ]
+    },
+    "intrepid": {
+      "persistentVariantCount": 8,
+      "ordinaryVariantCount": 6,
+      "duplicateCount": 0,
+      "offHostCount": 0,
+      "labels": [
+        "Claude (Intrepid, primary)",
+        "Claude (Intrepid, secondary)",
+        "Claude (Intrepid, selected)",
+        "Claude (Intrepid, work)",
+        "Claude Agent (Intrepid)",
+        "Codex (Intrepid, primary)",
+        "Codex (Intrepid, secondary)",
+        "Codex (Intrepid, selected)",
+        "Codex (Intrepid, work)",
+        "Cursor (Intrepid)",
+        "Devin (Intrepid)",
+        "GLM (Intrepid)",
+        "Grok Build (Intrepid)",
+        "Kimi (Intrepid)"
+      ]
+    }
+  },
+  "currentJourney": {
+    "remoteProject": "/home/keeva/uat/zed-a6531bd9",
+    "initialAgent": "Codex (Intrepid, secondary)",
+    "sentinelReadCompleted": true,
+    "returnedSentinelSha256": "dd521a9b8a017bdd078c162c915dac4358b764fbe93be9b7d404d38ec7d3f2b5",
+    "switchAgent": "Cursor (Intrepid)",
+    "switchDraftCreated": true,
+    "returnedToOriginalThread": true,
+    "originalHistoryVisible": true,
+    "duplicateProviderPromptCount": 0
+  },
+  "recovery": {
+    "unit": "zed-acp-session-host@codex--secondary.service",
+    "before": {
+      "mainPid": 1245182,
+      "invocationId": "aa5918a95f1043679045eb06cb051dc4",
+      "startTimestampMonotonic": 2500905882031
+    },
+    "after": {
+      "mainPid": 2437194,
+      "execMainPid": 2437194,
+      "invocationId": "122a4688b3304757b2d48b5b400082ce",
+      "startTimestampMonotonic": 2579357431190,
+      "controlGroup": "/user.slice/user-1001.slice/user@1001.service/keeva.slice/keeva-execution.slice/zed-acp-session-host@codex--secondary.service",
+      "activeState": "active",
+      "subState": "running"
+    },
+    "recoverableFailureVisible": true,
+    "classifiedCause": "peer_closed_before_client_input",
+    "retryCount": 1,
+    "sameThreadVisible": true,
+    "sameProjectVisible": true,
+    "historyRestored": true,
+    "readyComposerRestored": true,
+    "providerReplayCount": 0
+  },
+  "assembledSurfaceUat": {
+    "status": "passed",
+    "receiptPath": "docs/test-results/zed-installed-surface-uat-verify.json",
+    "receiptSha256": "93f070ecc27b7962915fe376f19c435599568a2710b150d0ae6bd468812bb62d",
+    "journeys": [
+      "terminal-input-resize-interrupt",
+      "task-input-cancel",
+      "vim-selected-input-filter",
+      "mcp-initialize-tools-list",
+      "dap-stdio",
+      "dap-tcp-readiness-reset-reconnect"
+    ],
+    "logPrivacyMatches": []
+  },
+  "cleanup": {
+    "normalAppQuit": true,
+    "uatProgramResidue": [],
+    "exactFixturePtySessionsTerminated": [
+      1439904,
+      1757072
+    ],
+    "fixturePtyResidue": [],
+    "persistentLaneRemainedHealthy": true,
+    "persistentLaneInvocationId": "122a4688b3304757b2d48b5b400082ce"
+  },
+  "historicalCompleteMatrix": {
+    "sourceRevision": "fb1fb76791553cfdd807ab7efd3850d228ce1ed4",
+    "macPath": "docs/test-results/zed-acp-route-matrix-mac-raw.json",
+    "macSha256": "feb33e6ed7d7bcf89619d21983ca5d1fb7b001bf08750e12e018fd144dd46e78",
+    "intrepidPath": "docs/test-results/zed-acp-route-matrix-intrepid-raw.json",
+    "intrepidSha256": "e3b3260140afbb1a857515741159131e4192eec029989a52d13405620815f31c",
+    "role": "prior direct route coverage only; current shared product paths are bound by the a6531bd9 journey and deterministic regressions"
+  },
+  "contentPrivacy": {
+    "promptContentRetained": false,
+    "responseContentRetained": false,
+    "credentialValuesRetained": false
+  }
+}

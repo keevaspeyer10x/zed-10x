@@ -2,12 +2,18 @@
   "schemaVersion": 1,
   "id": "RUNTIME-ZED10X-INTREPID",
   "kind": "installed_artifact",
-  "value": "zed-remote-server-linux-x86_64@fb1fb76791553cfdd807ab7efd3850d228ce1ed4:sha256=02713af960f213199a9a7662c2e1256916cc0f754ead69167721edb05b0c8db7",
+  "value": "zed-remote-server-linux-x86_64@a6531bd9de40ec55ce1181fa928b3ce324e7d61d:sha256=0b92d3a35a640028d624e9339a5f38c6e863a068a992b55bb1329655e8435ff5",
   "surfaceIds": [
     "SURFACE-ACP-INTREPID-PERSISTENT",
     "SURFACE-ACP-INTREPID-ORDINARY"
   ],
   "observations": [
+    {
+      "rowId": "ZED-ACP-CURRENT-INSTALLED-UAT",
+      "command": "bind the current installed Intrepid runtime, picker inventory, provider-backed switch/recovery journey, assembled surface UAT, and cleanup to the exact source revision",
+      "evidencePath": "docs/test-results/zed-acp-current-installed-uat.json",
+      "evidenceSha256": "65eaeab60063c3b96ca211ecdcbcd24fe1982b9f02a14b2061aeb0546e77c8ab"
+    },
     {
       "rowId": "ZED-ACP-INVENTORY-001",
       "command": "computer-use installed Zed 10x in an Intrepid project: open External Agents and verify the exact eight persistent plus six ordinary Intrepid variants, unique consistent labels, and no Mac or alias-only entries",
@@ -34,8 +40,8 @@
     }
   ],
   "capture": {
-    "command": "computer-use installed Zed 10x with an existing Codex (Intrepid, primary) session: restart zed-acp-session-host@codex--primary.service, invoke Retry, load the original session, and continue once",
-    "evidencePath": "docs/test-results/zed-acp-recovery-intrepid.json",
-    "evidenceSha256": "8a26fb641a509c174cd3ca71dc987f7abd3507b8d015e6b95261314ae93fb368"
+    "command": "bind the current installed Intrepid runtime, picker inventory, provider-backed switch/recovery journey, assembled surface UAT, and cleanup to the exact source revision",
+    "evidencePath": "docs/test-results/zed-acp-current-installed-uat.json",
+    "evidenceSha256": "65eaeab60063c3b96ca211ecdcbcd24fe1982b9f02a14b2061aeb0546e77c8ab"
   }
 }

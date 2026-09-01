@@ -2,11 +2,17 @@
   "schemaVersion": 1,
   "id": "RUNTIME-ZED10X-MAC",
   "kind": "installed_artifact",
-  "value": "Zed 10x.app@fb1fb76791553cfdd807ab7efd3850d228ce1ed4:sha256=ed62732c2517b06b0ef59b013949ffa89a1ed5d3537b86f3ec299d6fe1850690",
+  "value": "Zed 10x.app runtime@a6531bd9de40ec55ce1181fa928b3ce324e7d61d:sha256=cc1eaff34b1680c79d8422420ff6c38e6e7610effee90c38234b95d21b94c6c5",
   "surfaceIds": [
     "SURFACE-ACP-MAC-LOCAL"
   ],
   "observations": [
+    {
+      "rowId": "ZED-ACP-CURRENT-INSTALLED-UAT",
+      "command": "bind the current installed Mac runtime, picker inventory, switch-and-return journey, and cleanup to the exact source revision",
+      "evidencePath": "docs/test-results/zed-acp-current-installed-uat.json",
+      "evidenceSha256": "65eaeab60063c3b96ca211ecdcbcd24fe1982b9f02a14b2061aeb0546e77c8ab"
+    },
     {
       "rowId": "ZED-ACP-INVENTORY-001",
       "command": "computer-use installed Zed 10x in a Mac-local project: open External Agents and verify the exact eight Mac variants, unique consistent labels, and no Intrepid or alias-only entries",
@@ -27,8 +33,8 @@
     }
   ],
   "capture": {
-    "command": "computer-use installed Zed 10x in a Mac-local project: open External Agents and verify the exact eight Mac variants, unique consistent labels, and no Intrepid or alias-only entries",
-    "evidencePath": "docs/test-results/zed-acp-inventory-mac.json",
-    "evidenceSha256": "c6b76f311a10e22270f04d108fc0577233a91f86d81991641f9205819d463752"
+    "command": "bind the current installed Mac runtime, picker inventory, switch-and-return journey, and cleanup to the exact source revision",
+    "evidencePath": "docs/test-results/zed-acp-current-installed-uat.json",
+    "evidenceSha256": "65eaeab60063c3b96ca211ecdcbcd24fe1982b9f02a14b2061aeb0546e77c8ab"
   }
 }

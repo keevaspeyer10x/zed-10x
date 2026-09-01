@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "ZED-ACP-SWITCH-005",
+  "status": "passed",
+  "runtimeIdentity": "zed-remote-server-linux-x86_64@a6531bd9de40ec55ce1181fa928b3ce324e7d61d:sha256=0b92d3a35a640028d624e9339a5f38c6e863a068a992b55bb1329655e8435ff5",
+  "surfaceIds": [
+    "SURFACE-ACP-INTREPID-PERSISTENT",
+    "SURFACE-ACP-INTREPID-ORDINARY"
+  ],
+  "journey": [
+    "Codex (Intrepid, secondary) retained non-empty thread",
+    "Cursor (Intrepid) ready empty draft",
+    "Codex (Intrepid, secondary) original retained thread"
+  ],
+  "sameProjectVisible": true,
+  "originalHistoryVisible": true,
+  "productFailureCount": 0,
+  "appRestartCount": 0,
+  "providerReplayCount": 0,
+  "sharedRegressions": [
+    "discard replaced empty draft",
+    "isolate retained single-owner thread connections"
+  ],
+  "supportingReceipt": "docs/test-results/zed-acp-current-installed-uat.json"
+}
