@@ -3510,6 +3510,7 @@ mod tests {
                         path: PathBuf::from("test-agent"),
                         args: Vec::new(),
                         aliases: Vec::new(),
+                        dedicated_connection: false,
                         env: HashMap::default(),
                         default_mode: Some("manual".to_string()),
                         default_config_options: HashMap::from_iter([(

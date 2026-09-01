@@ -99,7 +99,7 @@ const journeys = [
     id: "JOURNEY-AGENT-SWITCH-AND-RETURN",
     name: "Switch between independently selectable agents and return",
     terminalObservable:
-      "A ready empty draft can be replaced by another agent and then restored without retaining hidden draft, writer, or session ownership from either prior selection.",
+      "A user can switch away and return from both an empty draft and a retained non-empty session; replaceable state is released, retained state remains usable, and single-owner adapters receive a separate connection for each new thread.",
   },
 ];
 
@@ -196,8 +196,9 @@ const requirements = [
   },
   {
     id: "REQ-SWITCH-010",
-    claim: "Replacing an empty draft with another selectable agent releases the old draft and allows either agent to be selected again in the same panel.",
-    source: "crates/agent_ui/src/agent_panel.rs",
+    claim:
+      "Switching between independently selectable agents and returning works from every reachable thread state, including replaceable empty drafts and retained non-empty sessions, without stale connection or session ownership.",
+    source: "crates/agent_ui/src/agent_panel.rs; crates/agent_ui/src/agent_connection_store.rs",
   },
 ];
 
@@ -387,10 +388,16 @@ const rows = [
   {
     ...commonRow,
     id: "ZED-ACP-SWITCH-005",
-    title: "Switching away from a ready empty draft and back releases hidden agent ownership",
+    title: "Switch-and-return releases replaceable drafts and isolates retained sessions",
     requirementIds: ["REQ-SWITCH-010", "REQ-LAUNCH-004"],
     requirements: ["REQ-SWITCH-010", "REQ-LAUNCH-004"],
-    irRefs: ["AgentPanel::discard_empty_draft", "activate_new_thread", "ensure_draft", "agent writer lease"],
+    irRefs: [
+      "AgentPanel::discard_empty_draft",
+      "activate_new_thread",
+      "ensure_draft",
+      "AgentConnectionStore::request_fresh_connection",
+      "AgentServer::requires_dedicated_connection",
+    ],
     surfaceIds: allSurfaceIds,
     journeyIds: ["JOURNEY-AGENT-SWITCH-AND-RETURN"],
     variantIds: allVariantIds,
@@ -403,33 +410,48 @@ const rows = [
       "installed Mac Codex -> Cursor -> Codex switch-and-return",
       "installed Intrepid persistent Codex -> ordinary Cursor -> persistent Codex switch-and-return",
       "deterministic proof that the replaced empty draft view is dropped",
+      "deterministic proof that a retained non-empty single-owner thread does not share its connection with a new thread",
     ],
     specificOracles: [
       "each replacement reaches a ready composer without a product launch or session-ownership error",
       "returning to the first agent creates or reuses only valid current state",
       "the old empty draft is absent from retained threads and its entity is dropped",
+      "the retained non-empty thread remains available while a new thread for the same single-owner adapter gets a separate connection",
       "all sibling variants use the same mechanically verified AgentPanel replacement path",
     ],
     steps: [
-      "Open a ready empty draft on a direct representative for each installed host surface",
+      "Exercise both a ready empty draft and a non-empty retained thread on a direct representative for each installed host surface",
       "Switch to a representative from another independently selectable agent class",
       "Switch back to the first representative without restarting Zed",
-      "Verify ready composer state, no hidden ownership error, and route-appropriate cleanup",
+      "Verify ready composer state, retained history usability, no hidden ownership error, and route-appropriate cleanup",
       "Bind sibling variants by the shared replacement path after each was independently exercised by ZED-ACP-SESSION-002",
     ],
-    expectedResult: "Every installed host surface supports switch-and-return without a ghost draft or stale writer/session lease.",
+    expectedResult:
+      "Every installed host surface supports switch-and-return across empty and retained states without a ghost draft, stale connection, or session-ownership collision.",
     passCriteria: [
       "Mac Codex -> Cursor -> Codex succeeds",
       "Intrepid persistent Codex -> ordinary Cursor -> persistent Codex succeeds",
       "old empty draft entity is dropped deterministically",
+      "retained non-empty single-owner threads use distinct connections",
       "mechanical equivalence is explicit for sibling variants",
     ],
     userGoal: "Change agents in one panel without restarting Zed or losing the ability to return.",
-    acceptanceCriteria: ["no hidden retained draft", "no duplicate writer or session ownership", "no app restart required"],
+    acceptanceCriteria: [
+      "no hidden replaceable draft",
+      "retained non-empty thread remains usable",
+      "no duplicate writer or session ownership",
+      "no app restart required",
+    ],
     frictionSignals: ["connection already owns a session", "blank composer", "Failed to Launch", "agent only works after restart"],
-    evidenceRequired: ["installed transition receipts for Mac and Intrepid", "deterministic entity-lifetime regression"],
-    negativeCase: "the new agent appears selected while the replaced empty draft remains retained and owns the old connection writer",
-    statefulJourney: "first-ready-empty -> second-ready-empty -> first-ready-empty",
+    evidenceRequired: [
+      "installed transition receipts for Mac and Intrepid",
+      "deterministic empty-draft lifetime regression",
+      "deterministic retained-thread connection-isolation regression",
+    ],
+    negativeCase:
+      "the new agent appears selected while replaceable state is retained or a non-empty retained session shares a connection whose adapter permits only one owned session",
+    statefulJourney:
+      "first-ready-empty -> second-ready-empty -> first-ready-empty; first-nonempty-retained -> second-ready -> first/new-first-ready",
     newInformationTarget: "Whether transitions between individually green selectable agents preserve panel and connection ownership invariants.",
   },
 ];
@@ -479,6 +501,7 @@ const executionContracts = {
   },
   "ZED-ACP-SWITCH-005": {
     commands: [
+      "./script/cargo test -p agent_ui test_retained_thread_does_not_share_dedicated_agent_connection --lib -- --test-threads=1",
       "computer-use installed Zed 10x in a Mac-local project: switch Codex (Mac) -> Cursor (Mac) -> Codex (Mac), require a ready composer after every transition, then close Zed and prove exact session cleanup",
       "computer-use installed Zed 10x in an Intrepid project: switch Codex (Intrepid, primary) -> Cursor (Intrepid) -> Codex (Intrepid, primary), require a ready composer after every transition, then close Zed and prove exact attachment cleanup",
     ],
@@ -584,7 +607,7 @@ const discovery = {
     "A component Retry test does not prove the installed app survives a real lane restart.",
     "Provider unavailability is not a product failure, but it is not a usable-route pass either.",
     "Persistent detach and ordinary process cleanup are different terminal semantics.",
-    "One-shot success for two agents does not prove that switching between them releases hidden draft, writer, and session ownership.",
+    "One-shot success for two agents does not prove switch-and-return across replaceable empty drafts and retained non-empty sessions.",
   ],
   existingCoverage: {
     deterministic: [

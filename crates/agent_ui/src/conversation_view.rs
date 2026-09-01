@@ -1041,9 +1041,11 @@ impl ConversationView {
     }
 
     fn retry_load(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.connection_store.update(cx, |store, cx| {
-            store.restart_connection(self.connection_key.clone(), self.agent.clone(), cx);
-        });
+        if !self.agent.requires_dedicated_connection(cx) {
+            self.connection_store.update(cx, |store, cx| {
+                store.restart_connection(self.connection_key.clone(), self.agent.clone(), cx);
+            });
+        }
         telemetry::event!("Agent Panel Load Retried", agent = self.agent.agent_id(),);
         self.reset(window, cx);
     }
@@ -1072,8 +1074,13 @@ impl ConversationView {
         }
         let session_work_dirs = work_dirs.unwrap_or_else(|| project.read(cx).default_path_list(cx));
 
+        let requires_dedicated_connection = agent.requires_dedicated_connection(cx);
         let connection_entry = connection_store.update(cx, |store, cx| {
-            store.request_connection(connection_key, agent.clone(), cx)
+            if requires_dedicated_connection {
+                store.request_fresh_connection(connection_key, agent.clone(), cx)
+            } else {
+                store.request_connection(connection_key, agent.clone(), cx)
+            }
         });
 
         let connection_entry_subscription =

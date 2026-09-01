@@ -186,6 +186,19 @@ impl AgentConnectionStore {
         self.request_connection(key, server, cx)
     }
 
+    pub fn request_fresh_connection(
+        &mut self,
+        key: Agent,
+        server: Rc<dyn AgentServer>,
+        cx: &mut Context<Self>,
+    ) -> Entity<AgentConnectionEntry> {
+        let key = self.canonical_agent_key(&key, cx);
+        if let Some(existing_key) = self.equivalent_entry_key(&key, cx) {
+            self.entries.remove(&existing_key);
+        }
+        self.request_connection(key, server, cx)
+    }
+
     pub fn request_connection(
         &mut self,
         key: Agent,
@@ -216,11 +229,7 @@ impl AgentConnectionStore {
             let entry = entry.downgrade();
             async move |this, cx| match connect_task.await {
                 Ok(connected_state) => {
-                    this.update(cx, move |this, cx| {
-                        if this.entries.get(&key) != entry.upgrade().as_ref() {
-                            return;
-                        }
-
+                    this.update(cx, move |_this, cx| {
                         entry
                             .update(cx, move |entry, cx| {
                                 if let AgentConnectionEntry::Connecting { .. } = entry {
@@ -235,10 +244,6 @@ impl AgentConnectionStore {
                 }
                 Err(error) => {
                     this.update(cx, move |this, cx| {
-                        if this.entries.get(&key) != entry.upgrade().as_ref() {
-                            return;
-                        }
-
                         entry
                             .update(cx, move |entry, cx| {
                                 if let AgentConnectionEntry::Connecting { .. } = entry {
@@ -247,7 +252,9 @@ impl AgentConnectionStore {
                                 }
                             })
                             .ok();
-                        this.entries.remove(&key);
+                        if this.entries.get(&key) == entry.upgrade().as_ref() {
+                            this.entries.remove(&key);
+                        }
                         cx.notify();
                     })
                     .ok();
@@ -257,7 +264,6 @@ impl AgentConnectionStore {
         .detach();
 
         cx.spawn({
-            let key = key.clone();
             let entry = entry.downgrade();
             async move |this, cx| {
                 while let Ok(version) = new_version_rx.recv().await {
@@ -266,10 +272,6 @@ impl AgentConnectionStore {
                     };
 
                     this.update(cx, move |this, cx| {
-                        if this.entries.get(&key) != entry.upgrade().as_ref() {
-                            return;
-                        }
-
                         entry
                             .update(cx, move |_entry, cx| {
                                 cx.emit(AgentConnectionEntryEvent::NewVersionAvailable(
@@ -277,7 +279,9 @@ impl AgentConnectionStore {
                                 ));
                             })
                             .ok();
-                        this.entries.remove(&key);
+                        if this.entries.get(&key) == entry.upgrade().as_ref() {
+                            this.entries.remove(&key);
+                        }
                         cx.notify();
                     })
                     .ok();
@@ -292,13 +296,8 @@ impl AgentConnectionStore {
             async move |this, cx| {
                 while let Ok(status) = loading_status_rx.recv().await {
                     let status = status.map(SharedString::from);
-                    let key = key.clone();
                     let entry = entry.clone();
-                    this.update(cx, move |this, cx| {
-                        if this.entries.get(&key) != entry.upgrade().as_ref() {
-                            return;
-                        }
-
+                    this.update(cx, move |_this, cx| {
                         entry
                             .update(cx, move |_entry, cx| {
                                 cx.emit(AgentConnectionEntryEvent::LoadingStatusChanged(status));

@@ -7416,6 +7416,7 @@ mod tests {
     use crate::thread_metadata_store::ThreadMetadata;
     use acp_thread::{AgentConnection, StubAgentConnection, ThreadStatus};
     use action_log::ActionLog;
+    use agent_servers::AgentServerDelegate;
     use anyhow::{Result, anyhow};
     use chrono::Utc;
     use feature_flags::FeatureFlagAppExt;
@@ -7428,6 +7429,7 @@ mod tests {
     use project::{Project, WorktreePaths};
     use settings::{SettingsStore, WorkingDirectory};
     use std::any::Any;
+    use std::sync::atomic::{AtomicUsize, Ordering};
 
     use serde_json::json;
     use std::path::{Path, PathBuf};
@@ -7446,6 +7448,7 @@ mod tests {
                             env: None,
                         },
                         aliases: Vec::new(),
+                        dedicated_connection: false,
                         default_mode: None,
                         default_config_options: HashMap::default(),
                         favorite_config_option_values: HashMap::default(),
@@ -7455,6 +7458,117 @@ mod tests {
                 .collect(),
             ),
             cx,
+        );
+    }
+
+    struct DedicatedConnectionServer {
+        connection_count: Arc<AtomicUsize>,
+    }
+
+    impl AgentServer for DedicatedConnectionServer {
+        fn logo(&self) -> ui::IconName {
+            ui::IconName::ZedAgent
+        }
+
+        fn agent_id(&self) -> AgentId {
+            "Dedicated Test".into()
+        }
+
+        fn connect(
+            &self,
+            _delegate: AgentServerDelegate,
+            _project: Entity<Project>,
+            _cx: &mut App,
+        ) -> Task<Result<Rc<dyn AgentConnection>>> {
+            self.connection_count.fetch_add(1, Ordering::SeqCst);
+            Task::ready(Ok(Rc::new(StubAgentConnection::new())))
+        }
+
+        fn requires_dedicated_connection(&self, _cx: &App) -> bool {
+            true
+        }
+
+        fn into_any(self: Rc<Self>) -> Rc<dyn Any> {
+            self
+        }
+    }
+
+    #[gpui::test]
+    async fn test_retained_thread_does_not_share_dedicated_agent_connection(
+        cx: &mut TestAppContext,
+    ) {
+        let (_workspace, panel, mut cx) = setup_workspace_panel(cx).await;
+        let connection_count = Arc::new(AtomicUsize::new(0));
+        let server: Rc<dyn AgentServer> = Rc::new(DedicatedConnectionServer {
+            connection_count: connection_count.clone(),
+        });
+        let dedicated_agent = Agent::Custom {
+            id: "Dedicated Test".into(),
+        };
+
+        let first_thread_id = panel.update_in(&mut cx, |panel, window, cx| {
+            let thread = panel.create_agent_thread_with_server(
+                dedicated_agent.clone(),
+                Some(server.clone()),
+                None,
+                None,
+                None,
+                None,
+                None,
+                AgentThreadSource::AgentPanel,
+                window,
+                cx,
+            );
+            let thread_id = thread.conversation_view.read(cx).thread_id;
+            panel.set_base_view(thread.into(), true, window, cx);
+            thread_id
+        });
+        cx.run_until_parked();
+        send_message(&panel, &mut cx);
+
+        panel.update_in(&mut cx, |panel, window, cx| {
+            panel.external_thread(
+                Some(Agent::Stub),
+                None,
+                None,
+                None,
+                None,
+                true,
+                AgentThreadSource::AgentPanel,
+                window,
+                cx,
+            );
+        });
+        cx.run_until_parked();
+
+        panel.read_with(&cx, |panel, _cx| {
+            assert!(
+                panel.retained_threads.contains_key(&first_thread_id),
+                "the completed first thread should remain available after switching agents"
+            );
+        });
+
+        panel.update_in(&mut cx, |panel, window, cx| {
+            let thread = panel.create_agent_thread_with_server(
+                dedicated_agent,
+                Some(server),
+                None,
+                None,
+                None,
+                None,
+                None,
+                AgentThreadSource::AgentPanel,
+                window,
+                cx,
+            );
+            panel.set_base_view(thread.into(), true, window, cx);
+        });
+        cx.run_until_parked();
+
+        assert_eq!(
+            connection_count.load(Ordering::SeqCst),
+            2,
+            "a new thread for an agent with exclusive connection ownership must connect separately"
         );
     }
 

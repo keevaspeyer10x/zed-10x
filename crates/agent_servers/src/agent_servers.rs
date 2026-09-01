@@ -59,6 +59,10 @@ pub trait AgentServer: Send {
 
     fn into_any(self: Rc<Self>) -> Rc<dyn Any>;
 
+    fn requires_dedicated_connection(&self, _cx: &App) -> bool {
+        false
+    }
+
     fn default_mode(&self, _cx: &App) -> Option<acp_schema::SessionModeId> {
         None
     }

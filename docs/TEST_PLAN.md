@@ -1,7 +1,7 @@
 # Zed 10x Installed Agent and Session Test Plan
 
 Status: fresh plan; installed execution pending<br>
-Generated: 2026-09-01T09:41:10.034Z<br>
+Generated: 2026-09-01T10:38:48.377Z<br>
 North star: Keeva can choose any visible External Agent with an unambiguous host/profile label, start it in the current project, switch among agents without hidden ownership, understand genuine provider unavailability, and recover a persistent Intrepid session after transport loss without losing work.
 
 ## Scope
@@ -94,24 +94,25 @@ Pass criteria:
 - same project
 - continuation passes
 
-### ZED-ACP-SWITCH-005: Switching away from a ready empty draft and back releases hidden agent ownership
+### ZED-ACP-SWITCH-005: Switch-and-return releases replaceable drafts and isolates retained sessions
 
 **Surfaces:** SURFACE-ACP-MAC-LOCAL, SURFACE-ACP-INTREPID-PERSISTENT, SURFACE-ACP-INTREPID-ORDINARY<br>
 **Journey:** JOURNEY-AGENT-SWITCH-AND-RETURN<br>
 **Variants:** 22 direct variants<br>
-**Expected:** Every installed host surface supports switch-and-return without a ghost draft or stale writer/session lease.
+**Expected:** Every installed host surface supports switch-and-return across empty and retained states without a ghost draft, stale connection, or session-ownership collision.
 
 Steps:
-1. Open a ready empty draft on a direct representative for each installed host surface
+1. Exercise both a ready empty draft and a non-empty retained thread on a direct representative for each installed host surface
 2. Switch to a representative from another independently selectable agent class
 3. Switch back to the first representative without restarting Zed
-4. Verify ready composer state, no hidden ownership error, and route-appropriate cleanup
+4. Verify ready composer state, retained history usability, no hidden ownership error, and route-appropriate cleanup
 5. Bind sibling variants by the shared replacement path after each was independently exercised by ZED-ACP-SESSION-002
 
 Pass criteria:
 - Mac Codex -> Cursor -> Codex succeeds
 - Intrepid persistent Codex -> ordinary Cursor -> persistent Codex succeeds
 - old empty draft entity is dropped deterministically
+- retained non-empty single-owner threads use distinct connections
 - mechanical equivalence is explicit for sibling variants
 
 ## Execution order

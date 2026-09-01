@@ -2,7 +2,7 @@
   "schemaVersion": 3,
   "coverageClosureVersion": 2,
   "freshLifecycle": true,
-  "generatedAt": "2026-09-01T09:41:10.034Z",
+  "generatedAt": "2026-09-01T10:38:48.377Z",
   "northStar": "Keeva can choose any visible External Agent with an unambiguous host/profile label, start it in the current project, switch among agents without hidden ownership, understand genuine provider unavailability, and recover a persistent Intrepid session after transport loss without losing work.",
   "scope": {
     "included": "Installed External Agent inventory, launch, project outcome, cross-agent state transitions, cleanup, and persistent session recovery on Mac and Intrepid.",
@@ -1829,7 +1829,7 @@
       ],
       "dataCleanup": "Close created threads and prove route-appropriate process cleanup or persistent detach.",
       "id": "ZED-ACP-SWITCH-005",
-      "title": "Switching away from a ready empty draft and back releases hidden agent ownership",
+      "title": "Switch-and-return releases replaceable drafts and isolates retained sessions",
       "requirementIds": [
         "REQ-SWITCH-010",
         "REQ-LAUNCH-004"
@@ -1842,7 +1842,8 @@
         "AgentPanel::discard_empty_draft",
         "activate_new_thread",
         "ensure_draft",
-        "agent writer lease"
+        "AgentConnectionStore::request_fresh_connection",
+        "AgentServer::requires_dedicated_connection"
       ],
       "surfaceIds": [
         "SURFACE-ACP-MAC-LOCAL",
@@ -1893,31 +1894,35 @@
       "plannedEvidence": [
         "installed Mac Codex -> Cursor -> Codex switch-and-return",
         "installed Intrepid persistent Codex -> ordinary Cursor -> persistent Codex switch-and-return",
-        "deterministic proof that the replaced empty draft view is dropped"
+        "deterministic proof that the replaced empty draft view is dropped",
+        "deterministic proof that a retained non-empty single-owner thread does not share its connection with a new thread"
       ],
       "specificOracles": [
         "each replacement reaches a ready composer without a product launch or session-ownership error",
         "returning to the first agent creates or reuses only valid current state",
         "the old empty draft is absent from retained threads and its entity is dropped",
+        "the retained non-empty thread remains available while a new thread for the same single-owner adapter gets a separate connection",
         "all sibling variants use the same mechanically verified AgentPanel replacement path"
       ],
       "steps": [
-        "Open a ready empty draft on a direct representative for each installed host surface",
+        "Exercise both a ready empty draft and a non-empty retained thread on a direct representative for each installed host surface",
         "Switch to a representative from another independently selectable agent class",
         "Switch back to the first representative without restarting Zed",
-        "Verify ready composer state, no hidden ownership error, and route-appropriate cleanup",
+        "Verify ready composer state, retained history usability, no hidden ownership error, and route-appropriate cleanup",
         "Bind sibling variants by the shared replacement path after each was independently exercised by ZED-ACP-SESSION-002"
       ],
-      "expectedResult": "Every installed host surface supports switch-and-return without a ghost draft or stale writer/session lease.",
+      "expectedResult": "Every installed host surface supports switch-and-return across empty and retained states without a ghost draft, stale connection, or session-ownership collision.",
       "passCriteria": [
         "Mac Codex -> Cursor -> Codex succeeds",
         "Intrepid persistent Codex -> ordinary Cursor -> persistent Codex succeeds",
         "old empty draft entity is dropped deterministically",
+        "retained non-empty single-owner threads use distinct connections",
         "mechanical equivalence is explicit for sibling variants"
       ],
       "userGoal": "Change agents in one panel without restarting Zed or losing the ability to return.",
       "acceptanceCriteria": [
-        "no hidden retained draft",
+        "no hidden replaceable draft",
+        "retained non-empty thread remains usable",
         "no duplicate writer or session ownership",
         "no app restart required"
       ],
@@ -1929,10 +1934,11 @@
       ],
       "evidenceRequired": [
         "installed transition receipts for Mac and Intrepid",
-        "deterministic entity-lifetime regression"
+        "deterministic empty-draft lifetime regression",
+        "deterministic retained-thread connection-isolation regression"
       ],
-      "negativeCase": "the new agent appears selected while the replaced empty draft remains retained and owns the old connection writer",
-      "statefulJourney": "first-ready-empty -> second-ready-empty -> first-ready-empty",
+      "negativeCase": "the new agent appears selected while replaceable state is retained or a non-empty retained session shares a connection whose adapter permits only one owned session",
+      "statefulJourney": "first-ready-empty -> second-ready-empty -> first-ready-empty; first-nonempty-retained -> second-ready -> first/new-first-ready",
       "newInformationTarget": "Whether transitions between individually green selectable agents preserve panel and connection ownership invariants."
     }
   ]

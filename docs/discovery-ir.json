@@ -3,7 +3,7 @@
   "coverageClosureVersion": 2,
   "freshLifecycle": true,
   "discoveryMode": "fresh_full_lifecycle",
-  "generatedAt": "2026-09-01T09:41:10.034Z",
+  "generatedAt": "2026-09-01T10:38:48.377Z",
   "repository": "zed-10x",
   "scope": {
     "included": "Installed External Agent inventory, launch, project outcome, cross-agent state transitions, cleanup, and persistent session recovery on Mac and Intrepid.",
@@ -68,8 +68,8 @@
     },
     {
       "id": "REQ-SWITCH-010",
-      "claim": "Replacing an empty draft with another selectable agent releases the old draft and allows either agent to be selected again in the same panel.",
-      "source": "crates/agent_ui/src/agent_panel.rs"
+      "claim": "Switching between independently selectable agents and returning works from every reachable thread state, including replaceable empty drafts and retained non-empty sessions, without stale connection or session ownership.",
+      "source": "crates/agent_ui/src/agent_panel.rs; crates/agent_ui/src/agent_connection_store.rs"
     }
   ],
   "productSurfaces": [
@@ -212,7 +212,7 @@
     {
       "id": "JOURNEY-AGENT-SWITCH-AND-RETURN",
       "name": "Switch between independently selectable agents and return",
-      "terminalObservable": "A ready empty draft can be replaced by another agent and then restored without retaining hidden draft, writer, or session ownership from either prior selection.",
+      "terminalObservable": "A user can switch away and return from both an empty draft and a retained non-empty session; replaceable state is released, retained state remains usable, and single-owner adapters receive a separate connection for each new thread.",
       "provenance": [
         {
           "source": "prior_defect",
@@ -287,7 +287,7 @@
       "assembledPath": [
         "installed /Applications/Zed 10x.app External Agents picker",
         "Switch between independently selectable agents and return",
-        "A ready empty draft can be replaced by another agent and then restored without retaining hidden draft, writer, or session ownership from either prior selection."
+        "A user can switch away and return from both an empty draft and a retained non-empty session; replaceable state is released, retained state remains usable, and single-owner adapters receive a separate connection for each new thread."
       ],
       "requiredEvidenceBoundary": "installed_boundary",
       "requiredEvidence": [
@@ -367,7 +367,7 @@
       "assembledPath": [
         "installed Zed 10x remote project plus systemd-owned ACP session lane",
         "Switch between independently selectable agents and return",
-        "A ready empty draft can be replaced by another agent and then restored without retaining hidden draft, writer, or session ownership from either prior selection."
+        "A user can switch away and return from both an empty draft and a retained non-empty session; replaceable state is released, retained state remains usable, and single-owner adapters receive a separate connection for each new thread."
       ],
       "requiredEvidenceBoundary": "installed_boundary",
       "requiredEvidence": [
@@ -437,7 +437,7 @@
       "assembledPath": [
         "installed Zed 10x remote project plus execution-host ACP launch",
         "Switch between independently selectable agents and return",
-        "A ready empty draft can be replaced by another agent and then restored without retaining hidden draft, writer, or session ownership from either prior selection."
+        "A user can switch away and return from both an empty draft and a retained non-empty session; replaceable state is released, retained state remains usable, and single-owner adapters receive a separate connection for each new thread."
       ],
       "requiredEvidenceBoundary": "installed_boundary",
       "requiredEvidence": [
@@ -795,7 +795,7 @@
     "A component Retry test does not prove the installed app survives a real lane restart.",
     "Provider unavailability is not a product failure, but it is not a usable-route pass either.",
     "Persistent detach and ordinary process cleanup are different terminal semantics.",
-    "One-shot success for two agents does not prove that switching between them releases hidden draft, writer, and session ownership."
+    "One-shot success for two agents does not prove switch-and-return across replaceable empty drafts and retained non-empty sessions."
   ],
   "existingCoverage": {
     "deterministic": [

@@ -339,6 +339,7 @@ pub(crate) struct CustomAgentForm {
     /// Advanced fields not surfaced by the form. They're preserved verbatim so
     /// editing the basic settings doesn't drop a user's hand-written config.
     aliases: Vec<String>,
+    dedicated_connection: bool,
     default_mode: Option<String>,
     default_config_options: HashMap<String, AgentConfigOptionValue>,
     favorite_config_option_values: HashMap<String, Vec<String>>,
@@ -363,6 +364,7 @@ impl CustomAgentForm {
         let mut args_initial = None;
         let mut env = Vec::new();
         let mut aliases = Vec::new();
+        let mut dedicated_connection = false;
         let mut default_mode = None;
         let mut default_config_options = HashMap::default();
         let mut favorite_config_option_values = HashMap::default();
@@ -375,6 +377,7 @@ impl CustomAgentForm {
                     path,
                     args,
                     aliases: configured_aliases,
+                    dedicated_connection: configured_dedicated_connection,
                     env: env_map,
                     default_mode: mode,
                     default_config_options: config_options,
@@ -391,6 +394,7 @@ impl CustomAgentForm {
                     default_config_options = config_options.clone();
                     favorite_config_option_values = favorites.clone();
                     aliases = configured_aliases.clone();
+                    dedicated_connection = *configured_dedicated_connection;
                 }
                 CustomAgentServerSettings::Registry {
                     env: env_map,
@@ -415,6 +419,7 @@ impl CustomAgentForm {
             args: new_input("--flag value", args_initial.as_deref(), window, cx),
             env,
             aliases,
+            dedicated_connection,
             default_mode,
             default_config_options,
             favorite_config_option_values,
@@ -792,6 +797,7 @@ struct CustomAgentFormValues {
     args: String,
     env: Vec<(String, String)>,
     aliases: Vec<String>,
+    dedicated_connection: bool,
     default_mode: Option<String>,
     default_config_options: HashMap<String, AgentConfigOptionValue>,
     favorite_config_option_values: HashMap<String, Vec<String>>,
@@ -808,6 +814,7 @@ fn build_settings_from_form(
         args: form.args.read(cx).text(cx),
         env: read_kv(&form.env, cx),
         aliases: form.aliases.clone(),
+        dedicated_connection: form.dedicated_connection,
         default_mode: form.default_mode.clone(),
         default_config_options: form.default_config_options.clone(),
         favorite_config_option_values: form.favorite_config_option_values.clone(),
@@ -854,6 +861,7 @@ fn build_settings_from_values(
         path: command.into(),
         args,
         aliases,
+        dedicated_connection: values.dedicated_connection,
         env,
         default_mode: values.default_mode,
         default_config_options: values.default_config_options,
@@ -973,6 +981,7 @@ async fn add_custom_agent_settings_entry(
                                 path: "path_to_executable".into(),
                                 args: vec![],
                                 aliases: vec![],
+                                dedicated_connection: false,
                                 env: HashMap::default(),
                                 default_mode: None,
                                 default_config_options: Default::default(),
@@ -1072,6 +1081,7 @@ mod tests {
             args: String::new(),
             env: Vec::new(),
             aliases: Vec::new(),
+            dedicated_connection: false,
             default_mode: None,
             default_config_options: HashMap::default(),
             favorite_config_option_values: HashMap::default(),
@@ -1139,6 +1149,7 @@ mod tests {
                 path: "/usr/bin/agent".into(),
                 args: vec!["--flag".into(), "value".into()],
                 aliases: vec![],
+                dedicated_connection: false,
                 env: expected_env,
                 default_mode: None,
                 default_config_options: HashMap::default(),
@@ -1151,6 +1162,7 @@ mod tests {
     fn preserves_advanced_fields() {
         let mut values = values();
         values.aliases = vec!["old-agent-name".into()];
+        values.dedicated_connection = true;
         values.default_mode = Some("ask".into());
         values.default_config_options =
             HashMap::from_iter([("opt".to_string(), AgentConfigOptionValue::from("val"))]);
@@ -1159,11 +1171,13 @@ mod tests {
         match content {
             CustomAgentServerSettings::Custom {
                 aliases,
+                dedicated_connection,
                 default_mode,
                 default_config_options,
                 ..
             } => {
                 assert_eq!(aliases, ["old-agent-name"]);
+                assert!(dedicated_connection);
                 assert_eq!(default_mode.as_deref(), Some("ask"));
                 assert_eq!(
                     default_config_options
