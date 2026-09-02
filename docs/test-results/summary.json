@@ -24,10 +24,12 @@
   "uat": {
     "status": "passed",
     "persona": "Keeva using Zed 10x",
-    "installedProductRevision": "a4a75c90197ef594921c2c654920f6a99e9c5da2",
     "assembledUiEvidencePath": "docs/test-results/zed-acp-current-installed-uat.json",
+    "assembledUiInstalledProductRevision": "a6531bd9de40ec55ce1181fa928b3ce324e7d61d",
     "currentRouteEvidencePath": "docs/test-results/zed-acp-current-route-closure.json",
-    "ordinaryReconnectEvidencePath": "docs/test-results/zed-acp-ordinary-reconnect-intrepid.json"
+    "currentRouteInstalledProductRevision": "2bde4bdfcbaac21a4ca6328298a0bd847e3caa65",
+    "ordinaryReconnectEvidencePath": "docs/test-results/zed-acp-ordinary-reconnect-intrepid.json",
+    "ordinaryReconnectInstalledProductRevision": "a4a75c90197ef594921c2c654920f6a99e9c5da2"
   },
   "observability": {
     "status": "passed",
@@ -62,7 +64,7 @@
     ]
   },
   "defectDiscovery": {
-    "bugsFound": 17,
+    "bugsFound": 25,
     "productDefects": [
       "remote child groups survived transport closure",
       "remote descendants survived direct leader exit",
@@ -70,7 +72,9 @@
       "local app signing mutated file-provider state",
       "replaced empty drafts remained retained",
       "single-owner agents could share one connection across sessions",
-      "remote-server replacement left the superseded ordinary dedicated agent transport alive"
+      "remote-server replacement left the superseded ordinary dedicated agent transport alive",
+      "releasing a dedicated conversation left its retired connection cached as Connected",
+      "the remote-server guardian command had no non-Unix implementation"
     ],
     "testHarnessDefects": [
       "TCP readiness probe was mistaken for DAP initialize",
@@ -80,12 +84,18 @@
       "the durable evidence writer rejected the standard symlinked macOS /tmp spelling after a successful write",
       "the affected-package matrix omitted the acp_thread test target after its constructor contract changed",
       "the CI shallow checkout omitted the installed revision needed by the ancestry-bound evidence validator",
-      "the focused Linux job retained enough disposable Rust build output to exhaust the hosted runner disk before its final binary test"
+      "the focused Linux job retained enough disposable Rust build output to exhaust the hosted runner disk before its final binary test",
+      "the plan generator could overwrite completed execution evidence with pending placeholders",
+      "the DAP TCP oracle could pass without proving transport closure",
+      "the CI workflow contract counted settings globally instead of binding them to the correct job and execution order",
+      "the discovery IR referenced a nonexistent remote-server source path",
+      "one aggregate installed-product revision field ambiguously described three separately tested installed revisions"
     ],
     "infraOrToolingDefects": [],
     "processDefects": [
       "Earlier testing did not close every user-visible surface and stateful journey across the assembled product boundary.",
-      "The generated plan covered persistent lane restart but omitted ordinary dedicated-transport replacement."
+      "The generated plan covered persistent lane restart but omitted ordinary dedicated-transport replacement.",
+      "Representative selectable variants were not directly bound to their applicable stateful recovery and switch journeys."
     ],
     "fixedDuringRun": [
       "all product, harness, and plan defects listed above"

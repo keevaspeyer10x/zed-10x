@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { readFileSync, statSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
@@ -32,6 +40,75 @@ const plan = readJson("docs/test-plan.json");
 const implementation = readJson("docs/test-implementation-map.json");
 const summary = readJson("docs/test-results/summary.json");
 
+test("plan generation never overwrites completed execution evidence", () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "zed-plan-preserves-evidence-"));
+  try {
+    mkdirSync(path.join(root, "docs/test-plan-inputs"), { recursive: true });
+    mkdirSync(path.join(root, "docs/test-results"), { recursive: true });
+    writeFileSync(
+      path.join(root, "docs/test-plan-inputs/zed-agent-picker-inventory.json"),
+      readFileSync(
+        path.join(repositoryRoot, "docs/test-plan-inputs/zed-agent-picker-inventory.json"),
+      ),
+    );
+    const executionSummary = {
+      schemaVersion: 3,
+      decisionCandidate: "production_ready",
+      executedRows: 5,
+      evidenceBinding: { testedRevision: "a".repeat(40) },
+    };
+    const implementationMap = {
+      implementedRows: 5,
+      executedRows: 5,
+      mappings: [{ id: "executed-row", outcome: "passed" }],
+    };
+    const lifecycleState = {
+      generatedAt: "2026-09-02T00:00:00Z",
+      lifecycle: [{ id: "executed-row", status: "passed" }],
+    };
+    writeFileSync(
+      path.join(root, "docs/test-results/summary.json"),
+      `${JSON.stringify(executionSummary, null, 2)}\n`,
+    );
+    writeFileSync(
+      path.join(root, "docs/test-implementation-map.json"),
+      `${JSON.stringify(implementationMap, null, 2)}\n`,
+    );
+    writeFileSync(
+      path.join(root, "docs/test-lifecycle-state.json"),
+      `${JSON.stringify(lifecycleState, null, 2)}\n`,
+    );
+
+    const result = spawnSync(
+      process.execPath,
+      [path.join(repositoryRoot, "script/generate-zed-agent-session-plan.mjs")],
+      {
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          SOURCE_DATE_EPOCH: "0",
+          ZED_TEST_PLAN_ROOT: root,
+        },
+      },
+    );
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(
+      JSON.parse(readFileSync(path.join(root, "docs/test-results/summary.json"), "utf8")),
+      executionSummary,
+    );
+    assert.deepEqual(
+      JSON.parse(readFileSync(path.join(root, "docs/test-implementation-map.json"), "utf8")),
+      implementationMap,
+    );
+    assert.deepEqual(
+      JSON.parse(readFileSync(path.join(root, "docs/test-lifecycle-state.json"), "utf8")),
+      lifecycleState,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("fresh lifecycle closes the exact installed External Agents surfaces and journeys", () => {
   assert.equal(discovery.schemaVersion, 3);
   assert.equal(discovery.coverageClosureVersion, 2);
@@ -61,10 +138,10 @@ test("fresh lifecycle closes the exact installed External Agents surfaces and jo
     14,
   );
   assert.equal(discovery.selectableVariants.length, 22);
-  assert.equal(plan.variantJourneyCoverage.cells.length, 66);
+  assert.equal(plan.variantJourneyCoverage.cells.length, 72);
   assert.equal(
     plan.variantJourneyCoverage.cells.filter(({ coverageMode }) => coverageMode === "direct").length,
-    66,
+    72,
   );
   assert.equal(plan.tests.length, 5);
 
@@ -94,8 +171,26 @@ test("fresh lifecycle closes the exact installed External Agents surfaces and jo
   ]);
 });
 
-test("every surface and variant source is an existing regular repository file", () => {
+test("representative variants bind their stateful recovery and switch journeys", () => {
+  const variants = new Map(
+    discovery.selectableVariants.map((variant) => [variant.id, variant.journeyIds]),
+  );
+  for (const id of ["VAR-INTREPID-CODEX-PRIMARY", "VAR-INTREPID-CURSOR"]) {
+    assert.ok(variants.get(id).includes("JOURNEY-PERSISTENT-SESSION-RECOVERY"), id);
+  }
+  for (const id of [
+    "VAR-MAC-CODEX",
+    "VAR-MAC-CURSOR",
+    "VAR-INTREPID-CODEX-PRIMARY",
+    "VAR-INTREPID-CURSOR",
+  ]) {
+    assert.ok(variants.get(id).includes("JOURNEY-AGENT-SWITCH-AND-RETURN"), id);
+  }
+});
+
+test("every surface, variant, and requirement source is an existing regular repository file", () => {
   const sources = new Set([
+    ...discovery.requirements.flatMap(({ source }) => source.split(";").map((path) => path.trim())),
     ...discovery.productSurfaces.flatMap(({ sourceRefs }) => sourceRefs),
     ...discovery.selectableVariants.map(({ sourceRef }) => sourceRef),
   ]);

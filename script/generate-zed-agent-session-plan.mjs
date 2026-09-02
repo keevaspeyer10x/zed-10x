@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const repositoryRoot = process.env.ZED_TEST_PLAN_ROOT
+  ? path.resolve(process.env.ZED_TEST_PLAN_ROOT)
+  : path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const inventoryPath = path.join(
   repositoryRoot,
   "docs/test-plan-inputs/zed-agent-picker-inventory.json",
@@ -110,6 +112,13 @@ const routeSpecificJourneyIds = [
   "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
   "JOURNEY-TERMINATION-CLEANUP",
 ];
+const recoveryVariantIds = ["VAR-INTREPID-CODEX-PRIMARY", "VAR-INTREPID-CURSOR"];
+const switchVariantIds = [
+  "VAR-MAC-CODEX",
+  "VAR-MAC-CURSOR",
+  "VAR-INTREPID-CODEX-PRIMARY",
+  "VAR-INTREPID-CURSOR",
+];
 const applicableJourneyIds = (surfaceId) =>
   journeys
     .filter(
@@ -121,14 +130,23 @@ const applicableJourneyIds = (surfaceId) =>
     .map((journey) => journey.id);
 
 const variants = surfaceDefinitions.flatMap((surface) =>
-  inventory.pickerSurfaces[surface.inventoryKey].map((variant) => ({
-    id: variant.id,
-    name: variant.label,
-    surfaceId: surface.id,
-    journeyIds: routeSpecificJourneyIds,
-    sourceRef: "docs/test-plan-inputs/zed-agent-picker-inventory.json",
-    configuredEntries: variant.configuredEntries,
-  })),
+  inventory.pickerSurfaces[surface.inventoryKey].map((variant) => {
+    const journeyIds = [...routeSpecificJourneyIds];
+    if (recoveryVariantIds.includes(variant.id)) {
+      journeyIds.push("JOURNEY-PERSISTENT-SESSION-RECOVERY");
+    }
+    if (switchVariantIds.includes(variant.id)) {
+      journeyIds.push("JOURNEY-AGENT-SWITCH-AND-RETURN");
+    }
+    return {
+      id: variant.id,
+      name: variant.label,
+      surfaceId: surface.id,
+      journeyIds,
+      sourceRef: "docs/test-plan-inputs/zed-agent-picker-inventory.json",
+      configuredEntries: variant.configuredEntries,
+    };
+  }),
 );
 
 const matrix = surfaceDefinitions.flatMap((surface) =>
@@ -198,7 +216,7 @@ const requirements = [
   {
     id: "REQ-RUNTIME-009",
     claim: "Intrepid uses the commit-matched installed remote server and current host agent configuration.",
-    source: "crates/remote_server/src/remote_server.rs",
+    source: "crates/remote_server/src/server.rs",
   },
   {
     id: "REQ-SWITCH-010",
@@ -210,14 +228,6 @@ const requirements = [
 
 const allSurfaceIds = surfaces.map((surface) => surface.id);
 const allVariantIds = variants.map((variant) => variant.id);
-const recoveryVariantIds = ["VAR-INTREPID-CODEX-PRIMARY", "VAR-INTREPID-CURSOR"];
-const switchVariantIds = [
-  "VAR-MAC-CODEX",
-  "VAR-MAC-CURSOR",
-  "VAR-INTREPID-CODEX-PRIMARY",
-  "VAR-INTREPID-CURSOR",
-];
-
 const commonRow = {
   section: "0-critical-path-smoke",
   risk: "critical",
@@ -819,7 +829,19 @@ const outputs = new Map([
   ["docs/test-results/summary.json", pendingSummary],
 ]);
 
+const executionArtifactPaths = new Set([
+  "docs/test-implementation-map.json",
+  "docs/test-lifecycle-state.json",
+  "docs/test-results/summary.json",
+]);
+
 for (const [relativePath, value] of outputs) {
+  if (
+    executionArtifactPaths.has(relativePath) &&
+    existsSync(path.join(repositoryRoot, relativePath))
+  ) {
+    continue;
+  }
   writeFileSync(path.join(repositoryRoot, relativePath), `${JSON.stringify(value, null, 2)}\n`);
 }
 writeFileSync(path.join(repositoryRoot, "docs/TEST_PLAN.md"), markdown);

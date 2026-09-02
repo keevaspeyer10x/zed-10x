@@ -20,7 +20,7 @@
     "criticalJourneys": 5,
     "applicableSurfaceJourneyCells": 14,
     "selectableVariants": 22,
-    "directVariantJourneyCells": 66
+    "directVariantJourneyCells": 72
   },
   "surfaceJourneyCoverage": {
     "cells": [
@@ -269,6 +269,15 @@
         ]
       },
       {
+        "variantId": "VAR-MAC-CODEX",
+        "journeyId": "JOURNEY-AGENT-SWITCH-AND-RETURN",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-SWITCH-005"
+        ]
+      },
+      {
         "variantId": "VAR-MAC-CODEX-SECONDARY",
         "journeyId": "JOURNEY-HOST-SCOPED-INVENTORY",
         "coverageMode": "direct",
@@ -347,6 +356,15 @@
         "evidenceLayer": "assembled_product",
         "rowIds": [
           "ZED-ACP-CLEANUP-003"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-CURSOR",
+        "journeyId": "JOURNEY-AGENT-SWITCH-AND-RETURN",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-SWITCH-005"
         ]
       },
       {
@@ -512,6 +530,24 @@
         ]
       },
       {
+        "variantId": "VAR-INTREPID-CODEX-PRIMARY",
+        "journeyId": "JOURNEY-PERSISTENT-SESSION-RECOVERY",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-RECOVERY-004"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CODEX-PRIMARY",
+        "journeyId": "JOURNEY-AGENT-SWITCH-AND-RETURN",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-SWITCH-005"
+        ]
+      },
+      {
         "variantId": "VAR-INTREPID-CODEX-SECONDARY",
         "journeyId": "JOURNEY-HOST-SCOPED-INVENTORY",
         "coverageMode": "direct",
@@ -644,6 +680,24 @@
         "evidenceLayer": "assembled_product",
         "rowIds": [
           "ZED-ACP-CLEANUP-003"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CURSOR",
+        "journeyId": "JOURNEY-PERSISTENT-SESSION-RECOVERY",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-RECOVERY-004"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CURSOR",
+        "journeyId": "JOURNEY-AGENT-SWITCH-AND-RETURN",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-SWITCH-005"
         ]
       },
       {

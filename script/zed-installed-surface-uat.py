@@ -314,6 +314,7 @@ def validate_observation(remote_project: str, observation: dict[str, Any]) -> di
                 and dap.get("tcpConnectionCount") == 2
                 and dap.get("resetInitializeCount") == 1
                 and dap.get("resetDelayMs", 0) > 100
+                and dap.get("transportClosed") is True
             )
         if not matches:
             raise UatFailure(f"{key}_journey_mismatch")

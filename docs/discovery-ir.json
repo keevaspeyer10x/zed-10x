@@ -64,7 +64,7 @@
     {
       "id": "REQ-RUNTIME-009",
       "claim": "Intrepid uses the commit-matched installed remote server and current host agent configuration.",
-      "source": "crates/remote_server/src/remote_server.rs"
+      "source": "crates/remote_server/src/server.rs"
     },
     {
       "id": "REQ-SWITCH-010",
@@ -507,7 +507,8 @@
       "journeyIds": [
         "JOURNEY-HOST-SCOPED-INVENTORY",
         "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "JOURNEY-TERMINATION-CLEANUP"
+        "JOURNEY-TERMINATION-CLEANUP",
+        "JOURNEY-AGENT-SWITCH-AND-RETURN"
       ],
       "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
       "configuredEntries": [
@@ -549,7 +550,8 @@
       "journeyIds": [
         "JOURNEY-HOST-SCOPED-INVENTORY",
         "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "JOURNEY-TERMINATION-CLEANUP"
+        "JOURNEY-TERMINATION-CLEANUP",
+        "JOURNEY-AGENT-SWITCH-AND-RETURN"
       ],
       "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
       "configuredEntries": [
@@ -633,7 +635,9 @@
       "journeyIds": [
         "JOURNEY-HOST-SCOPED-INVENTORY",
         "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "JOURNEY-TERMINATION-CLEANUP"
+        "JOURNEY-TERMINATION-CLEANUP",
+        "JOURNEY-PERSISTENT-SESSION-RECOVERY",
+        "JOURNEY-AGENT-SWITCH-AND-RETURN"
       ],
       "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
       "configuredEntries": [
@@ -703,7 +707,9 @@
       "journeyIds": [
         "JOURNEY-HOST-SCOPED-INVENTORY",
         "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "JOURNEY-TERMINATION-CLEANUP"
+        "JOURNEY-TERMINATION-CLEANUP",
+        "JOURNEY-PERSISTENT-SESSION-RECOVERY",
+        "JOURNEY-AGENT-SWITCH-AND-RETURN"
       ],
       "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
       "configuredEntries": [

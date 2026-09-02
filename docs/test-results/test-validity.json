@@ -113,7 +113,7 @@
       "category": "test_gap",
       "symptom": "The affected Rust package matrix did not compile the acp_thread test target after its TerminalBuilder constructor contract changed.",
       "fix": "Add acp_thread --lib to focused CI and acp_thread to the complete changed-package matrix.",
-      "regression": "The expanded 643-test matrix compiles and passes acp_thread, agent_servers, agent_ui, and remote_server targets.",
+      "regression": "The expanded 644-test matrix compiles and passes acp_thread, agent_servers, agent_ui, and remote_server targets.",
       "status": "fixed"
     },
     {
@@ -130,6 +130,46 @@
       "symptom": "The focused Linux job retained cumulative Rust check and test artifacts until the final Zed binary compile exhausted the hosted runner disk.",
       "fix": "Disable incremental artifacts in both focused jobs and reclaim disposable check-only artifacts before the final binary test compile.",
       "regression": "The workflow contract requires CARGO_INCREMENTAL=0 in both focused jobs and an explicit cargo clean before the final Zed binary test.",
+      "status": "fixed"
+    },
+    {
+      "id": "HARNESS-PLAN-GENERATOR-EVIDENCE-OVERWRITE",
+      "category": "test_bug",
+      "symptom": "Regenerating the plan replaced completed implementation, lifecycle, and result evidence with pending placeholders.",
+      "fix": "Preserve existing execution artifacts while continuing to regenerate discovery and plan outputs.",
+      "regression": "Plan generation in an isolated root leaves pre-existing execution summary and implementation-map bytes unchanged.",
+      "status": "fixed"
+    },
+    {
+      "id": "HARNESS-DAP-CLEANUP-ORACLE-OMISSION",
+      "category": "test_gap",
+      "symptom": "The DAP TCP journey could pass without proving that the tested transport closed.",
+      "fix": "Require an explicit true transportClosed observation in the DAP TCP journey validator.",
+      "regression": "A complete DAP transcript with transportClosed=false fails closed.",
+      "status": "fixed"
+    },
+    {
+      "id": "HARNESS-CI-JOB-ORDER-SCOPE",
+      "category": "test_gap",
+      "symptom": "The workflow contract counted cleanup and incremental settings globally, so settings in the wrong job or order could pass.",
+      "fix": "Bind each setting to its exact job and require check, cleanup, then final test ordering within focused-linux.",
+      "regression": "The shell contract validates job-local setting counts and exact focused-linux step ordering.",
+      "status": "fixed"
+    },
+    {
+      "id": "HARNESS-DISCOVERY-SOURCE-REFERENCE",
+      "category": "evidence_bug",
+      "symptom": "The runtime requirement referenced a remote-server source file that does not exist.",
+      "fix": "Bind the requirement and generator to crates/remote_server/src/server.rs.",
+      "regression": "Every surface, variant, and requirement source resolves to a regular repository file.",
+      "status": "fixed"
+    },
+    {
+      "id": "HARNESS-INSTALLED-REVISION-AMBIGUITY",
+      "category": "evidence_bug",
+      "symptom": "One installedProductRevision field appeared to describe three UAT receipts produced from different installed revisions.",
+      "fix": "Record the assembled UI, current route, and ordinary reconnect installed revisions separately beside their evidence paths.",
+      "regression": "The summary exposes one exact installed revision for each reused UAT evidence source.",
       "status": "fixed"
     }
   ],
@@ -155,7 +195,7 @@
       "category": "process_bug",
       "symptom": "The earlier plan did not mechanically intersect every product surface, critical user journey, and independently selectable variant, so multiple real user paths remained untested.",
       "fix": "Discover the full surface x journey x selectable-variant matrix, require direct installed-boundary evidence for every route-specific inventory, launch, and cleanup cell, and keep shared state transitions at the surface level.",
-      "regression": "The fresh plan closes 3 surfaces, 5 journeys, 22 selectable variants, and 66 direct route-specific variant-journey cells without projecting one provider or profile onto another.",
+      "regression": "The fresh plan closes 3 surfaces, 5 journeys, 22 selectable variants, and 72 direct route-specific variant-journey cells without projecting one provider or profile onto another.",
       "status": "fixed_and_executed"
     },
     {
@@ -164,6 +204,14 @@
       "symptom": "Happy-path launch checks did not cross real persistent-service and ordinary remote-server replacement boundaries.",
       "fix": "Make stateful disruption/recovery a first-class journey for both persistent restoration and ordinary dedicated-transport replacement.",
       "regression": "A persistent lane restart restored the original session, and an ordinary remote-server restart retired the old agent transport and created exactly one replacement.",
+      "status": "fixed_and_executed"
+    },
+    {
+      "id": "PLAN-STATEFUL-VARIANT-BINDING",
+      "category": "process_bug",
+      "symptom": "Representative selectable variants were not directly linked to the stateful recovery and switch journeys they exercise.",
+      "fix": "Attach recovery to the Intrepid Codex-primary and Cursor variants and switch-and-return to those variants plus their Mac counterparts.",
+      "regression": "The generated plan contains 72 direct variant-journey cells and asserts every representative stateful binding.",
       "status": "fixed_and_executed"
     }
   ],

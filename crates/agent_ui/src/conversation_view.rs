@@ -846,7 +846,11 @@ impl ConversationView {
             if let Some(connected) = this.as_connected() {
                 connected.close_all_sessions(cx).detach();
                 if this.agent.requires_dedicated_connection(cx) {
-                    connected.connection.shutdown_transport();
+                    let connection = connected.connection.clone();
+                    connection.shutdown_transport();
+                    this.connection_store.update(cx, |store, cx| {
+                        store.remove_connected_entry_if_same(&this.connection_key, &connection, cx);
+                    });
                 }
             }
             for window in this.notifications.drain(..) {
@@ -3738,6 +3742,10 @@ pub(crate) mod tests {
         let (conversation_view, cx) = setup_conversation_view(server, cx).await;
         assert_eq!(connection.shutdown_count(), 0);
 
+        let (connection_store, connection_key) = conversation_view.read_with(cx, |view, _cx| {
+            (view.connection_store.clone(), view.connection_key.clone())
+        });
+
         let weak_view = conversation_view.downgrade();
         drop(conversation_view);
         cx.update(|_, _| {});
@@ -3748,6 +3756,49 @@ pub(crate) mod tests {
             connection.shutdown_count(),
             1,
             "releasing a dedicated view must retire its owned transport"
+        );
+        assert_eq!(
+            connection_store.read_with(cx, |store, cx| {
+                store.connection_status(&connection_key, cx)
+            }),
+            crate::agent_connection_store::AgentConnectionStatus::Disconnected,
+            "releasing a dedicated view must remove its retired canonical connection"
+        );
+    }
+
+    #[gpui::test]
+    async fn test_drop_preserves_newer_dedicated_connection_entry(cx: &mut TestAppContext) {
+        use std::sync::atomic::Ordering;
+
+        init_test(cx);
+
+        let owned_connection = StubAgentConnection::new();
+        let (server, fail, _) = FlakyAgentServer::new_dedicated(owned_connection.clone());
+        fail.store(false, Ordering::SeqCst);
+        let (conversation_view, cx) = setup_conversation_view(server, cx).await;
+        let (connection_store, connection_key) = conversation_view.read_with(cx, |view, _cx| {
+            (view.connection_store.clone(), view.connection_key.clone())
+        });
+
+        let replacement = StubAgentConnection::new();
+        let replacement_entry = connection_store.update(cx, |store, cx| {
+            store.request_fresh_connection(
+                connection_key.clone(),
+                Rc::new(StubAgentServer::new(replacement)),
+                cx,
+            )
+        });
+        cx.run_until_parked();
+
+        drop(conversation_view);
+        cx.update(|_, _| {});
+        cx.run_until_parked();
+
+        assert_eq!(owned_connection.shutdown_count(), 1);
+        assert_eq!(
+            connection_store.read_with(cx, |store, _cx| store.entry(&connection_key).cloned()),
+            Some(replacement_entry),
+            "an older view release must not evict a newer canonical connection"
         );
     }
 

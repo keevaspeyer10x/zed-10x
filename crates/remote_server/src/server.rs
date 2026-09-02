@@ -877,6 +877,15 @@ fn execute_env_exec(_command: Vec<OsString>) -> anyhow::Result<()> {
 }
 
 #[cfg(not(unix))]
+fn execute_env_exec_guardian(
+    _owner_fd: i32,
+    _report_fd: i32,
+    _command: Vec<OsString>,
+) -> anyhow::Result<()> {
+    anyhow::bail!("stdin environment command guardian is not supported on this platform")
+}
+
+#[cfg(not(unix))]
 fn execute_env_exec_pty(
     _ready_marker: String,
     _complete_marker: String,

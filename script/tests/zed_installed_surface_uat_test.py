@@ -98,6 +98,7 @@ def valid_observation():
             "tcpConnectionCount": 2,
             "resetInitializeCount": 1,
             "resetDelayMs": 150,
+            "transportClosed": True,
         },
     }
     return {"receipts": {key: raw_receipt(value) for key, value in receipts.items()}, "processResidue": []}
@@ -309,6 +310,15 @@ class InstalledSurfaceUatTests(unittest.TestCase):
         observation = valid_observation()
         dap = json.loads(observation["receipts"]["dapTcp"]["bytes"])
         dap["events"] = [event for event in dap["events"] if event != "stackTrace"]
+        observation["receipts"]["dapTcp"] = raw_receipt(dap)
+
+        with self.assertRaisesRegex(uat.UatFailure, "dapTcp_journey_mismatch"):
+            uat.validate_observation(PROJECT, observation)
+
+    def test_tcp_dap_without_transport_cleanup_cannot_pass(self):
+        observation = valid_observation()
+        dap = json.loads(observation["receipts"]["dapTcp"]["bytes"])
+        dap["transportClosed"] = False
         observation["receipts"]["dapTcp"] = raw_receipt(dap)
 
         with self.assertRaisesRegex(uat.UatFailure, "dapTcp_journey_mismatch"):

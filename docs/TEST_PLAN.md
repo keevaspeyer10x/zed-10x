@@ -16,7 +16,7 @@ This plan covers the **External Agents** section of the installed Zed 10x picker
 | Intrepid persistent | 8 | Installed boundary | Installed boundary | Installed boundary | Installed boundary | Installed boundary |
 | Intrepid ordinary | 6 | Installed boundary | Installed boundary | Installed boundary | Installed boundary | Installed boundary |
 
-All 22 visible variants receive direct coverage for inventory, launch outcome, and cleanup. The resulting plan contains 66 direct route-specific variant × journey cells and does not infer one profile or provider from another. Stateful switch and Intrepid recovery are separate surface-level journeys exercised on the named representatives whose shared product state they target. Recovery covers both persistent journal restoration and ordinary dedicated-transport replacement.
+All 22 visible variants receive direct coverage for inventory, launch outcome, and cleanup. The resulting plan contains 72 direct route-specific variant × journey cells and does not infer one profile or provider from another. Stateful switch and Intrepid recovery are separate surface-level journeys exercised on the named representatives whose shared product state they target. Recovery covers both persistent journal restoration and ordinary dedicated-transport replacement.
 
 ## Tier 0 rows
 

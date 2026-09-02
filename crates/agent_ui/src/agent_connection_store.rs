@@ -202,6 +202,28 @@ impl AgentConnectionStore {
         self.request_connection(key, server, cx)
     }
 
+    pub fn remove_connected_entry_if_same(
+        &mut self,
+        key: &Agent,
+        connection: &Rc<dyn AgentConnection>,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(entry_key) = self.equivalent_entry_key(key, cx) else {
+            return;
+        };
+        let should_remove = self.entries.get(&entry_key).is_some_and(|entry| {
+            matches!(
+                entry.read(cx),
+                AgentConnectionEntry::Connected(state)
+                    if Rc::ptr_eq(&state.connection, connection)
+            )
+        });
+        if should_remove {
+            self.entries.remove(&entry_key);
+            cx.notify();
+        }
+    }
+
     pub fn request_connection(
         &mut self,
         key: Agent,
