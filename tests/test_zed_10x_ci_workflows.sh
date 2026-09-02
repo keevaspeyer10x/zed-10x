@@ -82,6 +82,8 @@ if [[ -f "$RUST_CI" ]]; then
         contains "$RUST_CI" "timeout-minutes: 120"
     check "checkout is pinned by immutable SHA" \
         contains "$RUST_CI" "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd"
+    check "both focused jobs fetch the history required by revision-bound evidence" \
+        test "$(grep -Fc 'fetch-depth: 0' "$RUST_CI")" -eq 2
     check "focused CI runs its workflow contract" \
         contains "$RUST_CI" "run: tests/test_zed_10x_ci_workflows.sh"
     check "focused CI pins the repository Node.js version" \

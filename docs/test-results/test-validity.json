@@ -115,6 +115,14 @@
       "fix": "Add acp_thread --lib to focused CI and acp_thread to the complete changed-package matrix.",
       "regression": "The expanded 643-test matrix compiles and passes acp_thread, agent_servers, agent_ui, and remote_server targets.",
       "status": "fixed"
+    },
+    {
+      "id": "HARNESS-SHALLOW-EVIDENCE-HISTORY",
+      "category": "ci_configuration_bug",
+      "symptom": "GitHub's default shallow checkout omitted the earlier installed revision, so the revision-bound evidence validator could not prove ancestry in CI.",
+      "fix": "Fetch complete history in both focused jobs while retaining the exact pull-request revision checkout.",
+      "regression": "The workflow contract requires fetch-depth zero for both focused checkouts.",
+      "status": "fixed"
     }
   ],
   "coverageClosureDefects": [

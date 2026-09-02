@@ -62,7 +62,7 @@
     ]
   },
   "defectDiscovery": {
-    "bugsFound": 15,
+    "bugsFound": 16,
     "productDefects": [
       "remote child groups survived transport closure",
       "remote descendants survived direct leader exit",
@@ -78,7 +78,8 @@
       "the DAP oracle required brittle ancillary request counts",
       "the cleanup census initially confused observer ancestry with residue",
       "the durable evidence writer rejected the standard symlinked macOS /tmp spelling after a successful write",
-      "the affected-package matrix omitted the acp_thread test target after its constructor contract changed"
+      "the affected-package matrix omitted the acp_thread test target after its constructor contract changed",
+      "the CI shallow checkout omitted the installed revision needed by the ancestry-bound evidence validator"
     ],
     "infraOrToolingDefects": [],
     "processDefects": [
