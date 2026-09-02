@@ -1,7 +1,7 @@
 {
   "schemaVersion": 3,
   "coverageClosureVersion": 2,
-  "startedAt": "2026-09-01T10:38:48.377Z",
+  "startedAt": "2026-09-02T14:14:12.000Z",
   "repo": "zed-10x",
   "branch": "codex/zed-production-test-closure",
   "scope": {
@@ -16,7 +16,7 @@
   },
   "implementationTarget": "full_plan_implemented",
   "freshLifecycleRequired": true,
-  "architectureContextGate": "UNAVAILABLE — no checked-in repo-local wrapper; exact current-source tracing settled the bounded alias-policy question without a new abstraction",
+  "architectureContextGate": "UNAVAILABLE — no checked-in repo-local wrapper; exact current-source tracing settled the bounded transport-ownership question without a new abstraction",
   "phases": {
     "0-preflight": {
       "status": "complete",
@@ -30,7 +30,7 @@
       "productSurfaces": 3,
       "criticalJourneys": 5,
       "surfaceJourneyCells": 15,
-      "applicableCells": 13,
+      "applicableCells": 14,
       "selectableVariants": 22
     },
     "2-generation": {
@@ -57,6 +57,7 @@
       "failedRows": 0,
       "artifact": "docs/test-results/summary.json",
       "currentInstalledRouteReceipt": "docs/test-results/zed-acp-current-route-closure.json",
+      "ordinaryReconnectReceipt": "docs/test-results/zed-acp-ordinary-reconnect-intrepid.json",
       "ancestorAssembledUiReceipt": "docs/test-results/zed-acp-current-installed-uat.json"
     },
     "5-analysis": {
@@ -73,8 +74,8 @@
       "status": "complete",
       "openTestPlanDefects": 0,
       "releaseResidual": "Rebuild the protected merged revision, reinstall it on both hosts, and run the post-merge consumer canary.",
-      "externalRouteResidual": "Claude (Intrepid, work) requires provider-account reauthentication; its product launch and cleanup path was healthy and this does not block Zed product readiness."
+      "externalRouteResidual": "Provider-account readiness remains external to Zed; each product launch and cleanup path is classified independently and does not block Zed product readiness."
     }
   },
-  "completedAt": "2026-09-02T12:06:07Z"
+  "completedAt": "2026-09-02T14:33:56Z"
 }

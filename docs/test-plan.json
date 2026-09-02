@@ -2,7 +2,7 @@
   "schemaVersion": 3,
   "coverageClosureVersion": 2,
   "freshLifecycle": true,
-  "generatedAt": "2026-09-01T10:38:48.377Z",
+  "generatedAt": "2026-09-02T14:14:12.000Z",
   "northStar": "Keeva can choose any visible External Agent with an unambiguous host/profile label, start it in the current project, switch among agents without hidden ownership, understand genuine provider unavailability, and recover a persistent Intrepid session after transport loss without losing work.",
   "scope": {
     "included": "Installed External Agent inventory, launch, project outcome, cross-agent state transitions, cleanup, and persistent session recovery on Mac and Intrepid.",
@@ -18,7 +18,7 @@
     "readyNowRows": 5,
     "productSurfaces": 3,
     "criticalJourneys": 5,
-    "applicableSurfaceJourneyCells": 13,
+    "applicableSurfaceJourneyCells": 14,
     "selectableVariants": 22,
     "directVariantJourneyCells": 66
   },
@@ -55,7 +55,7 @@
         "surfaceId": "SURFACE-ACP-MAC-LOCAL",
         "journeyId": "JOURNEY-PERSISTENT-SESSION-RECOVERY",
         "applicability": "not_applicable",
-        "reason": "Mac-local routes do not use the Intrepid persistent session host or its durable journal."
+        "reason": "Mac-local routes do not cross the Intrepid remote-server transport boundary."
       },
       {
         "surfaceId": "SURFACE-ACP-MAC-LOCAL",
@@ -141,8 +141,11 @@
       {
         "surfaceId": "SURFACE-ACP-INTREPID-ORDINARY",
         "journeyId": "JOURNEY-PERSISTENT-SESSION-RECOVERY",
-        "applicability": "not_applicable",
-        "reason": "Ordinary Intrepid routes do not promise persistent lane or journal restoration."
+        "applicability": "applicable",
+        "requiredEvidenceBoundary": "installed_boundary",
+        "rowIds": [
+          "ZED-ACP-RECOVERY-004"
+        ]
       },
       {
         "surfaceId": "SURFACE-ACP-INTREPID-ORDINARY",
@@ -1126,7 +1129,7 @@
       ],
       "dataCleanup": "Close created threads and prove route-appropriate process cleanup or persistent detach.",
       "id": "ZED-ACP-RECOVERY-004",
-      "title": "A killed persistent lane recovers the original session through the installed Retry action",
+      "title": "Intrepid restart recovery preserves sessions and replaces dedicated transports exactly once",
       "requirementIds": [
         "REQ-RECOVERY-007",
         "REQ-RUNTIME-009"
@@ -1142,13 +1145,15 @@
         "durable journal"
       ],
       "surfaceIds": [
-        "SURFACE-ACP-INTREPID-PERSISTENT"
+        "SURFACE-ACP-INTREPID-PERSISTENT",
+        "SURFACE-ACP-INTREPID-ORDINARY"
       ],
       "journeyIds": [
         "JOURNEY-PERSISTENT-SESSION-RECOVERY"
       ],
       "variantIds": [
-        "VAR-INTREPID-CODEX-PRIMARY"
+        "VAR-INTREPID-CODEX-PRIMARY",
+        "VAR-INTREPID-CURSOR"
       ],
       "provenance": [
         {
@@ -1156,56 +1161,63 @@
           "ref": "zed-acp-session-attach peer closed before client input after lane OOM kill"
         },
         {
+          "source": "prior_defect",
+          "ref": "remote-server restart left both old and replacement ordinary agent transports alive"
+        },
+        {
           "source": "code",
           "ref": "crates/agent_ui/src/conversation_view.rs"
         }
       ],
       "plannedEvidence": [
-        "real lane-service restart",
-        "visible Retry",
-        "same session ID and history",
-        "post-recovery continuation"
+        "real persistent lane-service restart",
+        "same persistent session ID and history",
+        "real ordinary remote-server restart",
+        "one replacement dedicated transport and zero superseded transport residue"
       ],
       "specificOracles": [
         "Retry starts a fresh connection rather than reusing the exited one",
         "session/load uses the original session ID",
         "history and project remain visible",
-        "one post-recovery prompt completes"
+        "the superseded dedicated transport exits before the replacement becomes the sole active owner",
+        "normal app close removes the replacement transport"
       ],
       "steps": [
         "Attach to a completed persistent Intrepid session",
         "Restart its exact user service while Zed remains attached",
-        "Observe a recoverable failure and invoke Retry",
-        "Verify the same session and project, then continue once"
+        "Verify Retry restores the same session and project",
+        "Start one ordinary dedicated Intrepid route in the installed app",
+        "Terminate the exact remote-server process and observe one automatic replacement",
+        "Verify the old dedicated transport exits, exactly one replacement remains, and app close leaves no owned agent residue"
       ],
-      "expectedResult": "The screenshot failure becomes a finite recoverable interruption rather than a lost or blank session.",
+      "expectedResult": "Intrepid disruption is finite: persistent work reloads, and ordinary agents continue through one clean transport replacement.",
       "passCriteria": [
-        "fresh transport",
-        "same session ID",
-        "same history",
-        "same project",
-        "continuation passes"
+        "persistent route uses a fresh transport with the same session ID, history, and project",
+        "ordinary route has exactly one replacement transport",
+        "superseded ordinary transport is gone",
+        "normal app close leaves no owned agent residue"
       ],
-      "userGoal": "Resume work after Intrepid or its lane process restarts.",
+      "userGoal": "Keep working after Intrepid, a session lane, or the remote editor server restarts.",
       "acceptanceCriteria": [
-        "no new thread required",
-        "no history loss",
-        "one Retry restores work"
+        "no persistent history loss",
+        "no duplicate agent process",
+        "no app restart required"
       ],
       "frictionSignals": [
         "peer closed",
         "blank history",
         "new session ID",
-        "repeat restart loop"
+        "repeat restart loop",
+        "duplicate provider process"
       ],
       "evidenceRequired": [
-        "installed UI recovery",
-        "service invocation transition",
-        "content-free session identity digest"
+        "installed persistent UI recovery",
+        "exact ordinary remote-server replacement identity",
+        "before/after transport process census"
       ],
-      "negativeCase": "service restarts but Zed retries the dead transport or silently creates a different session",
-      "statefulJourney": "attached -> exited -> retrying -> loaded-original -> continued",
-      "newInformationTarget": "Whether the installed app and installed host recover together across the real transport seam."
+      "negativeCase": "a restart loses persistent state, reuses a dead transport, or leaves both old and replacement ordinary transports alive",
+      "statefulJourney": "persistent: attached -> exited -> retrying -> loaded-original; ordinary: connected -> remote-server-exited -> one-replacement -> old-transport-gone -> app-close-clean",
+      "newInformationTarget": "Whether every Intrepid ownership model recovers across its real transport transition without state loss or duplicate processes."
     },
     {
       "section": "0-critical-path-smoke",

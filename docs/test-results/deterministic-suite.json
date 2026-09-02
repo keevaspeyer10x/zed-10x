@@ -1,24 +1,24 @@
 {
   "schemaVersion": 1,
   "status": "passed",
-  "sourceCommit": "dd74b2a8440fde14af8586cd166999fe605c5f8d",
-  "sourceTree": "e8940b07f89cae7f5311e4c59d3b6eb3f5477375",
-  "installedProductCommit": "2bde4bdfcbaac21a4ca6328298a0bd847e3caa65",
-  "installedCandidateDifference": "The descendant changes after the exact installed product revision make content-free canary receipts durable when their existing parent is reached through a symlink, add its direct regression, clarify an existing Rust ownership boundary without changing behavior, and prove that legacy agent aliases resolve dedicated-connection policy before transport selection. The exact merged revision remains subject to a fresh post-merge install and canary.",
+  "sourceCommit": "a4a75c90197ef594921c2c654920f6a99e9c5da2",
+  "sourceTree": "4bf6cadfd6391ca949bd3641039030fa8531ab6c",
+  "installedProductCommit": "a4a75c90197ef594921c2c654920f6a99e9c5da2",
+  "installedCandidateDifference": "None. The deterministic suites and installed reconnect journey exercised the same committed revision.",
   "testedWorkingTree": false,
   "testedWorkingTreeChanges": [],
   "suites": [
     {
       "name": "changed-rust-matrix",
-      "command": "./script/cargo test --locked -p agent_servers -p agent_ui -p remote_server --all-targets -- --test-threads=1",
+      "command": "./script/cargo test --locked -p acp_thread -p agent_servers -p agent_ui -p remote_server --all-targets -- --test-threads=1",
       "status": "passed",
-      "tests": 517,
+      "tests": 643,
       "failed": 0,
       "scope": "all targets for the changed agent protocol, UI lifecycle, remote server, and process-boundary owners"
     },
     {
       "name": "changed-rust-clippy",
-      "command": "./script/clippy -p agent_servers -p agent_ui -p remote_server",
+      "command": "./script/clippy -p acp_thread -p agent_servers -p agent_ui -p remote_server",
       "status": "passed",
       "scope": "release, all targets, all features"
     },
@@ -31,7 +31,7 @@
       "name": "changed-node-contracts",
       "command": "node --test script/tests/*.test.mjs",
       "status": "passed",
-      "tests": 140,
+      "tests": 142,
       "failed": 0,
       "skipped": 0
     },
@@ -56,11 +56,11 @@
       "name": "mac-bundle",
       "command": "./script/bundle-mac -d -i",
       "status": "passed",
-      "installedCommit": "2bde4bdfcbaac21a4ca6328298a0bd847e3caa65",
+      "installedCommit": "a4a75c90197ef594921c2c654920f6a99e9c5da2",
       "installedWorkingTree": false,
       "signatureVerified": true,
-      "runtimeSha256": "43462ee667b6ba08a2807cd5d2ea45e49eab272816bffcc5397df8f370d8aa9a",
-      "remoteRuntimeSha256": "83fe8ff3cda3700452b0e58da485f96f38dc40bca8b4997fdc417ba577c251f7"
+      "runtimeSha256": "bc17652677bc7398b3e3af669792cccd3db0ec208525150c0fc90a5e675bfc9e",
+      "remoteRuntimeSha256": "453151ca1b6189ddc9d838174cbb3f664fa8c901aea26b6c30ffcb1a632f1f9d"
     }
   ]
 }

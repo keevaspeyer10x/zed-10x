@@ -107,6 +107,14 @@
       "fix": "Resolve the already-existing parent directory before opening it with O_NOFOLLOW for the final directory fsync while retaining O_EXCL publication for the receipt itself.",
       "regression": "terminal evidence remains durable through a symlinked parent directory",
       "status": "fixed"
+    },
+    {
+      "id": "HARNESS-AFFECTED-PACKAGE-OMISSION",
+      "category": "test_gap",
+      "symptom": "The affected Rust package matrix did not compile the acp_thread test target after its TerminalBuilder constructor contract changed.",
+      "fix": "Add acp_thread --lib to focused CI and acp_thread to the complete changed-package matrix.",
+      "regression": "The expanded 643-test matrix compiles and passes acp_thread, agent_servers, agent_ui, and remote_server targets.",
+      "status": "fixed"
     }
   ],
   "coverageClosureDefects": [
@@ -137,9 +145,9 @@
     {
       "id": "PLAN-STATEFUL-RESTART-ORDERING",
       "category": "process_bug",
-      "symptom": "Happy-path launch checks did not cross a real persistent-service restart, Retry, original-session load, continuation, and final cleanup boundary.",
-      "fix": "Make stateful disruption/recovery a first-class journey and bind the real UI transition to service invocation, session, project, history, and cleanup identities.",
-      "regression": "A real codex--secondary lane restart produced one Retry, restored the original thread and ready composer, and did not replay the provider prompt.",
+      "symptom": "Happy-path launch checks did not cross real persistent-service and ordinary remote-server replacement boundaries.",
+      "fix": "Make stateful disruption/recovery a first-class journey for both persistent restoration and ordinary dedicated-transport replacement.",
+      "regression": "A persistent lane restart restored the original session, and an ordinary remote-server restart retired the old agent transport and created exactly one replacement.",
       "status": "fixed_and_executed"
     }
   ],

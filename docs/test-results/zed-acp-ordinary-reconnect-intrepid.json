@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 1,
+  "schema": "zed-acp-ordinary-reconnect-v1",
+  "status": "passed",
+  "publishedAt": "2026-09-02T14:33:56Z",
+  "observedWindowStartedAt": "2026-09-02T14:24:20Z",
+  "source": {
+    "commit": "a4a75c90197ef594921c2c654920f6a99e9c5da2",
+    "tree": "4bf6cadfd6391ca949bd3641039030fa8531ab6c",
+    "workingTreeBuild": false
+  },
+  "installedMacRuntime": {
+    "bundlePath": "/Applications/Zed 10x.app",
+    "bundleIdentifier": "ai.10xlabs.Zed10x",
+    "version": "1.14.0",
+    "bundleVersion": "20260902.141902",
+    "reportedCommit": "a4a75c90197ef594921c2c654920f6a99e9c5da2",
+    "signatureVerified": true,
+    "launcherSha256": "55751e5a20d8760323dd3dc0076af7fb85ac26973e2726f73f9e501b51418c93",
+    "cliSha256": "9b7497824c9a3aceee56f27172f9eafe7a4fd2957bd6bc3015d6e26fbd473373",
+    "runtimeSha256": "bc17652677bc7398b3e3af669792cccd3db0ec208525150c0fc90a5e675bfc9e"
+  },
+  "installedIntrepidRuntime": {
+    "path": "/home/keeva/.zed-10x-server/zed-remote-server-dev-1.14.0+dev.a4a75c90197ef594921c2c654920f6a99e9c5da2",
+    "reportedCommit": "a4a75c90197ef594921c2c654920f6a99e9c5da2",
+    "sha256": "453151ca1b6189ddc9d838174cbb3f664fa8c901aea26b6c30ffcb1a632f1f9d",
+    "mode": "0755",
+    "sizeBytes": 205750488
+  },
+  "journey": {
+    "surface": "SURFACE-ACP-INTREPID-ORDINARY",
+    "variant": "VAR-INTREPID-CURSOR",
+    "app": {
+      "pid": 20831,
+      "startIdentity": "Thu Sep 3 00:24:20 2026 AEST",
+      "stayedAliveAcrossRemoteRestart": true
+    },
+    "initial": {
+      "remoteServerPid": 2791144,
+      "remoteServerStartTicks": 266539988,
+      "agentEnvironmentPid": 2791643,
+      "agentGuardianPid": 2791662
+    },
+    "replacement": {
+      "remoteServerPid": 2798750,
+      "remoteServerStartTicks": 266543747,
+      "agentEnvironmentPid": 2800185,
+      "agentEnvironmentStartTicks": 266543975,
+      "agentGuardianPid": 2800214,
+      "replacementCount": 1
+    },
+    "oracles": {
+      "oldAgentEnvironmentGone": true,
+      "oldAgentGuardianGone": true,
+      "activeReplacementAgentCount": 1,
+      "duplicateTransportCount": 0,
+      "productOriginFailureCount": 0
+    }
+  },
+  "cleanup": {
+    "appClosed": true,
+    "ordinaryAgentResidueCount": 0,
+    "sshProxyResidueCount": 0,
+    "localRuntimeResidueCount": 0,
+    "canaryOwnedRemoteServerRemoved": true,
+    "persistentUnrelatedProcessesModified": false,
+    "status": "passed"
+  },
+  "contentPrivacy": {
+    "promptContentRetained": false,
+    "responseContentRetained": false,
+    "credentialValuesRetained": false
+  }
+}

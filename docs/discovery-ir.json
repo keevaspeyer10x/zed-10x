@@ -3,7 +3,7 @@
   "coverageClosureVersion": 2,
   "freshLifecycle": true,
   "discoveryMode": "fresh_full_lifecycle",
-  "generatedAt": "2026-09-01T10:38:48.377Z",
+  "generatedAt": "2026-09-02T14:14:12.000Z",
   "repository": "zed-10x",
   "scope": {
     "included": "Installed External Agent inventory, launch, project outcome, cross-agent state transitions, cleanup, and persistent session recovery on Mac and Intrepid.",
@@ -53,7 +53,7 @@
     },
     {
       "id": "REQ-RECOVERY-007",
-      "claim": "A persistent transport failure is recoverable without losing the session.",
+      "claim": "An Intrepid transport restart restores persistent session state or replaces an ordinary dedicated transport without duplicate ownership.",
       "source": "crates/agent_ui/src/conversation_view.rs"
     },
     {
@@ -196,8 +196,8 @@
     },
     {
       "id": "JOURNEY-PERSISTENT-SESSION-RECOVERY",
-      "name": "Recover the same persistent session after transport and lane restart",
-      "terminalObservable": "Retry creates a fresh transport, loads the original session ID and history, preserves the project, and accepts one continuation after a real lane-service restart.",
+      "name": "Recover session ownership after an Intrepid transport restart",
+      "terminalObservable": "A persistent route reloads its original session, while an ordinary dedicated route replaces its transport exactly once and retires the superseded process after a real remote-server restart.",
       "provenance": [
         {
           "source": "prior_defect",
@@ -278,7 +278,7 @@
       "surfaceId": "SURFACE-ACP-MAC-LOCAL",
       "journeyId": "JOURNEY-PERSISTENT-SESSION-RECOVERY",
       "applicability": "not_applicable",
-      "reason": "Mac-local routes do not use the Intrepid persistent session host or its durable journal."
+      "reason": "Mac-local routes do not cross the Intrepid remote-server transport boundary."
     },
     {
       "surfaceId": "SURFACE-ACP-MAC-LOCAL",
@@ -350,8 +350,8 @@
       "applicability": "applicable",
       "assembledPath": [
         "installed Zed 10x remote project plus systemd-owned ACP session lane",
-        "Recover the same persistent session after transport and lane restart",
-        "Retry creates a fresh transport, loads the original session ID and history, preserves the project, and accepts one continuation after a real lane-service restart."
+        "Recover session ownership after an Intrepid transport restart",
+        "A persistent route reloads its original session, while an ordinary dedicated route replaces its transport exactly once and retires the superseded process after a real remote-server restart."
       ],
       "requiredEvidenceBoundary": "installed_boundary",
       "requiredEvidence": [
@@ -427,8 +427,18 @@
     {
       "surfaceId": "SURFACE-ACP-INTREPID-ORDINARY",
       "journeyId": "JOURNEY-PERSISTENT-SESSION-RECOVERY",
-      "applicability": "not_applicable",
-      "reason": "Ordinary Intrepid routes do not promise persistent lane or journal restoration."
+      "applicability": "applicable",
+      "assembledPath": [
+        "installed Zed 10x remote project plus execution-host ACP launch",
+        "Recover session ownership after an Intrepid transport restart",
+        "A persistent route reloads its original session, while an ordinary dedicated route replaces its transport exactly once and retires the superseded process after a real remote-server restart."
+      ],
+      "requiredEvidenceBoundary": "installed_boundary",
+      "requiredEvidence": [
+        "installed product execution",
+        "terminal observable",
+        "cleanup"
+      ]
     },
     {
       "surfaceId": "SURFACE-ACP-INTREPID-ORDINARY",

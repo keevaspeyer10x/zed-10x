@@ -1,6 +1,6 @@
 {
   "schemaVersion": 3,
-  "generatedAt": "2026-09-02T12:06:07Z",
+  "generatedAt": "2026-09-02T14:33:56Z",
   "decisionCandidate": "production_ready",
   "plannedRows": 5,
   "implementedRows": 5,
@@ -15,183 +15,103 @@
     "untested": 0
   },
   "rowResults": [
-    {
-      "id": "ZED-ACP-INVENTORY-001",
-      "status": "passed",
-      "evidencePaths": [
-        "docs/test-results/zed-acp-current-installed-uat.json",
-        "docs/test-results/zed-acp-current-route-closure.json"
-      ]
-    },
-    {
-      "id": "ZED-ACP-SESSION-002",
-      "status": "passed",
-      "evidencePaths": [
-        "docs/test-results/zed-acp-current-installed-uat.json",
-        "docs/test-results/zed-acp-current-route-closure.json"
-      ]
-    },
-    {
-      "id": "ZED-ACP-CLEANUP-003",
-      "status": "passed",
-      "evidencePaths": [
-        "docs/test-results/zed-acp-current-installed-uat.json",
-        "docs/test-results/zed-installed-surface-uat-verify.json",
-        "docs/test-results/zed-acp-current-route-closure.json"
-      ]
-    },
-    {
-      "id": "ZED-ACP-RECOVERY-004",
-      "status": "passed",
-      "evidencePaths": [
-        "docs/test-results/zed-acp-current-installed-uat.json"
-      ]
-    },
-    {
-      "id": "ZED-ACP-SWITCH-005",
-      "status": "passed",
-      "evidencePaths": [
-        "docs/test-results/zed-acp-switch-mac.json",
-        "docs/test-results/zed-acp-switch-intrepid.json",
-        "docs/test-results/zed-acp-current-installed-uat.json"
-      ]
-    }
+    { "id": "ZED-ACP-INVENTORY-001", "status": "passed" },
+    { "id": "ZED-ACP-SESSION-002", "status": "passed" },
+    { "id": "ZED-ACP-CLEANUP-003", "status": "passed" },
+    { "id": "ZED-ACP-RECOVERY-004", "status": "passed" },
+    { "id": "ZED-ACP-SWITCH-005", "status": "passed" }
   ],
   "uat": {
     "status": "passed",
     "persona": "Keeva using Zed 10x",
-    "installedProductRevision": "2bde4bdfcbaac21a4ca6328298a0bd847e3caa65",
+    "installedProductRevision": "a4a75c90197ef594921c2c654920f6a99e9c5da2",
     "assembledUiEvidencePath": "docs/test-results/zed-acp-current-installed-uat.json",
-    "currentRouteEvidencePath": "docs/test-results/zed-acp-current-route-closure.json"
+    "currentRouteEvidencePath": "docs/test-results/zed-acp-current-route-closure.json",
+    "ordinaryReconnectEvidencePath": "docs/test-results/zed-acp-ordinary-reconnect-intrepid.json"
   },
   "observability": {
     "status": "passed",
-    "recoverableFailureClassified": "peer_closed_before_client_input",
-    "logPrivacyMatches": []
+    "evidence": "The installed canary distinguished product-origin failures, provider readiness, duplicate transports, and exact process cleanup without retaining prompts or responses."
   },
   "dataCleanup": {
     "status": "passed",
-    "normalAppQuit": true,
-    "exactFixtureResidue": []
+    "ordinaryAgentResidueCount": 0,
+    "sshProxyResidueCount": 0,
+    "localRuntimeResidueCount": 0
   },
   "flakiness": {
-    "rerunCount": 3,
-    "flakyTests": [],
-    "externalRouteInstability": [
-      {
-        "endpoint": "Claude (Intrepid, secondary)",
-        "initialObservation": "tool_evidence_missing",
-        "boundedRetry": "passed",
-        "unresolvedProductFailure": false
-      }
-    ]
+    "rerunCount": 0,
+    "flakyTests": []
   },
   "testValidity": {
     "status": "valid",
     "evidencePath": "docs/test-results/test-validity.json"
   },
+  "evidenceBinding": {
+    "testedRevision": "a4a75c90197ef594921c2c654920f6a99e9c5da2",
+    "harnessRevision": "a4a75c90197ef594921c2c654920f6a99e9c5da2",
+    "loadBearingInputs": [
+      { "path": "crates/agent_servers/src/acp.rs", "sha256": "644ac328dc553515df1764e41b417aabd4bddfbff230b0acba62af7d332c879b" },
+      { "path": "crates/agent_servers/src/custom.rs", "sha256": "5ea9931dea9c056173a54b00e150494fce560496f83fa71b78326376b5dd4e18" },
+      { "path": "crates/agent_ui/src/agent_connection_store.rs", "sha256": "207974c8a689300604763d43a0813183b40ae9dfa9d5bc2dad4dc09e19ad68e0" },
+      { "path": "crates/agent_ui/src/agent_panel.rs", "sha256": "e2f6d93e2663d2ef051032c3d4bf13661cc73497372ddb4b9a64e7e9f74ed9b7" },
+      { "path": "crates/agent_ui/src/conversation_view.rs", "sha256": "4b7e68b5e7572f674e48b20b9c6b1a1453b81b30d911dd32b8d9ae089b6ff750" },
+      { "path": "crates/project/src/agent_server_store.rs", "sha256": "57216bb824440c30346689f717804f771f8b9a2354b9b48a258190ab1963c01d" },
+      { "path": "crates/project/src/project_settings.rs", "sha256": "9594d63f671836be5cd7bcbca5a29da7cd7a9f30ca86b04a90716b4d0907fda0" },
+      { "path": "docs/test-plan-inputs/zed-agent-picker-inventory.json", "sha256": "80f4bae3b0a5966e3b9f3a356ad26f0ea27f87dc144451722d56747befc98246" }
+    ]
+  },
   "defectDiscovery": {
-    "bugsFound": 12,
+    "bugsFound": 15,
     "productDefects": [
       "remote child groups survived transport closure",
       "remote descendants survived direct leader exit",
       "provider processes could outlive their supervisor",
       "local app signing mutated file-provider state",
       "replaced empty drafts remained retained",
-      "single-owner agents could share one connection across sessions"
+      "single-owner agents could share one connection across sessions",
+      "remote-server replacement left the superseded ordinary dedicated agent transport alive"
     ],
     "testHarnessDefects": [
       "TCP readiness probe was mistaken for DAP initialize",
       "DAP stopped/thread/stackTrace responses were incomplete",
       "the DAP oracle required brittle ancillary request counts",
       "the cleanup census initially confused observer ancestry with residue",
-      "the durable evidence writer rejected the standard symlinked macOS /tmp spelling after a successful write"
+      "the durable evidence writer rejected the standard symlinked macOS /tmp spelling after a successful write",
+      "the affected-package matrix omitted the acp_thread test target after its constructor contract changed"
     ],
     "infraOrToolingDefects": [],
     "processDefects": [
-      "Earlier testing did not close every user-visible surface and stateful journey across the assembled product boundary."
+      "Earlier testing did not close every user-visible surface and stateful journey across the assembled product boundary.",
+      "The generated plan covered persistent lane restart but omitted ordinary dedicated-transport replacement."
     ],
     "fixedDuringRun": [
-      "all product and harness defects listed above"
+      "all product, harness, and plan defects listed above"
     ],
     "confidenceOnlyRows": [],
     "weakRows": [],
     "newInformationSummary": [
-      "The installed UI, remote server, session lane, durable thread, Retry action, and ordinary cleanup now pass together on the exact installed candidate.",
-      "The surface UAT covers terminal, task, Vim, MCP, DAP stdio, and DAP TCP reset/reconnect rather than substituting unit-level protocol checks.",
-      "The exact 2bde4bdf installed runtime passed all eight Mac routes and every available Intrepid route; Claude Intrepid work was isolated as expired external authentication, and one transient Claude secondary response passed its single bounded retry."
-      ,
-      "A reviewer concern that persisted aliases might bypass dedicated connection policy was disproved at the real pre-connect construction boundary and is now guarded by a regression test."
+      "The complete installed route matrix remains valid because its route, picker, and host-binding bytes are unchanged.",
+      "The exact a4a75c9 installed app survived one real Intrepid remote-server replacement, retired the old ordinary agent transport, created exactly one replacement, and cleaned all canary-owned processes on close.",
+      "The expanded Rust package matrix now compiles and runs the acp_thread target as well as the transport owners."
     ],
     "lowYieldAssessment": "high_yield",
     "residualRisk": [
-      "The exact merged revision still requires a fresh build, install, and post-merge canary."
+      "The exact protected merged revision still requires a fresh build, install, and post-merge canary."
     ]
   },
-  "evidenceBinding": {
-    "testedRevision": "2bde4bdfcbaac21a4ca6328298a0bd847e3caa65",
-    "harnessRevision": "dd74b2a8440fde14af8586cd166999fe605c5f8d",
-    "loadBearingInputs": [
-      {
-        "path": "crates/agent_servers/src/acp.rs",
-        "sha256": "678b183509564b7261121dcfcc286e6a019d4b3d916524728d40d2674c67cc26"
-      },
-      {
-        "path": "crates/agent_servers/src/custom.rs",
-        "sha256": "5ea9931dea9c056173a54b00e150494fce560496f83fa71b78326376b5dd4e18"
-      },
-      {
-        "path": "crates/agent_ui/src/agent_connection_store.rs",
-        "sha256": "207974c8a689300604763d43a0813183b40ae9dfa9d5bc2dad4dc09e19ad68e0"
-      },
-      {
-        "path": "crates/agent_ui/src/agent_panel.rs",
-        "sha256": "e2f6d93e2663d2ef051032c3d4bf13661cc73497372ddb4b9a64e7e9f74ed9b7"
-      },
-      {
-        "path": "crates/agent_ui/src/conversation_view.rs",
-        "sha256": "362ed39a2c4df8a541e2ba4325805277dbf9b3202665023fa788968255e24357"
-      },
-      {
-        "path": "crates/remote_server/src/server.rs",
-        "sha256": "3bc2747545f1c8a8b4d45f9c7bcb08e35ca72c1a9883fcd803f901bbd94ae9e7"
-      },
-      {
-        "path": "crates/remote_server/tests/env_exec.rs",
-        "sha256": "9184ea059ad0e3463595caaf9150031817b14caf2037c23a21662d0b26e9d8de"
-      },
-      {
-        "path": "crates/project/src/agent_server_store.rs",
-        "sha256": "57216bb824440c30346689f717804f771f8b9a2354b9b48a258190ab1963c01d"
-      },
-      {
-        "path": "crates/project/src/project_settings.rs",
-        "sha256": "9594d63f671836be5cd7bcbca5a29da7cd7a9f30ca86b04a90716b4d0907fda0"
-      },
-      {
-        "path": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
-        "sha256": "80f4bae3b0a5966e3b9f3a356ad26f0ea27f87dc144451722d56747befc98246"
-      },
-      {
-        "path": "script/zed-installed-surface-uat.py",
-        "sha256": "31e3d01b5781f91ca17471a743b220b04b3839a0a4ca2d830e4e079f05b67e3f"
-      },
-      {
-        "path": "script/tests/zed_installed_surface_uat_test.py",
-        "sha256": "0e90e322082f69ac51cab39c9941f46641cf1f751c5070436e49fde8ed6c1192"
-      },
-      {
-        "path": "script/tests/fixtures/zed-installed-surface-uat/fake_dap.py",
-        "sha256": "8609569adba972f1c456c84820eb04823ecda1720b45f2be59e800bf16650827"
-      },
-      {
-        "path": "script/zed-acp-live-canary.py",
-        "sha256": "20fa93f1070ce0e9a9815b589e030bbf38820147131d9765b8798733f290986b"
-      },
-      {
-        "path": "script/tests/zed-acp-live-canary.test.mjs",
-        "sha256": "a81d3cf958150d55ddbb6872e427d02d23bb8c44825319977774a0acec87d7a5"
-      }
-    ]
+  "executionEvidence": {
+    "fullInstalledRouteMatrix": {
+      "path": "docs/test-results/zed-acp-current-route-closure.json",
+      "status": "passed_with_external_unavailability",
+      "installedProductRevision": "2bde4bdfcbaac21a4ca6328298a0bd847e3caa65",
+      "reusedBecause": "All route, picker, and execution-host binding inputs are byte-identical at the tested descendant revision."
+    },
+    "ordinaryReconnect": {
+      "path": "docs/test-results/zed-acp-ordinary-reconnect-intrepid.json",
+      "status": "passed",
+      "installedProductRevision": "a4a75c90197ef594921c2c654920f6a99e9c5da2",
+      "duplicateTransportCount": 0
+    }
   }
 }

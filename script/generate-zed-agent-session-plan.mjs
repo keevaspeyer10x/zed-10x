@@ -91,9 +91,9 @@ const journeys = [
   },
   {
     id: "JOURNEY-PERSISTENT-SESSION-RECOVERY",
-    name: "Recover the same persistent session after transport and lane restart",
+    name: "Recover session ownership after an Intrepid transport restart",
     terminalObservable:
-      "Retry creates a fresh transport, loads the original session ID and history, preserves the project, and accepts one continuation after a real lane-service restart.",
+      "A persistent route reloads its original session, while an ordinary dedicated route replaces its transport exactly once and retires the superseded process after a real remote-server restart.",
   },
   {
     id: "JOURNEY-AGENT-SWITCH-AND-RETURN",
@@ -104,6 +104,7 @@ const journeys = [
 ];
 
 const persistentSurfaceId = "SURFACE-ACP-INTREPID-PERSISTENT";
+const ordinaryIntrepidSurfaceId = "SURFACE-ACP-INTREPID-ORDINARY";
 const routeSpecificJourneyIds = [
   "JOURNEY-HOST-SCOPED-INVENTORY",
   "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
@@ -114,7 +115,8 @@ const applicableJourneyIds = (surfaceId) =>
     .filter(
       (journey) =>
         journey.id !== "JOURNEY-PERSISTENT-SESSION-RECOVERY" ||
-        surfaceId === persistentSurfaceId,
+        surfaceId === persistentSurfaceId ||
+        surfaceId === ordinaryIntrepidSurfaceId,
     )
     .map((journey) => journey.id);
 
@@ -146,9 +148,7 @@ const matrix = surfaceDefinitions.flatMap((surface) =>
           journeyId: journey.id,
           applicability: "not_applicable",
           reason:
-            surface.id === "SURFACE-ACP-MAC-LOCAL"
-              ? "Mac-local routes do not use the Intrepid persistent session host or its durable journal."
-              : "Ordinary Intrepid routes do not promise persistent lane or journal restoration.",
+            "Mac-local routes do not cross the Intrepid remote-server transport boundary.",
         };
   }),
 );
@@ -186,7 +186,8 @@ const requirements = [
   },
   {
     id: "REQ-RECOVERY-007",
-    claim: "A persistent transport failure is recoverable without losing the session.",
+    claim:
+      "An Intrepid transport restart restores persistent session state or replaces an ordinary dedicated transport without duplicate ownership.",
     source: "crates/agent_ui/src/conversation_view.rs",
   },
   {
@@ -209,7 +210,7 @@ const requirements = [
 
 const allSurfaceIds = surfaces.map((surface) => surface.id);
 const allVariantIds = variants.map((variant) => variant.id);
-const recoveryVariantIds = ["VAR-INTREPID-CODEX-PRIMARY"];
+const recoveryVariantIds = ["VAR-INTREPID-CODEX-PRIMARY", "VAR-INTREPID-CURSOR"];
 const switchVariantIds = [
   "VAR-MAC-CODEX",
   "VAR-MAC-CURSOR",
@@ -356,39 +357,61 @@ const rows = [
   {
     ...commonRow,
     id: "ZED-ACP-RECOVERY-004",
-    title: "A killed persistent lane recovers the original session through the installed Retry action",
+    title: "Intrepid restart recovery preserves sessions and replaces dedicated transports exactly once",
     requirementIds: ["REQ-RECOVERY-007", "REQ-RUNTIME-009"],
     requirements: ["REQ-RECOVERY-007", "REQ-RUNTIME-009"],
     irRefs: ["LoadError::Exited", "restart_connection", "session/load", "durable journal"],
-    surfaceIds: [persistentSurfaceId],
+    surfaceIds: [persistentSurfaceId, ordinaryIntrepidSurfaceId],
     journeyIds: ["JOURNEY-PERSISTENT-SESSION-RECOVERY"],
     variantIds: recoveryVariantIds,
     provenance: [
       { source: "prior_defect", ref: "zed-acp-session-attach peer closed before client input after lane OOM kill" },
+      { source: "prior_defect", ref: "remote-server restart left both old and replacement ordinary agent transports alive" },
       { source: "code", ref: "crates/agent_ui/src/conversation_view.rs" },
     ],
-    plannedEvidence: ["real lane-service restart", "visible Retry", "same session ID and history", "post-recovery continuation"],
+    plannedEvidence: [
+      "real persistent lane-service restart",
+      "same persistent session ID and history",
+      "real ordinary remote-server restart",
+      "one replacement dedicated transport and zero superseded transport residue",
+    ],
     specificOracles: [
       "Retry starts a fresh connection rather than reusing the exited one",
       "session/load uses the original session ID",
       "history and project remain visible",
-      "one post-recovery prompt completes",
+      "the superseded dedicated transport exits before the replacement becomes the sole active owner",
+      "normal app close removes the replacement transport",
     ],
     steps: [
       "Attach to a completed persistent Intrepid session",
       "Restart its exact user service while Zed remains attached",
-      "Observe a recoverable failure and invoke Retry",
-      "Verify the same session and project, then continue once",
+      "Verify Retry restores the same session and project",
+      "Start one ordinary dedicated Intrepid route in the installed app",
+      "Terminate the exact remote-server process and observe one automatic replacement",
+      "Verify the old dedicated transport exits, exactly one replacement remains, and app close leaves no owned agent residue",
     ],
-    expectedResult: "The screenshot failure becomes a finite recoverable interruption rather than a lost or blank session.",
-    passCriteria: ["fresh transport", "same session ID", "same history", "same project", "continuation passes"],
-    userGoal: "Resume work after Intrepid or its lane process restarts.",
-    acceptanceCriteria: ["no new thread required", "no history loss", "one Retry restores work"],
-    frictionSignals: ["peer closed", "blank history", "new session ID", "repeat restart loop"],
-    evidenceRequired: ["installed UI recovery", "service invocation transition", "content-free session identity digest"],
-    negativeCase: "service restarts but Zed retries the dead transport or silently creates a different session",
-    statefulJourney: "attached -> exited -> retrying -> loaded-original -> continued",
-    newInformationTarget: "Whether the installed app and installed host recover together across the real transport seam.",
+    expectedResult:
+      "Intrepid disruption is finite: persistent work reloads, and ordinary agents continue through one clean transport replacement.",
+    passCriteria: [
+      "persistent route uses a fresh transport with the same session ID, history, and project",
+      "ordinary route has exactly one replacement transport",
+      "superseded ordinary transport is gone",
+      "normal app close leaves no owned agent residue",
+    ],
+    userGoal: "Keep working after Intrepid, a session lane, or the remote editor server restarts.",
+    acceptanceCriteria: ["no persistent history loss", "no duplicate agent process", "no app restart required"],
+    frictionSignals: ["peer closed", "blank history", "new session ID", "repeat restart loop", "duplicate provider process"],
+    evidenceRequired: [
+      "installed persistent UI recovery",
+      "exact ordinary remote-server replacement identity",
+      "before/after transport process census",
+    ],
+    negativeCase:
+      "a restart loses persistent state, reuses a dead transport, or leaves both old and replacement ordinary transports alive",
+    statefulJourney:
+      "persistent: attached -> exited -> retrying -> loaded-original; ordinary: connected -> remote-server-exited -> one-replacement -> old-transport-gone -> app-close-clean",
+    newInformationTarget:
+      "Whether every Intrepid ownership model recovers across its real transport transition without state loss or duplicate processes.",
   },
   {
     ...commonRow,
@@ -497,8 +520,14 @@ const executionContracts = {
   "ZED-ACP-RECOVERY-004": {
     commands: [
       "computer-use installed Zed 10x with an existing Codex (Intrepid, primary) session: restart zed-acp-session-host@codex--primary.service, invoke Retry, load the original session, and continue once",
+      "./script/cargo test -p agent_ui test_retry_load_refreshes_dedicated_transport_and_preserves_session_id --lib -- --test-threads=1",
+      "./script/cargo test -p agent_ui test_drop_shuts_down_dedicated_transport --lib -- --test-threads=1",
+      "installed Zed 10x in an Intrepid project with Cursor active: terminate the exact commit-matched remote-server run process, require one replacement server and one replacement Cursor transport, prove the old transport and guardian are gone, then close the app and prove zero owned agent residue",
     ],
-    evidencePaths: ["docs/test-results/zed-acp-recovery-intrepid.json"],
+    evidencePaths: [
+      "docs/test-results/zed-acp-recovery-intrepid.json",
+      "docs/test-results/zed-acp-ordinary-reconnect-intrepid.json",
+    ],
     runtimeIdentityIds: ["RUNTIME-ZED10X-INTREPID"],
   },
   "ZED-ACP-SWITCH-005": {
@@ -698,13 +727,13 @@ This plan covers the **External Agents** section of the installed Zed 10x picker
 
 ## Surface × journey closure
 
-| Installed surface | Visible variants | Host inventory | New session and project outcome | Switch and return | Cleanup | Persistent recovery |
+| Installed surface | Visible variants | Host inventory | New session and project outcome | Switch and return | Cleanup | Intrepid recovery |
 |---|---:|---|---|---|---|---|
 | Mac local | 8 | Installed boundary | Installed boundary | Installed boundary | Installed boundary | N/A |
 | Intrepid persistent | 8 | Installed boundary | Installed boundary | Installed boundary | Installed boundary | Installed boundary |
-| Intrepid ordinary | 6 | Installed boundary | Installed boundary | Installed boundary | Installed boundary | N/A |
+| Intrepid ordinary | 6 | Installed boundary | Installed boundary | Installed boundary | Installed boundary | Installed boundary |
 
-All 22 visible variants receive direct coverage for inventory, launch outcome, and cleanup. The resulting plan contains ${variantCells.length} direct route-specific variant × journey cells and does not infer one profile or provider from another. Stateful switch and persistent recovery are separate surface-level journeys exercised on the named representatives whose shared product state they target.
+All 22 visible variants receive direct coverage for inventory, launch outcome, and cleanup. The resulting plan contains ${variantCells.length} direct route-specific variant × journey cells and does not infer one profile or provider from another. Stateful switch and Intrepid recovery are separate surface-level journeys exercised on the named representatives whose shared product state they target. Recovery covers both persistent journal restoration and ordinary dedicated-transport replacement.
 
 ## Tier 0 rows
 
@@ -732,7 +761,7 @@ ${row.passCriteria.map((criterion) => `- ${criterion}`).join("\n")}
 3. Exercise installed picker inventory and every visible variant.
 4. Exercise cleanup semantics.
 5. Exercise the named representative switch-and-return journeys as surface-level state transitions.
-6. Restart one real persistent lane while attached and recover the original session through Retry.
+6. Restart one real persistent lane and one ordinary remote editor server while attached; recover the original persistent session and prove exactly one ordinary replacement transport.
 7. Bind content-free evidence to the exact tested revision and validate the lifecycle artifacts.
 `;
 
@@ -740,7 +769,7 @@ const analysis = `# Zed 10x Test Plan Analysis
 
 The fresh plan is intentionally not production-ready until all five installed rows execute. The main prior false-positive mechanisms were proxy substitution and isolated-route testing: direct ACP/provider canaries were accepted as evidence for UI selectability, host labels, assembled launch wrappers, restart recovery, and transitions between individually green agents. This plan removes those inferences and binds each independently visible External Agent variant to every applicable user journey, including an explicit switch-and-return state transition.
 
-The dominant residual risk before execution is persistent-session recovery after a real service death. The deterministic Rust regression is necessary but not sufficient; the installed Zed 10x app, remote server, attach wrapper, systemd unit, durable journal, Retry UI, and original session must be observed together.
+The dominant residual risk before execution is recovery after a real Intrepid ownership transition. Deterministic Rust regressions are necessary but not sufficient; the installed Zed 10x app, remote server, ordinary agent transport, attach wrapper, systemd unit, durable journal, Retry UI, and original session must be observed at their respective assembled boundaries.
 `;
 
 const pendingSummary = {

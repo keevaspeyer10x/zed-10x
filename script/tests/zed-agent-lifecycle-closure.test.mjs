@@ -58,7 +58,7 @@ test("fresh lifecycle closes the exact installed External Agents surfaces and jo
   assert.equal(
     discovery.surfaceJourneyMatrix.filter(({ applicability }) => applicability === "applicable")
       .length,
-    13,
+    14,
   );
   assert.equal(discovery.selectableVariants.length, 22);
   assert.equal(plan.variantJourneyCoverage.cells.length, 66);
@@ -84,6 +84,7 @@ test("fresh lifecycle closes the exact installed External Agents surfaces and jo
 
   assert.deepEqual(rowsById.get("ZED-ACP-RECOVERY-004").variantIds, [
     "VAR-INTREPID-CODEX-PRIMARY",
+    "VAR-INTREPID-CURSOR",
   ]);
   assert.deepEqual(rowsById.get("ZED-ACP-SWITCH-005").variantIds, [
     "VAR-MAC-CODEX",
