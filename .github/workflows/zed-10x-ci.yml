@@ -21,8 +21,6 @@ jobs:
     steps:
       - name: Check out the exact pull-request revision
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
-        with:
-          fetch-depth: 0
 
       - name: Protect packaged CLI launch logging
         run: cargo test --locked -p cli --bin cli
@@ -35,8 +33,6 @@ jobs:
     steps:
       - name: Check out the exact pull-request revision
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
-        with:
-          fetch-depth: 0
 
       - name: Verify the workflow contract
         run: tests/test_zed_10x_ci_workflows.sh
@@ -77,6 +73,9 @@ jobs:
           cargo test --locked -p agent_ui test_retry_load_restarts_transport_and_preserves_session_id --lib
           cargo test --locked -p agent_ui test_retry_load_refreshes_dedicated_transport_and_preserves_session_id --lib
           cargo test --locked -p agent_ui test_drop_shuts_down_dedicated_transport --lib
+          cargo test --locked -p agent_ui test_drop_uses_connection_policy_captured_at_acquisition --lib
+          cargo test --locked -p agent_ui test_state_transition_uses_connection_policy_captured_at_acquisition --lib
+          cargo test --locked -p agent_ui test_drop_closes_dedicated_sessions_before_transport_shutdown --lib
           cargo test --locked -p agent_ui test_drop --lib
           cargo test --locked -p agent_ui test_retry_after_acp_server_exit_loads_the_original_session --lib
           cargo test --locked -p agent_servers test_custom_agent_dedicated_connection_setting --lib
@@ -121,6 +120,10 @@ jobs:
           cargo test --locked -p remote_server --test env_exec unix::env_exec_reaps_its_command_group_when_the_guardian_is_killed -- --exact
           cargo test --locked -p remote_server --test env_exec unix::env_exec_reaps_its_command_group_when_guardian_dies_after_transport_eof -- --exact
           cargo test --locked -p remote_server --test env_exec unix::env_exec_preserves_the_command_exit_identity -- --exact
+          cargo test --locked -p remote_server --test env_exec unix::env_exec_flushes_partial_protocol_frames_before_command_exit -- --exact
+          cargo test --locked -p remote_server --test env_exec unix::env_exec_preserves_known_exit_identity_after_child_closes_stdin -- --exact
+          cargo test --locked -p remote_server --test env_exec unix::env_exec_can_start_its_guardian_after_its_binary_is_unlinked -- --exact
+          cargo test --locked -p remote_server --test env_exec unix::env_exec_does_not_hang_on_an_escaped_descendant_holding_output_open -- --exact
           cargo test --locked -p remote_server --test env_exec unix::env_exec_guardian_rejects_standard_descriptors -- --exact
 
       - name: Test the Zed 10x updater and release channel

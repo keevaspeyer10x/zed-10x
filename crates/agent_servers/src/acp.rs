@@ -1575,7 +1575,8 @@ impl Drop for AcpConnection {
 
 impl AcpConnection {
     fn shutdown_owned_transport(&self) {
-        if let Some(mut child) = self.child.borrow_mut().take() {
+        let child = self.child.borrow_mut().take();
+        if let Some(mut child) = child {
             child.kill().log_err();
         }
     }

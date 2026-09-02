@@ -509,7 +509,7 @@ fn execute_env_exec_guardian(
 #[allow(clippy::disallowed_methods)] // This synchronous process boundary proxies stdio threads.
 fn execute_env_exec(command: Vec<OsString>) -> anyhow::Result<()> {
     use std::{
-        io::{BufRead as _, BufReader, Write as _},
+        io::{BufRead as _, BufReader},
         os::{fd::AsRawFd as _, unix::net::UnixStream, unix::process::CommandExt as _},
         process::{Command, ExitStatus, Stdio},
         sync::mpsc,
@@ -521,8 +521,27 @@ fn execute_env_exec(command: Vec<OsString>) -> anyhow::Result<()> {
         ChildExited(std::io::Result<()>),
     }
 
-    const TRANSPORT_CLOSE_GRACE: Duration = Duration::from_secs(2);
+    const TRANSPORT_CLOSE_GRACE: Duration = Duration::from_secs(5);
     const GUARDIAN_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(5);
+    const OUTPUT_FORWARD_TIMEOUT: Duration = Duration::from_secs(2);
+
+    fn forward_output(
+        input: &mut impl std::io::Read,
+        output: &mut impl std::io::Write,
+    ) -> std::io::Result<()> {
+        let mut buffer = [0; 16 * 1024];
+        loop {
+            let byte_count = input.read(&mut buffer)?;
+            if byte_count == 0 {
+                return output.flush();
+            }
+            output.write_all(&buffer[..byte_count])?;
+            // ACP and DAP frames do not necessarily end in a newline. Flush
+            // every chunk so the caller can decode a partial frame while the
+            // command remains alive.
+            output.flush()?;
+        }
+    }
 
     fn finish_guardian_exit(
         observed: std::io::Result<()>,
@@ -565,6 +584,13 @@ fn execute_env_exec(command: Vec<OsString>) -> anyhow::Result<()> {
     let environment =
         remote::read_stdin_environment(&mut stdin).context("reading stdin environment frame")?;
 
+    // On Linux, execute the already-running image through procfs. This keeps
+    // guardian startup valid if an application update replaces or unlinks the
+    // versioned remote-server path while this process is still serving a
+    // connection.
+    #[cfg(target_os = "linux")]
+    let current_exe = std::path::PathBuf::from("/proc/self/exe");
+    #[cfg(not(target_os = "linux"))]
     let current_exe = std::env::current_exe().context("resolving env-exec guardian")?;
     let (owner_reader, owner_writer) =
         UnixStream::pair().context("creating env-exec owner liveness pipe")?;
@@ -660,15 +686,19 @@ fn execute_env_exec(command: Vec<OsString>) -> anyhow::Result<()> {
         transport_tx.send(Event::TransportClosed(result)).ok();
     });
 
-    let stdout_thread = thread::spawn(move || -> std::io::Result<()> {
+    let (output_tx, output_rx) = mpsc::channel();
+    let stdout_tx = output_tx.clone();
+    thread::spawn(move || {
         let mut stdout = std::io::stdout().lock();
-        std::io::copy(&mut child_stdout, &mut stdout)?;
-        stdout.flush()
+        stdout_tx
+            .send(("stdout", forward_output(&mut child_stdout, &mut stdout)))
+            .ok();
     });
-    let stderr_thread = thread::spawn(move || -> std::io::Result<()> {
+    thread::spawn(move || {
         let mut stderr = std::io::stderr().lock();
-        std::io::copy(&mut child_stderr, &mut stderr)?;
-        stderr.flush()
+        output_tx
+            .send(("stderr", forward_output(&mut child_stderr, &mut stderr)))
+            .ok();
     });
 
     let mut transport_closed = false;
@@ -709,7 +739,12 @@ fn execute_env_exec(command: Vec<OsString>) -> anyhow::Result<()> {
             Event::TransportClosed(result) => {
                 transport_closed = true;
                 if let Err(error) = result {
-                    transport_error = Some(error);
+                    if !matches!(
+                        error.kind(),
+                        std::io::ErrorKind::BrokenPipe | std::io::ErrorKind::WriteZero
+                    ) {
+                        transport_error = Some(error);
+                    }
                 }
 
                 match event_rx.recv_timeout(TRANSPORT_CLOSE_GRACE) {
@@ -741,24 +776,22 @@ fn execute_env_exec(command: Vec<OsString>) -> anyhow::Result<()> {
         }
     };
 
-    stdout_thread
-        .join()
-        .map_err(|_| anyhow!("command stdout forwarding thread panicked"))?
-        .context("forwarding command stdout")?;
-    stderr_thread
-        .join()
-        .map_err(|_| anyhow!("command stderr forwarding thread panicked"))?
-        .context("forwarding command stderr")?;
+    for _ in 0..2 {
+        let (stream, result) = output_rx
+            .recv_timeout(OUTPUT_FORWARD_TIMEOUT)
+            .with_context(|| "waiting for command output forwarding to finish")?;
+        result.with_context(|| format!("forwarding command {stream}"))?;
+    }
+
+    if !status.success() {
+        return Err(EnvExecExitError::new(status, transport_closed || owner_closed).into());
+    }
 
     if let Some(error) = transport_error {
         return Err(error).context("forwarding command stdin");
     }
 
-    if status.success() {
-        Ok(())
-    } else {
-        Err(EnvExecExitError::new(status, transport_closed || owner_closed).into())
-    }
+    Ok(())
 }
 
 #[cfg(unix)]
