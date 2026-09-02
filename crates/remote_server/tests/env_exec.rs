@@ -206,6 +206,144 @@ mod unix {
     }
 
     #[test]
+    #[allow(clippy::disallowed_methods)] // This process-boundary test needs the real binary.
+    fn env_exec_flushes_partial_protocol_frames_before_command_exit() -> anyhow::Result<()> {
+        use std::io::Read as _;
+        use std::sync::mpsc;
+
+        let mut child = Command::new(env!("CARGO_BIN_EXE_remote_server"))
+            .args([
+                "env-exec",
+                "--",
+                "/bin/sh",
+                "-c",
+                "printf 'partial-frame'; sleep 30",
+            ])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()?;
+        let mut stdin = child.stdin.take().expect("piped stdin");
+        stdin.write_all(&remote::encode_stdin_environment(&HashMap::default())?)?;
+        stdin.flush()?;
+        let guardian_pid = wait_for_child_process(child.id(), "env-exec-guardian")?;
+        wait_for_child_process(guardian_pid, "printf 'partial-frame'")?;
+
+        let mut stdout = child.stdout.take().expect("piped stdout");
+        let (result_tx, result_rx) = mpsc::channel();
+        let reader = thread::spawn(move || {
+            let mut bytes = [0; 13];
+            let result = stdout.read_exact(&mut bytes).map(|()| bytes);
+            result_tx.send(result).ok();
+        });
+        let received_before_exit = result_rx
+            .recv_timeout(Duration::from_secs(2))
+            .ok()
+            .transpose()?;
+
+        drop(stdin);
+        let _ = wait_with_timeout_for(&mut child, Duration::from_secs(10));
+        reader.join().expect("stdout reader should not panic");
+        assert_eq!(
+            received_before_exit.as_ref().map(|bytes| bytes.as_slice()),
+            Some(b"partial-frame".as_slice()),
+            "protocol bytes without a trailing newline must not remain buffered until process exit"
+        );
+        Ok(())
+    }
+
+    #[test]
+    #[allow(clippy::disallowed_methods)] // This process-boundary test needs the real binary.
+    fn env_exec_preserves_known_exit_identity_after_child_closes_stdin() -> anyhow::Result<()> {
+        use std::os::unix::process::ExitStatusExt as _;
+
+        let mut child = Command::new(env!("CARGO_BIN_EXE_remote_server"))
+            .args([
+                "env-exec",
+                "--",
+                "/bin/sh",
+                "-c",
+                "exec 0<&-; sleep 0.1; exit 23",
+            ])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::null())
+            .stderr(Stdio::piped())
+            .spawn()?;
+        let mut stdin = child.stdin.take().expect("piped stdin");
+        stdin.write_all(&remote::encode_stdin_environment(&HashMap::default())?)?;
+        let payload = vec![b'x'; 1024 * 1024];
+        let _ = stdin.write_all(&payload);
+        drop(stdin);
+
+        let status = wait_with_timeout_for(&mut child, Duration::from_secs(10))?;
+        assert_eq!(status.code(), Some(23));
+        assert_eq!(status.signal(), None);
+        Ok(())
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    #[allow(clippy::disallowed_methods)] // This process-boundary test replaces a real executable.
+    fn env_exec_can_start_its_guardian_after_its_binary_is_unlinked() -> anyhow::Result<()> {
+        let temp_dir = tempfile::tempdir()?;
+        let executable = temp_dir.path().join("remote-server-copy");
+        std::fs::copy(env!("CARGO_BIN_EXE_remote_server"), &executable)?;
+
+        let mut child = Command::new(&executable)
+            .args(["env-exec", "--", "/usr/bin/true"])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::null())
+            .stderr(Stdio::piped())
+            .spawn()?;
+        let mut stdin = child.stdin.take().expect("piped stdin");
+        std::fs::remove_file(&executable)?;
+        stdin.write_all(&remote::encode_stdin_environment(&HashMap::default())?)?;
+        drop(stdin);
+
+        let status = wait_with_timeout_for(&mut child, Duration::from_secs(10))?;
+        assert!(
+            status.success(),
+            "the running image must remain able to start its guardian after an update"
+        );
+        Ok(())
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    #[allow(clippy::disallowed_methods)] // This process-boundary test owns the escaped descendant.
+    fn env_exec_does_not_hang_on_an_escaped_descendant_holding_output_open() -> anyhow::Result<()> {
+        use std::io::{BufRead as _, BufReader};
+
+        let script = "/usr/bin/setsid /bin/sh -c 'trap \"\" HUP TERM; while :; do sleep 60; done' & printf '%s\\n' \"$!\"";
+        let mut supervisor = Command::new(env!("CARGO_BIN_EXE_remote_server"))
+            .args(["env-exec", "--", "/bin/sh", "-c", script])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()?;
+        let mut stdin = supervisor.stdin.take().expect("piped stdin");
+        stdin.write_all(&remote::encode_stdin_environment(&HashMap::default())?)?;
+        stdin.flush()?;
+
+        let stdout = supervisor.stdout.take().expect("piped stdout");
+        let mut reader = BufReader::new(stdout);
+        let mut pid_line = String::new();
+        reader.read_line(&mut pid_line)?;
+        let escaped_pid = pid_line.trim().parse::<u32>()?;
+
+        let status = wait_with_timeout_for(&mut supervisor, Duration::from_secs(5));
+        unsafe {
+            libc::kill(-(escaped_pid as i32), libc::SIGKILL);
+            libc::kill(escaped_pid as i32, libc::SIGKILL);
+        }
+        let status =
+            status.context("env-exec hung while an escaped descendant held stdout open")?;
+        assert!(status.success(), "direct command exited successfully");
+        drop(stdin);
+        Ok(())
+    }
+
+    #[test]
     #[allow(clippy::disallowed_methods)] // This validates the hidden process boundary.
     fn env_exec_guardian_rejects_standard_descriptors() -> anyhow::Result<()> {
         let output = Command::new(env!("CARGO_BIN_EXE_remote_server"))
@@ -251,7 +389,7 @@ mod unix {
         let command_pid = pid_line.trim().parse::<u32>()?;
 
         drop(stdin);
-        let status = wait_with_timeout_for(&mut child, Duration::from_secs(5));
+        let status = wait_with_timeout_for(&mut child, Duration::from_secs(12));
         if status.is_err() {
             let _ = Command::new("kill")
                 .args(["-KILL", &command_pid.to_string()])

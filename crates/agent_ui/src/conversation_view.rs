@@ -26,6 +26,7 @@ use editor::{
 use file_icons::FileIcons;
 use fs::Fs;
 use futures::FutureExt as _;
+use gpui::FutureExt as GpuiFutureExt;
 use gpui::{
     Action, Animation, AnimationExt, App, ClickEvent, ClipboardItem, CursorStyle, ElementId, Empty,
     Entity, EventEmitter, FocusHandle, Focusable, Hsla, ListOffset, ListState, ObjectFit,
@@ -104,6 +105,7 @@ use crate::{
 
 const STOPWATCH_THRESHOLD: Duration = Duration::from_secs(30);
 const TOKEN_THRESHOLD: u64 = 250;
+const CLOSE_SESSION_TIMEOUT: Duration = Duration::from_secs(2);
 
 pub(crate) const DRAFT_PROMPT_PERSIST_DEBOUNCE: Duration = Duration::from_millis(250);
 
@@ -726,6 +728,7 @@ enum ServerState {
     Loading {
         _loading: Entity<LoadingView>,
         connection: Option<Rc<dyn AgentConnection>>,
+        dedicated_connection: bool,
         _request_elicitation_subscription: Option<Subscription>,
     },
     LoadError {
@@ -741,6 +744,7 @@ pub struct ConnectedServerState {
     active_id: Option<acp::SessionId>,
     pub(crate) threads: HashMap<acp::SessionId, Entity<ThreadView>>,
     connection: Rc<dyn AgentConnection>,
+    dedicated_connection: bool,
     conversation: Entity<Conversation>,
     _connection_entry_subscription: Subscription,
     _request_elicitation_subscription: Option<Subscription>,
@@ -844,13 +848,27 @@ impl ConversationView {
         cx.on_release(|this, cx| {
             this.request_elicitation_form_states.clear();
             if let Some(connected) = this.as_connected() {
-                connected.close_all_sessions(cx).detach();
-                if this.agent.requires_dedicated_connection(cx) {
+                let close_sessions = connected.close_all_sessions(cx);
+                if connected.dedicated_connection {
                     let connection = connected.connection.clone();
-                    connection.shutdown_transport();
                     this.connection_store.update(cx, |store, cx| {
                         store.remove_connected_entry_if_same(&this.connection_key, &connection, cx);
                     });
+                    if connection.supports_close_session() {
+                        let executor = cx.background_executor().clone();
+                        cx.spawn(async move |_cx| {
+                            close_sessions
+                                .with_timeout(CLOSE_SESSION_TIMEOUT, &executor)
+                                .await
+                                .ok();
+                            connection.shutdown_transport();
+                        })
+                        .detach();
+                    } else {
+                        connection.shutdown_transport();
+                    }
+                } else {
+                    close_sessions.detach();
                 }
             }
             for window in this.notifications.drain(..) {
@@ -922,27 +940,45 @@ impl ConversationView {
     }
 
     fn set_server_state(&mut self, state: ServerState, cx: &mut Context<Self>) {
-        let previous_request_elicitation_connection = self.request_elicitation_connection();
-        let next_request_elicitation_connection =
-            Self::request_elicitation_connection_for_state(&state);
+        let previous_connection = Self::connection_binding_for_state(&self.server_state);
+        let next_connection = Self::connection_binding_for_state(&state);
 
-        if let Some(connected) = self.as_connected() {
-            connected.close_all_sessions(cx).detach();
-        }
+        let close_sessions = self
+            .as_connected()
+            .map(|connected| connected.close_all_sessions(cx));
 
-        if self.agent.requires_dedicated_connection(cx)
-            && let Some(connection) = previous_request_elicitation_connection.as_ref()
-            && !next_request_elicitation_connection
+        if let Some((connection, true)) = previous_connection.as_ref()
+            && !next_connection
                 .as_ref()
-                .is_some_and(|next_connection| Rc::ptr_eq(connection, next_connection))
+                .is_some_and(|(next_connection, _)| Rc::ptr_eq(connection, next_connection))
         {
-            connection.shutdown_transport();
+            let connection = connection.clone();
+            self.connection_store.update(cx, |store, cx| {
+                store.remove_connected_entry_if_same(&self.connection_key, &connection, cx);
+            });
+            if connection.supports_close_session()
+                && let Some(close_sessions) = close_sessions
+            {
+                let executor = cx.background_executor().clone();
+                cx.spawn(async move |_this, _cx| {
+                    close_sessions
+                        .with_timeout(CLOSE_SESSION_TIMEOUT, &executor)
+                        .await
+                        .ok();
+                    connection.shutdown_transport();
+                })
+                .detach();
+            } else {
+                connection.shutdown_transport();
+            }
+        } else if let Some(close_sessions) = close_sessions {
+            close_sessions.detach();
         }
 
-        if let Some(connection) = previous_request_elicitation_connection
-            && !next_request_elicitation_connection
+        if let Some((connection, _)) = previous_connection
+            && !next_connection
                 .as_ref()
-                .is_some_and(|next_connection| Rc::ptr_eq(&connection, next_connection))
+                .is_some_and(|(next_connection, _)| Rc::ptr_eq(&connection, next_connection))
         {
             self.request_elicitation_form_states.clear();
         }
@@ -985,12 +1021,21 @@ impl ConversationView {
     fn request_elicitation_connection_for_state(
         state: &ServerState,
     ) -> Option<Rc<dyn AgentConnection>> {
+        Self::connection_binding_for_state(state).map(|(connection, _)| connection)
+    }
+
+    fn connection_binding_for_state(
+        state: &ServerState,
+    ) -> Option<(Rc<dyn AgentConnection>, bool)> {
         match state {
             ServerState::Loading {
                 connection: Some(connection),
+                dedicated_connection,
                 ..
-            } => Some(connection.clone()),
-            ServerState::Connected(connected) => Some(connected.connection.clone()),
+            } => Some((connection.clone(), *dedicated_connection)),
+            ServerState::Connected(connected) => {
+                Some((connected.connection.clone(), connected.dedicated_connection))
+            }
             ServerState::Loading {
                 connection: None, ..
             }
@@ -1246,6 +1291,7 @@ impl ConversationView {
                         this.set_server_state(
                             ServerState::Connected(ConnectedServerState {
                                 connection,
+                                dedicated_connection: requires_dedicated_connection,
                                 auth_state: AuthState::Ok,
                                 active_id: Some(root_session_id.clone()),
                                 threads: HashMap::from_iter([(root_session_id, current)]),
@@ -1275,6 +1321,7 @@ impl ConversationView {
         ServerState::Loading {
             _loading: loading_view,
             connection: None,
+            dedicated_connection: requires_dedicated_connection,
             _request_elicitation_subscription: None,
         }
     }
@@ -1488,6 +1535,8 @@ impl ConversationView {
         cx: &mut App,
     ) {
         this.update(cx, |this, cx| {
+            let dedicated_connection = Self::connection_binding_for_state(&this.server_state)
+                .is_some_and(|(_, dedicated_connection)| dedicated_connection);
             let description = err
                 .description
                 .map(|desc| cx.new(|cx| Markdown::new(desc.into(), None, None, cx)));
@@ -1516,6 +1565,7 @@ impl ConversationView {
                         active_id: None,
                         threads: HashMap::default(),
                         connection,
+                        dedicated_connection,
                         conversation: cx.new(|_cx| Conversation::default()),
                         _connection_entry_subscription: Subscription::new(|| {}),
                         _request_elicitation_subscription: request_elicitation_subscription,
@@ -3238,7 +3288,7 @@ impl ConversationView {
             debug_panic!("This should not be possible");
             return;
         };
-        window.defer(cx, |window, cx| {
+        window.defer(cx, move |window, cx| {
             Self::handle_auth_required(this, AuthRequired::new(), connection, window, cx);
         })
     }
@@ -3763,6 +3813,112 @@ pub(crate) mod tests {
             }),
             crate::agent_connection_store::AgentConnectionStatus::Disconnected,
             "releasing a dedicated view must remove its retired canonical connection"
+        );
+    }
+
+    #[gpui::test]
+    async fn test_drop_uses_connection_policy_captured_at_acquisition(cx: &mut TestAppContext) {
+        use std::sync::atomic::Ordering;
+
+        init_test(cx);
+
+        let dedicated_connection = StubAgentConnection::new();
+        let (dedicated_server, fail, _) =
+            FlakyAgentServer::new_dedicated(dedicated_connection.clone());
+        let dedicated_policy = dedicated_server.dedicated_connection.clone();
+        fail.store(false, Ordering::SeqCst);
+        let (dedicated_view, cx) = setup_conversation_view(dedicated_server, cx).await;
+
+        // A settings reload can change the policy while the view still owns
+        // the connection acquired under the previous policy.
+        dedicated_policy.store(false, Ordering::SeqCst);
+        drop(dedicated_view);
+        cx.update(|_, _| {});
+        cx.run_until_parked();
+        assert_eq!(
+            dedicated_connection.shutdown_count(),
+            1,
+            "a connection acquired as dedicated must still be retired after settings change"
+        );
+
+        let shared_connection = StubAgentConnection::new();
+        let (shared_server, fail, _) = FlakyAgentServer::new(shared_connection.clone());
+        let shared_policy = shared_server.dedicated_connection.clone();
+        fail.store(false, Ordering::SeqCst);
+        let (shared_view, cx) = setup_conversation_view(shared_server, cx).await;
+
+        shared_policy.store(true, Ordering::SeqCst);
+        drop(shared_view);
+        cx.update(|_, _| {});
+        cx.run_until_parked();
+        assert_eq!(
+            shared_connection.shutdown_count(),
+            0,
+            "a connection acquired as shared must not be retired after settings change"
+        );
+    }
+
+    #[gpui::test]
+    async fn test_state_transition_uses_connection_policy_captured_at_acquisition(
+        cx: &mut TestAppContext,
+    ) {
+        use std::sync::atomic::Ordering;
+
+        init_test(cx);
+
+        let dedicated_connection = StubAgentConnection::new();
+        let (dedicated_server, fail, _) =
+            FlakyAgentServer::new_dedicated(dedicated_connection.clone());
+        let dedicated_policy = dedicated_server.dedicated_connection.clone();
+        fail.store(false, Ordering::SeqCst);
+        let (dedicated_view, cx) = setup_conversation_view(dedicated_server, cx).await;
+        dedicated_policy.store(false, Ordering::SeqCst);
+        dedicated_view.update(cx, |view, cx| {
+            view.set_server_state(
+                ServerState::LoadError {
+                    error: LoadError::Other("transport closed".into()),
+                },
+                cx,
+            );
+        });
+        assert_eq!(dedicated_connection.shutdown_count(), 1);
+
+        let shared_connection = StubAgentConnection::new();
+        let (shared_server, fail, _) = FlakyAgentServer::new(shared_connection.clone());
+        let shared_policy = shared_server.dedicated_connection.clone();
+        fail.store(false, Ordering::SeqCst);
+        let (shared_view, cx) = setup_conversation_view(shared_server, cx).await;
+        shared_policy.store(true, Ordering::SeqCst);
+        shared_view.update(cx, |view, cx| {
+            view.set_server_state(
+                ServerState::LoadError {
+                    error: LoadError::Other("transport closed".into()),
+                },
+                cx,
+            );
+        });
+        assert_eq!(shared_connection.shutdown_count(), 0);
+    }
+
+    #[gpui::test]
+    async fn test_drop_closes_dedicated_sessions_before_transport_shutdown(
+        cx: &mut TestAppContext,
+    ) {
+        init_test(cx);
+
+        let connection = CloseCapableConnection::new();
+        let lifecycle = connection.lifecycle.clone();
+        let (conversation_view, cx) =
+            setup_conversation_view(DedicatedCloseAgentServer(connection), cx).await;
+
+        drop(conversation_view);
+        cx.update(|_, _| {});
+        cx.run_until_parked();
+
+        assert_eq!(
+            lifecycle.lock().as_slice(),
+            ["close", "shutdown"],
+            "dedicated session close must complete before its transport is retired"
         );
     }
 
@@ -6110,7 +6266,7 @@ pub(crate) mod tests {
         connection: StubAgentConnection,
         fail: Arc<std::sync::atomic::AtomicBool>,
         connect_attempts: Arc<std::sync::atomic::AtomicUsize>,
-        dedicated_connection: bool,
+        dedicated_connection: Arc<std::sync::atomic::AtomicBool>,
     }
 
     impl FlakyAgentServer {
@@ -6144,12 +6300,14 @@ pub(crate) mod tests {
         ) {
             let fail = Arc::new(std::sync::atomic::AtomicBool::new(true));
             let connect_attempts = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+            let dedicated_connection =
+                Arc::new(std::sync::atomic::AtomicBool::new(dedicated_connection));
             (
                 Self {
                     connection,
                     fail: fail.clone(),
                     connect_attempts: connect_attempts.clone(),
-                    dedicated_connection,
+                    dedicated_connection: dedicated_connection.clone(),
                 },
                 fail,
                 connect_attempts,
@@ -6185,6 +6343,7 @@ pub(crate) mod tests {
 
         fn requires_dedicated_connection(&self, _cx: &App) -> bool {
             self.dedicated_connection
+                .load(std::sync::atomic::Ordering::SeqCst)
         }
 
         fn into_any(self: Rc<Self>) -> Rc<dyn Any> {
@@ -11418,12 +11577,14 @@ pub(crate) mod tests {
     #[derive(Clone)]
     struct CloseCapableConnection {
         closed_sessions: Arc<Mutex<Vec<acp::SessionId>>>,
+        lifecycle: Arc<Mutex<Vec<&'static str>>>,
     }
 
     impl CloseCapableConnection {
         fn new() -> Self {
             Self {
                 closed_sessions: Arc::new(Mutex::new(Vec::new())),
+                lifecycle: Arc::new(Mutex::new(Vec::new())),
             }
         }
     }
@@ -11435,6 +11596,10 @@ pub(crate) mod tests {
 
         fn telemetry_id(&self) -> SharedString {
             "close-capable".into()
+        }
+
+        fn shutdown_transport(&self) {
+            self.lifecycle.lock().push("shutdown");
         }
 
         fn new_session(
@@ -11472,10 +11637,16 @@ pub(crate) mod tests {
         fn close_session(
             self: Rc<Self>,
             session_id: &acp::SessionId,
-            _cx: &mut App,
+            cx: &mut App,
         ) -> Task<Result<()>> {
-            self.closed_sessions.lock().push(session_id.clone());
-            Task::ready(Ok(()))
+            let session_id = session_id.clone();
+            let closed_sessions = self.closed_sessions.clone();
+            let lifecycle = self.lifecycle.clone();
+            cx.spawn(async move |_cx| {
+                closed_sessions.lock().push(session_id);
+                lifecycle.lock().push("close");
+                Ok(())
+            })
         }
 
         fn auth_methods(&self) -> &[acp::AuthMethod] {
@@ -11499,6 +11670,35 @@ pub(crate) mod tests {
         }
 
         fn cancel(&self, _session_id: &acp::SessionId, _cx: &mut App) {}
+
+        fn into_any(self: Rc<Self>) -> Rc<dyn Any> {
+            self
+        }
+    }
+
+    struct DedicatedCloseAgentServer(CloseCapableConnection);
+
+    impl AgentServer for DedicatedCloseAgentServer {
+        fn logo(&self) -> ui::IconName {
+            ui::IconName::ZedAgent
+        }
+
+        fn agent_id(&self) -> AgentId {
+            "DedicatedClose".into()
+        }
+
+        fn connect(
+            &self,
+            _delegate: AgentServerDelegate,
+            _project: Entity<Project>,
+            _cx: &mut App,
+        ) -> Task<gpui::Result<Rc<dyn AgentConnection>>> {
+            Task::ready(Ok(Rc::new(self.0.clone())))
+        }
+
+        fn requires_dedicated_connection(&self, _cx: &App) -> bool {
+            true
+        }
 
         fn into_any(self: Rc<Self>) -> Rc<dyn Any> {
             self
