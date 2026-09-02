@@ -84,6 +84,8 @@ if [[ -f "$RUST_CI" ]]; then
         contains "$RUST_CI" "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd"
     check "both focused jobs fetch the history required by revision-bound evidence" \
         test "$(grep -Fc 'fetch-depth: 0' "$RUST_CI")" -eq 2
+    check "both focused jobs disable incremental build residue" \
+        test "$(grep -Fc 'CARGO_INCREMENTAL: 0' "$RUST_CI")" -eq 2
     check "focused CI runs its workflow contract" \
         contains "$RUST_CI" "run: tests/test_zed_10x_ci_workflows.sh"
     check "focused CI pins the repository Node.js version" \
@@ -178,6 +180,8 @@ if [[ -f "$RUST_CI" ]]; then
         contains "$RUST_CI" "cargo test --locked -p release_channel"
     check "focused Zed check command is exact" \
         contains "$RUST_CI" "cargo check --locked -p zed --bin zed-10x"
+    check "focused CI reclaims check-only artifacts before the final binary test" \
+        contains "$RUST_CI" "run: cargo clean"
     check "focused Zed test command is exact" \
         contains "$RUST_CI" "run: cargo test --locked -p zed --bin zed-10x -- --test-threads=1"
     check "focused Zed tests are not filtered to an absent module" \

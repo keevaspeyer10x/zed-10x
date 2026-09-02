@@ -123,6 +123,14 @@
       "fix": "Fetch complete history in both focused jobs while retaining the exact pull-request revision checkout.",
       "regression": "The workflow contract requires fetch-depth zero for both focused checkouts.",
       "status": "fixed"
+    },
+    {
+      "id": "HARNESS-CI-RUNNER-DISK-EXHAUSTION",
+      "category": "ci_configuration_bug",
+      "symptom": "The focused Linux job retained cumulative Rust check and test artifacts until the final Zed binary compile exhausted the hosted runner disk.",
+      "fix": "Disable incremental artifacts in both focused jobs and reclaim disposable check-only artifacts before the final binary test compile.",
+      "regression": "The workflow contract requires CARGO_INCREMENTAL=0 in both focused jobs and an explicit cargo clean before the final Zed binary test.",
+      "status": "fixed"
     }
   ],
   "coverageClosureDefects": [

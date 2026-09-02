@@ -62,7 +62,7 @@
     ]
   },
   "defectDiscovery": {
-    "bugsFound": 16,
+    "bugsFound": 17,
     "productDefects": [
       "remote child groups survived transport closure",
       "remote descendants survived direct leader exit",
@@ -79,7 +79,8 @@
       "the cleanup census initially confused observer ancestry with residue",
       "the durable evidence writer rejected the standard symlinked macOS /tmp spelling after a successful write",
       "the affected-package matrix omitted the acp_thread test target after its constructor contract changed",
-      "the CI shallow checkout omitted the installed revision needed by the ancestry-bound evidence validator"
+      "the CI shallow checkout omitted the installed revision needed by the ancestry-bound evidence validator",
+      "the focused Linux job retained enough disposable Rust build output to exhaust the hosted runner disk before its final binary test"
     ],
     "infraOrToolingDefects": [],
     "processDefects": [

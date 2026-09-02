@@ -30,6 +30,8 @@ jobs:
   focused-linux:
     runs-on: ubuntu-24.04
     timeout-minutes: 120
+    env:
+      CARGO_INCREMENTAL: 0
     steps:
       - name: Check out the exact pull-request revision
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
@@ -128,6 +130,9 @@ jobs:
 
       - name: Check the Zed 10x binary
         run: cargo check --locked -p zed --bin zed-10x
+
+      - name: Reclaim check-only build artifacts
+        run: cargo clean
 
       - name: Test the Zed 10x binary
         run: cargo test --locked -p zed --bin zed-10x -- --test-threads=1
