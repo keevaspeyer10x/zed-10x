@@ -166,26 +166,50 @@ test("fresh lifecycle closes the exact installed External Agents surfaces and jo
   assert.deepEqual(rowsById.get("ZED-ACP-SWITCH-005").variantIds, [
     "VAR-MAC-CODEX",
     "VAR-MAC-CURSOR",
-    "VAR-INTREPID-CODEX-PRIMARY",
+    "VAR-INTREPID-CODEX-SECONDARY",
     "VAR-INTREPID-CURSOR",
   ]);
 });
 
 test("representative variants bind their stateful recovery and switch journeys", () => {
   const variants = new Map(
-    discovery.selectableVariants.map((variant) => [variant.id, variant.journeyIds]),
+    discovery.selectableVariants.map((variant) => [variant.id, variant]),
   );
   for (const id of ["VAR-INTREPID-CODEX-PRIMARY", "VAR-INTREPID-CURSOR"]) {
-    assert.ok(variants.get(id).includes("JOURNEY-PERSISTENT-SESSION-RECOVERY"), id);
+    assert.ok(variants.get(id).journeyIds.includes("JOURNEY-PERSISTENT-SESSION-RECOVERY"), id);
   }
   for (const id of [
     "VAR-MAC-CODEX",
     "VAR-MAC-CURSOR",
-    "VAR-INTREPID-CODEX-PRIMARY",
+    "VAR-INTREPID-CODEX-SECONDARY",
     "VAR-INTREPID-CURSOR",
   ]) {
-    assert.ok(variants.get(id).includes("JOURNEY-AGENT-SWITCH-AND-RETURN"), id);
+    assert.ok(variants.get(id).journeyIds.includes("JOURNEY-AGENT-SWITCH-AND-RETURN"), id);
   }
+
+  const switchRow = plan.tests.find(({ id }) => id === "ZED-ACP-SWITCH-005");
+  const receipts = [
+    readJson("docs/test-results/zed-acp-switch-mac.json"),
+    readJson("docs/test-results/zed-acp-switch-intrepid.json"),
+  ];
+  const receiptVariantIds = new Set();
+  for (const receipt of receipts) {
+    assert.equal(receipt.id, switchRow.id);
+    assert.equal(receipt.status, "passed");
+    assert.ok(receipt.executedRoutes.length > 0);
+    for (const route of receipt.executedRoutes) {
+      const variant = variants.get(route.variantId);
+      assert.ok(variant, `${route.variantId} exists`);
+      assert.equal(route.displayName, variant.name);
+      assert.ok(switchRow.variantIds.includes(route.variantId));
+      assert.ok(
+        receipt.journey.some((step) => step.startsWith(route.displayName)),
+        `${route.displayName} appears in the observed journey`,
+      );
+      receiptVariantIds.add(route.variantId);
+    }
+  }
+  assert.deepEqual([...receiptVariantIds].sort(), [...switchRow.variantIds].sort());
 });
 
 test("every surface, variant, and requirement source is an existing regular repository file", () => {

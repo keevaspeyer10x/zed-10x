@@ -3,7 +3,7 @@
   "coverageClosureVersion": 2,
   "freshLifecycle": true,
   "discoveryMode": "fresh_full_lifecycle",
-  "generatedAt": "2026-09-02T14:14:12.000Z",
+  "generatedAt": "2026-09-02T18:25:09.445Z",
   "repository": "zed-10x",
   "scope": {
     "included": "Installed External Agent inventory, launch, project outcome, cross-agent state transitions, cleanup, and persistent session recovery on Mac and Intrepid.",
@@ -636,8 +636,7 @@
         "JOURNEY-HOST-SCOPED-INVENTORY",
         "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
         "JOURNEY-TERMINATION-CLEANUP",
-        "JOURNEY-PERSISTENT-SESSION-RECOVERY",
-        "JOURNEY-AGENT-SWITCH-AND-RETURN"
+        "JOURNEY-PERSISTENT-SESSION-RECOVERY"
       ],
       "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
       "configuredEntries": [
@@ -651,7 +650,8 @@
       "journeyIds": [
         "JOURNEY-HOST-SCOPED-INVENTORY",
         "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
-        "JOURNEY-TERMINATION-CLEANUP"
+        "JOURNEY-TERMINATION-CLEANUP",
+        "JOURNEY-AGENT-SWITCH-AND-RETURN"
       ],
       "sourceRef": "docs/test-plan-inputs/zed-agent-picker-inventory.json",
       "configuredEntries": [

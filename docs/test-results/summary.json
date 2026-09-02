@@ -64,7 +64,7 @@
     ]
   },
   "defectDiscovery": {
-    "bugsFound": 25,
+    "bugsFound": 26,
     "productDefects": [
       "remote child groups survived transport closure",
       "remote descendants survived direct leader exit",
@@ -89,7 +89,8 @@
       "the DAP TCP oracle could pass without proving transport closure",
       "the CI workflow contract counted settings globally instead of binding them to the correct job and execution order",
       "the discovery IR referenced a nonexistent remote-server source path",
-      "one aggregate installed-product revision field ambiguously described three separately tested installed revisions"
+      "one aggregate installed-product revision field ambiguously described three separately tested installed revisions",
+      "the switch journey declared Codex primary while its retained installed receipt exercised Codex secondary"
     ],
     "infraOrToolingDefects": [],
     "processDefects": [

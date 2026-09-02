@@ -582,7 +582,7 @@
       "variantIds": [
         "VAR-MAC-CODEX",
         "VAR-MAC-CURSOR",
-        "VAR-INTREPID-CODEX-PRIMARY",
+        "VAR-INTREPID-CODEX-SECONDARY",
         "VAR-INTREPID-CURSOR"
       ],
       "provenance": [
@@ -601,7 +601,7 @@
       ],
       "plannedEvidence": [
         "installed Mac Codex -> Cursor -> Codex switch-and-return",
-        "installed Intrepid persistent Codex -> ordinary Cursor -> persistent Codex switch-and-return",
+        "installed Intrepid persistent Codex secondary -> ordinary Cursor -> persistent Codex secondary switch-and-return",
         "deterministic proof that the replaced empty draft view is dropped",
         "deterministic proof that a retained non-empty single-owner thread does not share its connection with a new thread"
       ],
@@ -620,7 +620,7 @@
       "expectedResult": "Every installed host surface supports switch-and-return across empty and retained states without a ghost draft, stale connection, or session-ownership collision.",
       "passCriteria": [
         "Mac Codex -> Cursor -> Codex succeeds",
-        "Intrepid persistent Codex -> ordinary Cursor -> persistent Codex succeeds",
+        "Intrepid persistent Codex secondary -> ordinary Cursor -> persistent Codex secondary succeeds",
         "old empty draft entity is dropped deterministically",
         "retained non-empty single-owner threads use distinct connections"
       ],
@@ -648,7 +648,7 @@
       "commands": [
         "./script/cargo test -p agent_ui test_retained_thread_does_not_share_dedicated_agent_connection --lib -- --test-threads=1",
         "computer-use installed Zed 10x in a Mac-local project: switch Codex (Mac) -> Cursor (Mac) -> Codex (Mac), require a ready composer after every transition, then close Zed and prove exact session cleanup",
-        "computer-use installed Zed 10x in an Intrepid project: switch Codex (Intrepid, primary) -> Cursor (Intrepid) -> Codex (Intrepid, primary), require a ready composer after every transition, then close Zed and prove exact attachment cleanup"
+        "computer-use installed Zed 10x in an Intrepid project: switch Codex (Intrepid, secondary) -> Cursor (Intrepid) -> Codex (Intrepid, secondary), require a ready composer after every transition, then close Zed and prove exact attachment cleanup"
       ],
       "evidencePaths": [
         "docs/test-results/zed-acp-switch-mac.json",

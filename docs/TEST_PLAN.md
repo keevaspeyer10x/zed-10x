@@ -1,7 +1,7 @@
 # Zed 10x Installed Agent and Session Test Plan
 
-Status: executed; production-readiness candidate pending exact protected merge and post-merge install<br>
-Generated: 2026-09-02T14:14:12.000Z<br>
+Status: fresh plan; installed execution pending<br>
+Generated: 2026-09-02T18:25:09.445Z<br>
 North star: Keeva can choose any visible External Agent with an unambiguous host/profile label, start it in the current project, switch among agents without hidden ownership, understand genuine provider unavailability, and recover a persistent Intrepid session after transport loss without losing work.
 
 ## Scope
@@ -107,7 +107,7 @@ Steps:
 
 Pass criteria:
 - Mac Codex -> Cursor -> Codex succeeds
-- Intrepid persistent Codex -> ordinary Cursor -> persistent Codex succeeds
+- Intrepid persistent Codex secondary -> ordinary Cursor -> persistent Codex secondary succeeds
 - old empty draft entity is dropped deterministically
 - retained non-empty single-owner threads use distinct connections
 

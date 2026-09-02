@@ -171,6 +171,14 @@
       "fix": "Record the assembled UI, current route, and ordinary reconnect installed revisions separately beside their evidence paths.",
       "regression": "The summary exposes one exact installed revision for each reused UAT evidence source.",
       "status": "fixed"
+    },
+    {
+      "id": "HARNESS-SWITCH-ROUTE-BINDING",
+      "category": "evidence_bug",
+      "symptom": "The generated switch journey declared Codex primary while the retained installed Intrepid receipt exercised Codex secondary.",
+      "fix": "Bind the journey to Codex secondary and add structured executed-route metadata to both representative receipts.",
+      "regression": "The closure test proves every receipt route exists, matches its discovered display name, is declared by the switch row, appears in the observed journey, and together exhausts the row's representatives.",
+      "status": "fixed"
     }
   ],
   "coverageClosureDefects": [
@@ -210,8 +218,8 @@
       "id": "PLAN-STATEFUL-VARIANT-BINDING",
       "category": "process_bug",
       "symptom": "Representative selectable variants were not directly linked to the stateful recovery and switch journeys they exercise.",
-      "fix": "Attach recovery to the Intrepid Codex-primary and Cursor variants and switch-and-return to those variants plus their Mac counterparts.",
-      "regression": "The generated plan contains 72 direct variant-journey cells and asserts every representative stateful binding.",
+      "fix": "Attach recovery to the Intrepid Codex-primary and Cursor variants, and bind switch-and-return to the actually exercised Intrepid Codex-secondary and Cursor routes plus their Mac counterparts.",
+      "regression": "The generated plan contains 72 direct variant-journey cells and each representative receipt is mechanically consistent with its declared route.",
       "status": "fixed_and_executed"
     }
   ],

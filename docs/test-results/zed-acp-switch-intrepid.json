@@ -7,6 +7,16 @@
     "SURFACE-ACP-INTREPID-PERSISTENT",
     "SURFACE-ACP-INTREPID-ORDINARY"
   ],
+  "executedRoutes": [
+    {
+      "variantId": "VAR-INTREPID-CODEX-SECONDARY",
+      "displayName": "Codex (Intrepid, secondary)"
+    },
+    {
+      "variantId": "VAR-INTREPID-CURSOR",
+      "displayName": "Cursor (Intrepid)"
+    }
+  ],
   "journey": [
     "Codex (Intrepid, secondary) retained non-empty thread",
     "Cursor (Intrepid) ready empty draft",
