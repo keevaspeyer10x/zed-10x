@@ -80,7 +80,12 @@ def write_exclusive(path: Path, value: dict[str, Any]) -> None:
         os.fsync(fd)
     finally:
         os.close(fd)
-    directory_fd = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    # macOS exposes /tmp as a symlink to /private/tmp. Resolve the already
+    # existing parent before applying O_NOFOLLOW so a successful evidence write
+    # is not falsely reported as failed solely because its caller used that
+    # standard symlinked directory spelling.
+    directory = path.parent.resolve(strict=True)
+    directory_fd = os.open(directory, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
     try:
         os.fsync(directory_fd)
     finally:

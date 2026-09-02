@@ -1,0 +1,30 @@
+{
+  "directoryEnvironmentAuthorizedBeforeOpen": true,
+  "fixtureFiles": {
+    ".envrc": "287ef4b8fac1ca3f6285cfd9bac79bc65412c264c140b09822a77f5b2219a6e8",
+    ".gitignore": "11b57c77386011a2a53cf3fc96c810c04b82cf29aea4ddd17943f4307b93dbcd",
+    ".zed/debug.json": "26efdf2bf0b0e248abbe7bb6d95f3cf165d73c4f2bf6028b1969319dbb23308b",
+    ".zed/settings.json": "ead1982a12cb5dfd81ea6c6cde14be0de1ae6e5fce7857f6749aa064dded1bcd",
+    ".zed/tasks.json": "547a32324b9063574f2bd84b93caeb61f200633f3fe6e2cd3b70fccc2ced48b1",
+    "fake_dap.py": "b0074fc447a4e55e81987d0d5bf6b7fdc20f55fc09105a1822cc261fcb49de90",
+    "mcp_server.py": "ddcbff44703c0c5d625c4adad933fefcf5a1c84147314d54806bdcb3d8b76671",
+    "sentinel.txt": "dd521a9b8a017bdd078c162c915dac4358b764fbe93be9b7d404d38ec7d3f2b5",
+    "target.py": "3cfcbf2eb61edd593e8568badf62ba0f2acc009b076a26add273585769347eef",
+    "task_uat.py": "1e2373d2b1e5e5565dd5ba6d93709a986d3882d00ba0364c66994d069f498e4a",
+    "terminal_uat.py": "6c7d958b6cac92168ac507793622d99c7bdaa6f5e954fbd3b1b471c77dc69111",
+    "vim_filter.py": "d7adde9e58125b3eaf77554a53079ddaae74669c81689fb06ed45e3445061713",
+    "vim_input.txt": "91a9735608223d1a194b78407caee6d2db24e527246d62f718e84fefc5c818f5"
+  },
+  "host": "intrepid",
+  "journeyActions": [
+    "open the exact remoteProject in the installed Zed 10x app",
+    "run python3 terminal_uat.py, enter 'zed installed terminal input', resize, then send Ctrl-C",
+    "run and cancel the 'ZED UAT Cancellable Task' task",
+    "filter vim_input.txt through python3 vim_filter.py in Vim command mode",
+    "start the zed-installed-uat context server and request tools/list",
+    "run both ZED UAT DAP stdio and ZED UAT DAP TCP debug configurations"
+  ],
+  "remoteProject": "/home/keeva/uat/zed-a6531bd9",
+  "schemaVersion": 1,
+  "status": "prepared"
+}

@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "id": "ZED-ACP-SWITCH-005",
+  "status": "passed",
+  "runtimeIdentity": "Zed 10x.app runtime@a6531bd9de40ec55ce1181fa928b3ce324e7d61d:sha256=cc1eaff34b1680c79d8422420ff6c38e6e7610effee90c38234b95d21b94c6c5",
+  "surfaceId": "SURFACE-ACP-MAC-LOCAL",
+  "executedRoutes": [
+    {
+      "variantId": "VAR-MAC-CODEX",
+      "displayName": "Codex (Mac)"
+    },
+    {
+      "variantId": "VAR-MAC-CURSOR",
+      "displayName": "Cursor (Mac)"
+    }
+  ],
+  "journey": [
+    "Codex (Mac) ready empty draft",
+    "Cursor (Mac) ready empty draft",
+    "Codex (Mac) ready empty draft"
+  ],
+  "productFailureCount": 0,
+  "appRestartCount": 0,
+  "providerPromptCount": 0,
+  "sharedRegressions": [
+    "discard replaced empty draft",
+    "isolate retained single-owner thread connections"
+  ]
+}

@@ -731,6 +731,12 @@ pub enum CustomAgentServerSettings {
         /// Default: []
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         aliases: Vec<String>,
+        /// Start a separate ACP connection for every thread instead of sharing
+        /// one connection across all threads for this agent.
+        ///
+        /// Default: false
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        dedicated_connection: bool,
         /// Default: {}
         #[serde(default, skip_serializing_if = "HashMap::is_empty")]
         env: HashMap<String, String>,

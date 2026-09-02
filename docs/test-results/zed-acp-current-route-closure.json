@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 1,
+  "status": "passed_with_external_unavailability",
+  "observedAt": "2026-09-01T16:22:17Z",
+  "installedProductRevision": "2bde4bdfcbaac21a4ca6328298a0bd847e3caa65",
+  "installedProductTree": "7f774519db9b768d39ae5f7af86b5686373a01c5",
+  "evidenceHarnessRevision": "123c4c2f4aa792a7d1da782458301be08e9b4687",
+  "evidenceHarnessTree": "83e0af633776b9f53a5cdf697207249d86ed1a60",
+  "installedRuntime": {
+    "mac": {
+      "path": "/Applications/Zed 10x.app/Contents/MacOS/zed-10x-runtime",
+      "sha256": "43462ee667b6ba08a2807cd5d2ea45e49eab272816bffcc5397df8f370d8aa9a",
+      "bundleVersion": "20260901.155459",
+      "signatureVerified": true
+    },
+    "intrepid": {
+      "path": "/home/keeva/.zed-10x-server/zed-remote-server-dev-1.14.0+dev.2bde4bdfcbaac21a4ca6328298a0bd847e3caa65",
+      "sha256": "83fe8ff3cda3700452b0e58da485f96f38dc40bca8b4997fdc417ba577c251f7",
+      "reportedRevision": "2bde4bdfcbaac21a4ca6328298a0bd847e3caa65"
+    }
+  },
+  "configuredRouteClosure": {
+    "configuredRouteCount": 24,
+    "visiblePickerVariantCount": 22,
+    "passedRouteCount": 23,
+    "externalUnavailableRouteCount": 1,
+    "unresolvedProductFailureCount": 0,
+    "interactionRequiredCount": 0,
+    "duplicatePanelCount": 0,
+    "ordinaryBoundedRetryCount": 1,
+    "cleanup": {
+      "routeCount": 24,
+      "processGroupGoneCount": 24,
+      "status": "passed"
+    }
+  },
+  "macMatrix": {
+    "path": "docs/test-results/zed-acp-route-matrix-mac-current.json",
+    "sha256": "12994ce8844116e0b73eb181f2c10c2eb5e8951e8457896b72e27754ede7ad8b",
+    "status": "passed",
+    "passedCount": 8,
+    "externalUnavailableCount": 0,
+    "productFailureCount": 0
+  },
+  "intrepidMatrix": {
+    "path": "docs/test-results/zed-acp-route-matrix-intrepid-current.json",
+    "sha256": "afc2dc3b321a75d0e2752f1d0acb9cf6a9b40d030ca765dc24aa3b864dfa3992",
+    "initialStatus": "failed",
+    "initialPassedCount": 14,
+    "initialExternalUnavailableCount": 1,
+    "initialProductFailureCount": 1,
+    "externalUnavailable": {
+      "endpoint": "Claude (Intrepid, work)",
+      "failureClass": "authentication_expired",
+      "processGroupGone": true
+    },
+    "boundedRetry": {
+      "endpoint": "Claude (Intrepid, secondary)",
+      "initialFailureClass": "tool_evidence_missing",
+      "initialProcessGroupGone": true,
+      "path": "docs/test-results/zed-acp-route-recheck-intrepid-claude-secondary.json",
+      "sha256": "58d8e8dab460382719c6a4bf5786d860c6b6df5aa298935b8ffa82949938fb0e",
+      "status": "passed",
+      "toolEvidenceMatched": true,
+      "processGroupGone": true,
+      "interpretation": "One ordinary bounded retry closed a transient provider response that produced no tool evidence; the exact configured route, real project read, transport, and cleanup then passed."
+    },
+    "terminalStatus": "passed_with_external_unavailability",
+    "terminalPassedCount": 15,
+    "terminalExternalUnavailableCount": 1,
+    "unresolvedProductFailureCount": 0
+  },
+  "contentPrivacy": {
+    "promptContentRetained": false,
+    "responseContentRetained": false,
+    "credentialValuesRetained": false
+  },
+  "remainingExternalAction": {
+    "endpoint": "Claude (Intrepid, work)",
+    "condition": "authentication_expired",
+    "blocksZedProductReadiness": false,
+    "reason": "The installed route launched and cleaned up correctly, and the failure was classified at the external provider account boundary."
+  }
+}

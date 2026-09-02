@@ -2008,6 +2008,8 @@ pub enum CustomAgentServerSettings {
         command: AgentServerCommand,
         /// Previous names that resolve to this agent for persisted threads.
         aliases: Vec<String>,
+        /// Whether every thread must use its own ACP connection.
+        dedicated_connection: bool,
         /// The default mode to use for this agent.
         ///
         /// Note: Not only all agents support modes.
@@ -2068,6 +2070,16 @@ impl CustomAgentServerSettings {
         }
     }
 
+    pub fn requires_dedicated_connection(&self) -> bool {
+        match self {
+            CustomAgentServerSettings::Custom {
+                dedicated_connection,
+                ..
+            } => *dedicated_connection,
+            CustomAgentServerSettings::Registry { .. } => false,
+        }
+    }
+
     pub fn default_mode(&self) -> Option<&str> {
         match self {
             CustomAgentServerSettings::Custom { default_mode, .. }
@@ -2111,6 +2123,7 @@ impl From<settings::CustomAgentServerSettings> for CustomAgentServerSettings {
                 path,
                 args,
                 aliases,
+                dedicated_connection,
                 env,
                 default_mode,
                 default_config_options,
@@ -2122,6 +2135,7 @@ impl From<settings::CustomAgentServerSettings> for CustomAgentServerSettings {
                     env: Some(env),
                 },
                 aliases,
+                dedicated_connection,
                 default_mode,
                 default_config_options,
                 favorite_config_option_values,
@@ -2512,6 +2526,7 @@ mod tests {
                                     env: None,
                                 },
                                 aliases: vec!["kimi".to_string()],
+                                dedicated_connection: false,
                                 default_mode: None,
                                 default_config_options: HashMap::default(),
                                 favorite_config_option_values: HashMap::default(),

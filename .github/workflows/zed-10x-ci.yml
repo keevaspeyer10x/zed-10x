@@ -21,6 +21,8 @@ jobs:
     steps:
       - name: Check out the exact pull-request revision
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+        with:
+          fetch-depth: 0
 
       - name: Protect packaged CLI launch logging
         run: cargo test --locked -p cli --bin cli
@@ -28,9 +30,13 @@ jobs:
   focused-linux:
     runs-on: ubuntu-24.04
     timeout-minutes: 120
+    env:
+      CARGO_INCREMENTAL: 0
     steps:
       - name: Check out the exact pull-request revision
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+        with:
+          fetch-depth: 0
 
       - name: Verify the workflow contract
         run: tests/test_zed_10x_ci_workflows.sh
@@ -55,6 +61,7 @@ jobs:
 
       - name: Test custom agent rename and reconnect compatibility
         run: |
+          cargo test --locked -p acp_thread --lib
           cargo test --locked -p project custom_agent_aliases_override_colliding_registry_ids_when_unambiguous --lib
           cargo test --locked -p project explicit_custom_alias_supersedes_colliding_registry_agent --lib
           cargo test --locked -p project registry_display_name --lib
@@ -68,6 +75,15 @@ jobs:
           cargo test --locked -p agent_ui test_store_update_agent_id_preserves_thread_identity --lib
           cargo test --locked -p agent_ui test_serialize_preserves_session_id_in_load_error --lib
           cargo test --locked -p agent_ui test_retry_load_restarts_transport_and_preserves_session_id --lib
+          cargo test --locked -p agent_ui test_retry_load_refreshes_dedicated_transport_and_preserves_session_id --lib
+          cargo test --locked -p agent_ui test_drop_shuts_down_dedicated_transport --lib
+          cargo test --locked -p agent_ui test_drop --lib
+          cargo test --locked -p agent_ui test_retry_after_acp_server_exit_loads_the_original_session --lib
+          cargo test --locked -p agent_servers test_custom_agent_dedicated_connection_setting --lib
+          cargo test --locked -p agent_ui test_retained_thread_does_not_share_dedicated_agent_connection --lib
+          cargo test --locked -p agent_ui test_superseded_dedicated_connection_can_finish_for_existing_owner --lib
+          cargo test --locked -p agent_ui test_legacy_alias_resolves_dedicated_policy_before_connection_selection --lib
+          cargo test --locked -p agent_ui test_new_external_agent_replaces_mismatched_ephemeral_draft --lib
           cargo test --locked -p agent_ui test_new_workspace_ignores_unavailable_global_last_used_agent --lib
           cargo test --locked -p agent_ui test_pending_registry_agent_waits_for_authoritative_inventory --lib
           cargo test --locked -p agent_ui test_create_thread_with_options_retains_thread_and_restores_agent --lib
@@ -95,6 +111,18 @@ jobs:
           cargo test --locked -p settings_ui rename_preserves_original_name_as_alias --lib
           cargo test --locked -p settings_ui rename_back_drops_the_new_canonical_name_from_aliases --lib
 
+      - name: Test remote command-group lifecycle
+        run: |
+          cargo test --locked -p remote_server --test env_exec unix::env_exec_reaps_a_command_group_that_ignores_transport_eof -- --exact
+          cargo test --locked -p remote_server --test env_exec unix::env_exec_reaps_descendants_after_the_direct_command_exits -- --exact
+          cargo test --locked -p remote_server --test env_exec unix::env_exec_reaps_its_command_group_when_the_supervisor_is_killed -- --exact
+          cargo test --locked -p remote_server --test env_exec unix::env_exec_reaps_its_command_group_when_supervisor_dies_before_identity_report -- --exact
+          cargo test --locked -p remote_server --test env_exec unix::env_exec_reaps_its_command_group_when_guardian_dies_before_readiness_report -- --exact
+          cargo test --locked -p remote_server --test env_exec unix::env_exec_reaps_its_command_group_when_the_guardian_is_killed -- --exact
+          cargo test --locked -p remote_server --test env_exec unix::env_exec_reaps_its_command_group_when_guardian_dies_after_transport_eof -- --exact
+          cargo test --locked -p remote_server --test env_exec unix::env_exec_preserves_the_command_exit_identity -- --exact
+          cargo test --locked -p remote_server --test env_exec unix::env_exec_guardian_rejects_standard_descriptors -- --exact
+
       - name: Test the Zed 10x updater and release channel
         run: |
           cargo test --locked -p auto_update zed_10x
@@ -102,6 +130,9 @@ jobs:
 
       - name: Check the Zed 10x binary
         run: cargo check --locked -p zed --bin zed-10x
+
+      - name: Reclaim check-only build artifacts
+        run: cargo clean
 
       - name: Test the Zed 10x binary
         run: cargo test --locked -p zed --bin zed-10x -- --test-threads=1

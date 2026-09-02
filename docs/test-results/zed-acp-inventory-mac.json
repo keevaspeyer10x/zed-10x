@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "ZED-ACP-INVENTORY-001",
+  "command": "computer-use installed Zed 10x in a Mac-local project: open External Agents and verify the exact eight Mac variants, unique consistent labels, and no Intrepid or alias-only entries",
+  "status": "passed",
+  "runtimeIdentity": "Zed 10x.app@fb1fb76791553cfdd807ab7efd3850d228ce1ed4:sha256=ed62732c2517b06b0ef59b013949ffa89a1ed5d3537b86f3ec299d6fe1850690",
+  "observedAt": "2026-09-01T06:12:14Z",
+  "surfaceId": "SURFACE-ACP-MAC-LOCAL",
+  "variantCount": 8,
+  "labels": [
+    "Claude (Mac, primary)",
+    "Claude (Mac, secondary)",
+    "Claude (Mac, work)",
+    "Codex (Mac)",
+    "Codex (Mac, secondary)",
+    "Codex (Mac, work)",
+    "Cursor (Mac)",
+    "Grok Build (Mac)"
+  ],
+  "duplicateCount": 0,
+  "offHostCount": 0,
+  "supplementalEvidence": [
+    {
+      "path": "docs/test-results/zed-acp-picker-mac.jpeg",
+      "sha256": "f1bfa374d149c21b43d75e99e5176508bd2aec1bf7989727ac7bd9e7179e5437"
+    }
+  ]
+}

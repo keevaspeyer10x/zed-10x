@@ -1,47 +1,37 @@
 {
   "schemaVersion": 3,
-  "startedAt": "2026-08-23T01:21:50Z",
+  "coverageClosureVersion": 2,
+  "startedAt": "2026-09-02T14:14:12.000Z",
   "repo": "zed-10x",
-  "branch": "codex/zed-picker-release-uat",
+  "branch": "codex/zed-production-test-closure",
   "scope": {
-    "id": "zed-10x-remote-execution-release",
-    "description": "Installed Zed 10x external-agent and environment-bearing remote execution journeys across Mac-local and Mac-to-Intrepid projects",
+    "id": "zed-10x-installed-agent-session-closure",
+    "description": "Installed External Agent inventory, launch, project outcome, cross-agent state transitions, cleanup, and persistent session recovery on Mac and Intrepid.",
     "excluded": [
-      "Unrelated upstream Zed editor features",
-      "Provider account repair",
-      "Public notarized distribution"
+      "Zed Agent and Terminal native picker entries",
+      "provider account repair",
+      "public notarized distribution",
+      "unrelated upstream editor features"
     ]
   },
   "implementationTarget": "full_plan_implemented",
   "freshLifecycleRequired": true,
+  "architectureContextGate": "UNAVAILABLE — no checked-in repo-local wrapper; exact current-source tracing settled the bounded transport-ownership question without a new abstraction",
   "phases": {
     "0-preflight": {
       "status": "complete",
-      "nativeCommands": [
-        "rustup run 1.95.0-aarch64-apple-darwin cargo test -p project remote_external_agent",
-        "rustup run 1.95.0-aarch64-apple-darwin cargo test -p remote_server remote_external_agent",
-        "node --test script/tests/zed-10x-product-identity.test.mjs"
-      ],
-      "toolGaps": [
-        "cargo is not on the ambient PATH; rustup provides the pinned 1.95.0 toolchain",
-        "cargo is exposed through the pinned rustup toolchain directory rather than the ambient PATH"
-      ],
-      "tooling": {
-        "rustToolchain": "1.95.0-aarch64-apple-darwin",
-        "node": "v22.22.3",
-        "mindsDoctorAudit": "all_six_review_classes_have_a_ready_route_optional_native_routes_degraded",
-        "semanticVisualTesting": "installed_candidate_executed"
-      },
+      "freshLifecycleRequired": true,
       "implementationTarget": "full_plan_implemented",
-      "freshLifecycleRequired": true
+      "finding": "Prior artifacts conflated configured routes, visible picker variants, and direct canaries; the installed surface closure was stale."
     },
     "1-discovery": {
       "status": "complete",
       "artifact": "docs/discovery-ir.json",
-      "productSurfaces": 4,
-      "criticalJourneys": 10,
-      "surfaceJourneyCells": 40,
-      "applicableCells": 16
+      "productSurfaces": 3,
+      "criticalJourneys": 5,
+      "surfaceJourneyCells": 15,
+      "applicableCells": 14,
+      "selectableVariants": 22
     },
     "2-generation": {
       "status": "complete",
@@ -49,97 +39,43 @@
         "docs/test-plan.json",
         "docs/TEST_PLAN.md"
       ],
-      "plannedRows": 19,
-      "readyNowRows": 19
+      "plannedRows": 5,
+      "readyNowRows": 5
     },
     "3-implementation": {
       "status": "complete",
-      "plannedRows": 19,
-      "readyNowRows": 19,
-      "implementedRows": 19,
-      "testsCollected": 19,
+      "plannedRows": 5,
+      "readyNowRows": 5,
+      "implementedRows": 5,
       "remainingRows": 0,
-      "redEvidence": "The prior installed app exposed a resolved remote environment in the local SSH argv; generic builders accepted private values, PTY startup had no private readiness channel, and the prior ACP-only plan omitted sibling consumers.",
-      "greenEvidence": "All 19 rows map to deterministic tests or executable installed UAT. Private netstring framing, POSIX SSH builders, real PTY behavior, terminal ordering, MCP/DAP ordering, the full consumer inventory, capability mismatch, unsupported backends, content-free receipts, package identity, exhaustive route coverage, and installed picker launch classes now have named executable coverage. The full remote_server target set found and closed a stale capability assertion plus an under-budgeted cold-start harness timeout.",
-      "remainingEvidence": "none"
+      "artifact": "docs/test-implementation-map.json"
     },
     "4-execution": {
       "status": "complete",
-      "plannedRows": 19,
-      "executedRows": 19,
-      "passedRows": 19,
+      "executedRows": 5,
+      "passedRows": 5,
       "failedRows": 0,
-      "blockedRows": 0,
-      "skippedRows": 0,
-      "pendingRows": 0,
-      "evidence": [
-        "docs/test-results/deterministic-suite.json",
-        "docs/test-results/installed-uat.json",
-        "docs/test-results/remote-environment-live-canary.json",
-        "docs/test-results/acp-route-codex-mac-primary.json",
-        "docs/test-results/acp-route-intrepid-glm.json",
-        "docs/test-results/acp-route-claude-mac-primary-negative.json",
-        "docs/test-results/advertised-agent-matrix.json",
-        "docs/test-results/installed-picker-uat.json"
-      ],
-      "summary": "All 19 rows have direct, executed evidence. ACP-JOURNEY-002 binds every independently configured route in the exact 12-entry Mac and 16-entry Intrepid healthy inventories. ACP-ASSEMBLED-019 separately selects all 12 Mac and all 14 visible Intrepid entries in the installed app; the two additional Intrepid registry entries are intentionally alias-collapsed and remain covered by the direct matrix. Working routes prove real project-file access, external authentication or capacity stops remain explicit, restart restoration is green, and cleanup is green."
+      "artifact": "docs/test-results/summary.json",
+      "currentInstalledRouteReceipt": "docs/test-results/zed-acp-current-route-closure.json",
+      "ordinaryReconnectReceipt": "docs/test-results/zed-acp-ordinary-reconnect-intrepid.json",
+      "ancestorAssembledUiReceipt": "docs/test-results/zed-acp-current-installed-uat.json"
     },
     "5-analysis": {
       "status": "complete",
-      "artifact": "docs/TEST_PLAN_ANALYSIS.md",
-      "summaryArtifact": "docs/test-results/summary.json",
-      "testValidityArtifact": "docs/test-results/test-validity.json",
       "decisionCandidate": "production_ready",
-      "rootCauseClusters": 12,
-      "unresolvedFindings": 0,
-      "summary": "The exact tested revision and load-bearing picker inventory are bound. Every configured Mac-local and Intrepid entry has route-level evidence, every visible installed picker entry has assembled-app evidence, restart restoration is green, and the stronger project-read oracle rejects prompt echo and unrelated split calls."
+      "testValidity": "valid",
+      "artifacts": [
+        "docs/TEST_PLAN_ANALYSIS.md",
+        "docs/test-results/test-validity.json",
+        "docs/test-results/deterministic-suite.json"
+      ]
     },
     "6-tracking": {
       "status": "complete",
-      "issuesCreated": 0,
-      "reason": "No unresolved product or test-plan defect remains to track from this lifecycle; public notarization and external provider-account readiness remain explicitly out of scope."
+      "openTestPlanDefects": 0,
+      "releaseResidual": "Rebuild the protected merged revision, reinstall it on both hosts, and run the post-merge consumer canary.",
+      "externalRouteResidual": "Provider-account readiness remains external to Zed; each product launch and cleanup path is classified independently and does not block Zed product readiness."
     }
   },
-  "defectDiscovery": {
-    "bugsFound": 15,
-    "productDefects": 4,
-    "testHarnessDefects": 9,
-    "infraOrToolingDefects": 0,
-    "processDefects": 2,
-    "fixedDuringRun": [
-      "Replaced the one-second initial inventory push guess with a receiver-driven request/response snapshot, re-request on rejoin, and stale-response suppression.",
-      "Promoted the project-aware ACP route oracle into tracked code with a withheld digest, fail-closed permissions, and deterministic false-green and cleanup tests.",
-      "Corrected the live TCP canary to send Python source across SSH as one shell-quoted remote command and added a RED argv-shape regression.",
-      "Corrected the ACP canary to bind one exact sentinel path to observed file bytes, or an exact project-confined client read, and added prompt-echo plus unrelated split-evidence negatives.",
-      "Kept the terminal UAT fixture alive across SIGWINCH until the intended Ctrl-C.",
-      "Sanitized captured PROMPT_COMMAND while preserving explicit terminal and task overrides.",
-      "Anchored remote Vim shell commands to the first opened project directory.",
-      "Classified real header/body disconnect I/O and replayed initialize once only for SSH/TCP within the existing timeout.",
-      "Returned a protocol-valid empty DAP threads list from the fake adapter.",
-      "Required two distinct observed terminal widths instead of comparing only the first and last samples.",
-      "Authorized the exact synthetic direnv before project open.",
-      "Excluded the cleanup observer's reuse-safe ancestors without hiding matching sibling or descendant residue.",
-      "Reopened representative picker-route acceptance and added exact selectable-variant plus revision/input evidence closure.",
-      "Withheld the sentinel digest and required one exact sentinel path plus observed file bytes in the same completed tool call, or an exact project-confined client read; prompt echo and unrelated split calls remain non-green.",
-      "Pinned the ephemeral sentinel's original file descriptor until route cleanup, refused all unlinking while process cleanup remained unproven, and closed both ownership descriptors on every path."
-    ],
-    "knownDefects": [
-      "Initial ExternalAgentsUpdated can arrive before client handler registration and is not replayed",
-      "Prior ACP live canary launched host commands directly instead of exercising the installed Zed client-to-remote-server journey",
-      "Live TCP port allocation modeled SSH as direct argv transport rather than a remote-shell command boundary",
-      "ACP project evidence was coupled to one fixture's single-tool-call transcript shape",
-      "Terminal UAT exited after resize because signal.pause was treated as a lifecycle loop",
-      "Captured shell hook state was replayed without the corresponding function definition",
-      "Remote Vim external commands did not carry the opened project cwd",
-      "SSH local forwarding became reachable before the remote TCP adapter listener",
-      "The fake adapter returned an invalid empty ThreadsResponse",
-      "The terminal resize oracle compared only first and final widths",
-      "The fixture directory environment was authorized after Zed cached it",
-      "The remote cleanup census matched its own observer ancestry",
-      "Representative Mac and Intrepid ACP routes were accepted as coverage for independently selectable picker entries",
-      "The standalone canary exposed its expected digest and accepted transcript-shaped evidence that did not prove a real project-file read",
-      "The ephemeral-sentinel cleanup released its ownership inode before final cleanup, allowing an immediate Linux inode reuse to false-green the replacement guard"
-    ]
-  },
-  "coverageClosureVersion": 2
+  "completedAt": "2026-09-02T14:33:56Z"
 }

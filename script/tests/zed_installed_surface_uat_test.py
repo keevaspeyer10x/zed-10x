@@ -87,10 +87,18 @@ def valid_observation():
         "dapTcp": {
             "cwd": PROJECT,
             "environmentSha256": uat.expected_sha("dap-tcp"),
-            "events": ["initialize", "launch", "configurationDone", "threads", "terminate"],
+            "events": [
+                "initialize",
+                "launch",
+                "configurationDone",
+                "threads",
+                "threads",
+                "stackTrace",
+            ],
             "tcpConnectionCount": 2,
             "resetInitializeCount": 1,
             "resetDelayMs": 150,
+            "transportClosed": True,
         },
     }
     return {"receipts": {key: raw_receipt(value) for key, value in receipts.items()}, "processResidue": []}
@@ -198,12 +206,17 @@ class InstalledSurfaceUatTests(unittest.TestCase):
             deadline = time.monotonic() + 5
             while True:
                 try:
-                    first = socket.create_connection(("127.0.0.1", port), timeout=1)
+                    readiness_probe = socket.create_connection(
+                        ("127.0.0.1", port), timeout=1
+                    )
                     break
                 except OSError:
                     if time.monotonic() >= deadline:
                         self.fail("TCP fixture did not start listening")
                     time.sleep(0.02)
+            readiness_probe.close()
+
+            first = socket.create_connection(("127.0.0.1", port), timeout=1)
 
             started = time.monotonic()
             with first:
@@ -220,19 +233,45 @@ class InstalledSurfaceUatTests(unittest.TestCase):
                 send_dap(second_stream, 2, "initialize")
                 self.assertEqual(read_dap(second_stream)["command"], "initialize")
                 self.assertEqual(read_dap(second_stream)["event"], "initialized")
-                send_dap(second_stream, 3, "threads")
+                send_dap(second_stream, 3, "launch")
+                self.assertEqual(read_dap(second_stream)["command"], "launch")
+                send_dap(second_stream, 4, "configurationDone")
+                self.assertEqual(
+                    read_dap(second_stream)["command"], "configurationDone"
+                )
+                stopped = read_dap(second_stream)
+                self.assertEqual(stopped["event"], "stopped")
+                self.assertEqual(stopped["body"]["threadId"], 1)
+                send_dap(second_stream, 5, "threads")
                 threads = read_dap(second_stream)
                 self.assertEqual(threads["command"], "threads")
-                self.assertEqual(threads["body"], {"threads": []})
-                send_dap(second_stream, 4, "terminate")
-                self.assertEqual(read_dap(second_stream)["command"], "terminate")
-
+                self.assertEqual(
+                    threads["body"],
+                    {"threads": [{"id": 1, "name": "zed-uat-main"}]},
+                )
+                send_dap(second_stream, 6, "stackTrace")
+                stack_trace = read_dap(second_stream)
+                self.assertEqual(stack_trace["command"], "stackTrace")
+                self.assertEqual(
+                    stack_trace["body"], {"stackFrames": [], "totalFrames": 0}
+                )
+                second_stream.close()
             self.assertEqual(process.wait(timeout=5), 0)
             receipt = json.loads((pathlib.Path(directory) / ".uat/dap-tcp.json").read_text())
             self.assertEqual(receipt["tcpConnectionCount"], 2)
             self.assertEqual(receipt["resetInitializeCount"], 1)
             self.assertEqual(receipt["resetDelayMs"], 150)
-            self.assertEqual(receipt["events"], ["initialize", "threads", "terminate"])
+            self.assertTrue(receipt["transportClosed"])
+            self.assertEqual(
+                receipt["events"],
+                [
+                    "initialize",
+                    "launch",
+                    "configurationDone",
+                    "threads",
+                    "stackTrace",
+                ],
+            )
 
     def test_complete_observation_passes_with_content_free_hashes(self):
         result = uat.validate_observation(PROJECT, valid_observation())
@@ -262,6 +301,24 @@ class InstalledSurfaceUatTests(unittest.TestCase):
         dap = json.loads(observation["receipts"]["dapTcp"]["bytes"])
         dap["tcpConnectionCount"] = 1
         dap["resetInitializeCount"] = 0
+        observation["receipts"]["dapTcp"] = raw_receipt(dap)
+
+        with self.assertRaisesRegex(uat.UatFailure, "dapTcp_journey_mismatch"):
+            uat.validate_observation(PROJECT, observation)
+
+    def test_tcp_dap_without_stack_trace_cannot_pass(self):
+        observation = valid_observation()
+        dap = json.loads(observation["receipts"]["dapTcp"]["bytes"])
+        dap["events"] = [event for event in dap["events"] if event != "stackTrace"]
+        observation["receipts"]["dapTcp"] = raw_receipt(dap)
+
+        with self.assertRaisesRegex(uat.UatFailure, "dapTcp_journey_mismatch"):
+            uat.validate_observation(PROJECT, observation)
+
+    def test_tcp_dap_without_transport_cleanup_cannot_pass(self):
+        observation = valid_observation()
+        dap = json.loads(observation["receipts"]["dapTcp"]["bytes"])
+        dap["transportClosed"] = False
         observation["receipts"]["dapTcp"] = raw_receipt(dap)
 
         with self.assertRaisesRegex(uat.UatFailure, "dapTcp_journey_mismatch"):

@@ -54,6 +54,28 @@ not_matches() {
     return "$rc"
 }
 
+job_contains_exactly_once() {
+    awk -v start="$2" -v end="$3" -v needle="$4" '
+        $0 == start { in_job = 1; next }
+        $0 == end { in_job = 0 }
+        in_job && index($0, needle) { count += 1 }
+        END { exit count == 1 ? 0 : 1 }
+    ' "$1"
+}
+
+focused_linux_orders_check_cleanup_test() {
+    awk '
+        $0 == "  focused-linux:" { in_job = 1; next }
+        $0 == "  focused-rust:" { in_job = 0 }
+        in_job && index($0, "run: cargo check --locked -p zed --bin zed-10x") { check_line = NR }
+        in_job && index($0, "run: cargo clean") { clean_line = NR }
+        in_job && index($0, "run: cargo test --locked -p zed --bin zed-10x -- --test-threads=1") { test_line = NR }
+        END {
+            exit check_line > 0 && check_line < clean_line && clean_line < test_line ? 0 : 1
+        }
+    ' "$1"
+}
+
 check "unresolvable private reusable CI caller is absent" test ! -e "$CI"
 
 check "focused Rust CI exists" test -f "$RUST_CI"
@@ -82,6 +104,12 @@ if [[ -f "$RUST_CI" ]]; then
         contains "$RUST_CI" "timeout-minutes: 120"
     check "checkout is pinned by immutable SHA" \
         contains "$RUST_CI" "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd"
+    check "both focused jobs fetch the history required by revision-bound evidence" \
+        test "$(grep -Fc 'fetch-depth: 0' "$RUST_CI")" -eq 2
+    check "the macOS focused job disables incremental build residue exactly once" \
+        job_contains_exactly_once "$RUST_CI" "  focused-macos-cli:" "  focused-linux:" "CARGO_INCREMENTAL: 0"
+    check "the Linux focused job disables incremental build residue exactly once" \
+        job_contains_exactly_once "$RUST_CI" "  focused-linux:" "  focused-rust:" "CARGO_INCREMENTAL: 0"
     check "focused CI runs its workflow contract" \
         contains "$RUST_CI" "run: tests/test_zed_10x_ci_workflows.sh"
     check "focused CI pins the repository Node.js version" \
@@ -176,6 +204,8 @@ if [[ -f "$RUST_CI" ]]; then
         contains "$RUST_CI" "cargo test --locked -p release_channel"
     check "focused Zed check command is exact" \
         contains "$RUST_CI" "cargo check --locked -p zed --bin zed-10x"
+    check "focused Linux CI reclaims check-only artifacts between check and final test" \
+        focused_linux_orders_check_cleanup_test "$RUST_CI"
     check "focused Zed test command is exact" \
         contains "$RUST_CI" "run: cargo test --locked -p zed --bin zed-10x -- --test-threads=1"
     check "focused Zed tests are not filtered to an absent module" \

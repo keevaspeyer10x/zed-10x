@@ -357,18 +357,18 @@ test("an immutable existing summary prevents replay", () => {
   assert.deepEqual(result.calls, []);
 });
 
-test("checked inventory binds the complete 12-entry Mac and 17-entry Intrepid sets", () => {
+test("checked inventory binds every configured route and all 22 visible picker variants", () => {
   const inventory = JSON.parse(
     readFileSync(
       path.join(repositoryRoot, "docs/test-plan-inputs/zed-agent-picker-inventory.json"),
       "utf8",
     ),
   );
-  assert.equal(inventory.managedEntries.length, 24);
-  assert.equal(inventory.surfaces["mac-local"].length, 12);
-  assert.equal(inventory.surfaces.intrepid.length, 17);
+  assert.equal(inventory.managedEntries.length, 23);
+  assert.equal(inventory.surfaces["mac-local"].length, 8);
+  assert.equal(inventory.surfaces.intrepid.length, 16);
   assert.ok(inventory.surfaces.intrepid.includes("Codex (Intrepid, work)"));
-  assert.equal(new Set(inventory.managedEntries).size, 24);
+  assert.equal(new Set(inventory.managedEntries).size, 23);
   assert.deepEqual(Object.keys(inventory.executionClasses), [
     "mac-custom",
     "mac-registry",
@@ -395,13 +395,53 @@ test("checked inventory binds the complete 12-entry Mac and 17-entry Intrepid se
     inventory.surfaces["mac-local"].filter((name) =>
       inventory.surfaces.intrepid.includes(name),
     ),
+    ["cursor", "grok-build"],
+  );
+
+  assert.deepEqual(Object.keys(inventory.pickerSurfaces), [
+    "mac-local",
+    "intrepid-persistent",
+    "intrepid-ordinary",
+  ]);
+  assert.equal(inventory.pickerSurfaces["mac-local"].length, 8);
+  assert.equal(inventory.pickerSurfaces["intrepid-persistent"].length, 8);
+  assert.equal(inventory.pickerSurfaces["intrepid-ordinary"].length, 6);
+
+  const pickerVariants = Object.values(inventory.pickerSurfaces).flat();
+  assert.equal(pickerVariants.length, 22);
+  assert.equal(new Set(pickerVariants.map((variant) => variant.id)).size, 22);
+  assert.equal(new Set(pickerVariants.map((variant) => variant.label)).size, 22);
+  for (const variant of pickerVariants) {
+    assert.match(variant.id, /^VAR-/);
+    assert.ok(variant.label.includes("(Mac") || variant.label.includes("(Intrepid"));
+    assert.ok(variant.configuredEntries.length >= 1);
+  }
+
+  assert.deepEqual(
+    new Set(pickerVariants.flatMap((variant) => variant.configuredEntries)),
+    new Set([
+      ...inventory.surfaces["mac-local"],
+      ...inventory.surfaces.intrepid,
+    ]),
+    "every configured route must map to one visible picker variant",
+  );
+  assert.deepEqual(
+    pickerVariants
+      .filter((variant) => variant.configuredEntries.length > 1)
+      .map((variant) => ({
+        label: variant.label,
+        configuredEntries: variant.configuredEntries,
+      })),
     [
-      "antigravity-acp",
-      "cursor",
-      "devin",
-      "glm-acp-agent",
-      "grok-build",
-      "kimi",
+      {
+        label: "GLM (Intrepid)",
+        configuredEntries: ["GLM (Intrepid)", "glm-acp-agent"],
+      },
+      {
+        label: "Kimi (Intrepid)",
+        configuredEntries: ["Kimi (Intrepid)", "kimi"],
+      },
     ],
+    "only the two deliberate custom-over-registry aliases may collapse",
   );
 });

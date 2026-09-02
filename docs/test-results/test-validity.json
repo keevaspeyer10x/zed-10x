@@ -31,9 +31,25 @@
     {
       "id": "HARNESS-DAP-THREADS-RESPONSE-SHAPE",
       "category": "test_bug",
-      "symptom": "The fake adapter returned an empty object for threads, which is not a valid DAP ThreadsResponse and produced an avoidable client parse error.",
-      "fix": "Return the protocol-valid empty threads list and retain the full initialize/launch/configure/threads/terminate assertion.",
-      "regression": "installed TCP DAP fixture returns threads: [] and the assembled journey has no invalid-response error",
+      "symptom": "The fake adapter returned an incomplete threads response and terminated immediately after configuration, so the installed client never exercised a valid stopped/thread/stackTrace sequence.",
+      "fix": "Return one valid thread, emit a protocol-valid stopped event, answer stackTrace, and keep the adapter alive for the client's read-only follow-up requests.",
+      "regression": "installed TCP DAP fixture completes initialize/launch/configurationDone/threads/stackTrace with valid response shapes",
+      "status": "fixed"
+    },
+    {
+      "id": "HARNESS-DAP-TCP-READINESS-RECONNECT",
+      "category": "test_bug",
+      "symptom": "The TCP fixture mistook Zed's readiness connection for the first initialize request and therefore rejected the real installed startup order.",
+      "fix": "Accept and close readiness-only connections, reset the first real initialize connection, and require a second initialized transport.",
+      "regression": "TCP fixture tests readiness probe, forced reset, reconnect, and a complete DAP journey",
+      "status": "fixed"
+    },
+    {
+      "id": "HARNESS-DAP-ANCILLARY-REQUEST-BRITTLENESS",
+      "category": "test_bug",
+      "symptom": "The oracle required one exact request list and a terminate request even though Zed may repeat idempotent reads and close the adapter process directly on stop.",
+      "fix": "Require the load-bearing ordered subsequence, validate transport closure separately, and bind final cleanup to exact process absence.",
+      "regression": "missing stackTrace fails while repeated threads requests and direct transport cleanup remain valid",
       "status": "fixed"
     },
     {
@@ -75,6 +91,94 @@
       "fix": "Keep the original file descriptor pinned for the full route lifetime, compare its live identity with the pathname immediately before unlink, never unlink while process-group cleanup is unproven, and close both ownership descriptors on every path.",
       "regression": "ephemeral cleanup refuses a route-replaced sentinel across 100 consecutive Linux-shaped runs and never unlinks while route cleanup is unproven",
       "status": "fixed"
+    },
+    {
+      "id": "HARNESS-COMPUTER-USE-KEY-CASING",
+      "category": "test_driver_error",
+      "symptom": "The recovery driver used unsupported Enter key casing after typing the first marker.",
+      "fix": "Inspect the visible composer before any retry, use the documented xdotool-style key names, and click the visible Send control exactly once.",
+      "regression": "The first marker appeared once, received one exact response, and the recovery journey continued without replay.",
+      "status": "contained_without_duplicate_effect"
+    },
+    {
+      "id": "HARNESS-MACOS-SYMLINKED-EVIDENCE-PARENT",
+      "category": "test_bug",
+      "symptom": "A successful content-free matrix write was reported as failed when the output parent used macOS's standard /tmp symlink spelling and the directory fsync applied O_NOFOLLOW to that spelling.",
+      "fix": "Resolve the already-existing parent directory before opening it with O_NOFOLLOW for the final directory fsync while retaining O_EXCL publication for the receipt itself.",
+      "regression": "terminal evidence remains durable through a symlinked parent directory",
+      "status": "fixed"
+    },
+    {
+      "id": "HARNESS-AFFECTED-PACKAGE-OMISSION",
+      "category": "test_gap",
+      "symptom": "The affected Rust package matrix did not compile the acp_thread test target after its TerminalBuilder constructor contract changed.",
+      "fix": "Add acp_thread --lib to focused CI and acp_thread to the complete changed-package matrix.",
+      "regression": "The expanded 644-test matrix compiles and passes acp_thread, agent_servers, agent_ui, and remote_server targets.",
+      "status": "fixed"
+    },
+    {
+      "id": "HARNESS-SHALLOW-EVIDENCE-HISTORY",
+      "category": "ci_configuration_bug",
+      "symptom": "GitHub's default shallow checkout omitted the earlier installed revision, so the revision-bound evidence validator could not prove ancestry in CI.",
+      "fix": "Fetch complete history in both focused jobs while retaining the exact pull-request revision checkout.",
+      "regression": "The workflow contract requires fetch-depth zero for both focused checkouts.",
+      "status": "fixed"
+    },
+    {
+      "id": "HARNESS-CI-RUNNER-DISK-EXHAUSTION",
+      "category": "ci_configuration_bug",
+      "symptom": "The focused Linux job retained cumulative Rust check and test artifacts until the final Zed binary compile exhausted the hosted runner disk.",
+      "fix": "Disable incremental artifacts in both focused jobs and reclaim disposable check-only artifacts before the final binary test compile.",
+      "regression": "The workflow contract requires CARGO_INCREMENTAL=0 in both focused jobs and an explicit cargo clean before the final Zed binary test.",
+      "status": "fixed"
+    },
+    {
+      "id": "HARNESS-PLAN-GENERATOR-EVIDENCE-OVERWRITE",
+      "category": "test_bug",
+      "symptom": "Regenerating the plan replaced completed implementation, lifecycle, and result evidence with pending placeholders.",
+      "fix": "Preserve existing execution artifacts while continuing to regenerate discovery and plan outputs.",
+      "regression": "Plan generation in an isolated root leaves pre-existing execution summary and implementation-map bytes unchanged.",
+      "status": "fixed"
+    },
+    {
+      "id": "HARNESS-DAP-CLEANUP-ORACLE-OMISSION",
+      "category": "test_gap",
+      "symptom": "The DAP TCP journey could pass without proving that the tested transport closed.",
+      "fix": "Require an explicit true transportClosed observation in the DAP TCP journey validator.",
+      "regression": "A complete DAP transcript with transportClosed=false fails closed.",
+      "status": "fixed"
+    },
+    {
+      "id": "HARNESS-CI-JOB-ORDER-SCOPE",
+      "category": "test_gap",
+      "symptom": "The workflow contract counted cleanup and incremental settings globally, so settings in the wrong job or order could pass.",
+      "fix": "Bind each setting to its exact job and require check, cleanup, then final test ordering within focused-linux.",
+      "regression": "The shell contract validates job-local setting counts and exact focused-linux step ordering.",
+      "status": "fixed"
+    },
+    {
+      "id": "HARNESS-DISCOVERY-SOURCE-REFERENCE",
+      "category": "evidence_bug",
+      "symptom": "The runtime requirement referenced a remote-server source file that does not exist.",
+      "fix": "Bind the requirement and generator to crates/remote_server/src/server.rs.",
+      "regression": "Every surface, variant, and requirement source resolves to a regular repository file.",
+      "status": "fixed"
+    },
+    {
+      "id": "HARNESS-INSTALLED-REVISION-AMBIGUITY",
+      "category": "evidence_bug",
+      "symptom": "One installedProductRevision field appeared to describe three UAT receipts produced from different installed revisions.",
+      "fix": "Record the assembled UI, current route, and ordinary reconnect installed revisions separately beside their evidence paths.",
+      "regression": "The summary exposes one exact installed revision for each reused UAT evidence source.",
+      "status": "fixed"
+    },
+    {
+      "id": "HARNESS-SWITCH-ROUTE-BINDING",
+      "category": "evidence_bug",
+      "symptom": "The generated switch journey declared Codex primary while the retained installed Intrepid receipt exercised Codex secondary.",
+      "fix": "Bind the journey to Codex secondary and add structured executed-route metadata to both representative receipts.",
+      "regression": "The closure test proves every receipt route exists, matches its discovered display name, is declared by the switch row, appears in the observed journey, and together exhausts the row's representatives.",
+      "status": "fixed"
     }
   ],
   "coverageClosureDefects": [
@@ -93,6 +197,30 @@
       "fix": "Require assembled_product evidence for direct variant cells, exercise every visible installed picker entry, and retain exact route evidence for every configured entry including alias-collapsed routes.",
       "regression": "shared validator rejects provider-only direct cells; Zed plan separates the exhaustive configured route matrix from exhaustive visible installed-picker UAT",
       "status": "fixed_and_executed"
+    },
+    {
+      "id": "PLAN-SURFACE-JOURNEY-VARIANT-CLOSURE",
+      "category": "process_bug",
+      "symptom": "The earlier plan did not mechanically intersect every product surface, critical user journey, and independently selectable variant, so multiple real user paths remained untested.",
+      "fix": "Discover the full surface x journey x selectable-variant matrix, require direct installed-boundary evidence for every route-specific inventory, launch, and cleanup cell, and keep shared state transitions at the surface level.",
+      "regression": "The fresh plan closes 3 surfaces, 5 journeys, 22 selectable variants, and 72 direct route-specific variant-journey cells without projecting one provider or profile onto another.",
+      "status": "fixed_and_executed"
+    },
+    {
+      "id": "PLAN-STATEFUL-RESTART-ORDERING",
+      "category": "process_bug",
+      "symptom": "Happy-path launch checks did not cross real persistent-service and ordinary remote-server replacement boundaries.",
+      "fix": "Make stateful disruption/recovery a first-class journey for both persistent restoration and ordinary dedicated-transport replacement.",
+      "regression": "A persistent lane restart restored the original session, and an ordinary remote-server restart retired the old agent transport and created exactly one replacement.",
+      "status": "fixed_and_executed"
+    },
+    {
+      "id": "PLAN-STATEFUL-VARIANT-BINDING",
+      "category": "process_bug",
+      "symptom": "Representative selectable variants were not directly linked to the stateful recovery and switch journeys they exercise.",
+      "fix": "Attach recovery to the Intrepid Codex-primary and Cursor variants, and bind switch-and-return to the actually exercised Intrepid Codex-secondary and Cursor routes plus their Mac counterparts.",
+      "regression": "The generated plan contains 72 direct variant-journey cells and each representative receipt is mechanically consistent with its declared route.",
+      "status": "fixed_and_executed"
     }
   ],
   "negativeControl": {
@@ -103,9 +231,9 @@
     "interpretation": "Expected fail-closed safety behavior, not a route-health acceptance result."
   },
   "reviewTooling": {
-    "multimindsAudit": "invalid_zero_of_nine_after_outer_timeout",
+    "multimindsDoctor": "ready_route_available_with_optional_degraded_diagnostics",
     "usedAsAcceptanceEvidence": false,
-    "independentExactDiffReview": "required_on_the_final_exact_candidate_before_merge"
+    "independentExactDiffReview": "preflight_review_completed; latest alias-policy finding rejected by exact source tracing and a passing boundary regression; repository review remains scheduled under the current policy"
   },
   "executionEvidence": {
     "advertisedRouteMatrix": {
@@ -117,6 +245,53 @@
       "path": "docs/test-results/installed-picker-uat.json",
       "sha256": "00a3bf719784b5dc00851781202b56ae7c04435ec646433b3a68b73496212af7",
       "status": "passed"
+    },
+    "historicalPredecessorInstalledInventory": {
+      "macPath": "docs/test-results/zed-acp-inventory-mac.json",
+      "intrepidPath": "docs/test-results/zed-acp-inventory-intrepid.json",
+      "status": "passed_historical_support_only"
+    },
+    "historicalPredecessorInstalledSessions": {
+      "macPath": "docs/test-results/zed-acp-session-mac.json",
+      "intrepidPath": "docs/test-results/zed-acp-session-intrepid.json",
+      "status": "passed_historical_support_only"
+    },
+    "historicalPredecessorCleanup": {
+      "macPath": "docs/test-results/zed-acp-cleanup-mac.json",
+      "intrepidPath": "docs/test-results/zed-acp-cleanup-intrepid.json",
+      "status": "passed_historical_support_only"
+    },
+    "ancestorInstalledUiClosure": {
+      "path": "docs/test-results/zed-acp-current-installed-uat.json",
+      "status": "passed",
+      "installedProductRevision": "a6531bd9de40ec55ce1181fa928b3ce324e7d61d",
+      "covers": [
+        "current inventory and route binding",
+        "current session and project outcome",
+        "cleanup",
+        "persistent recovery",
+        "switch-and-return",
+        "assembled surface UAT"
+      ]
+    },
+    "currentInstalledRouteClosure": {
+      "path": "docs/test-results/zed-acp-current-route-closure.json",
+      "sha256": "15225a347b1823521b480a0f681af862095c4dac63cb176f557b86603dce2567",
+      "status": "passed_with_external_unavailability",
+      "installedProductRevision": "2bde4bdfcbaac21a4ca6328298a0bd847e3caa65",
+      "configuredRouteCount": 24,
+      "passedRouteCount": 23,
+      "externalUnavailableRouteCount": 1,
+      "unresolvedProductFailureCount": 0,
+      "boundedRetryCount": 1,
+      "covers": [
+        "all configured Mac routes",
+        "all configured Intrepid routes",
+        "real project reads",
+        "ordinary bounded retry",
+        "external authentication classification",
+        "exact route cleanup"
+      ]
     }
   }
 }

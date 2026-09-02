@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "id": "RUNTIME-ZED10X-INTREPID",
+  "kind": "installed_artifact",
+  "value": "zed-remote-server-linux-x86_64@2bde4bdfcbaac21a4ca6328298a0bd847e3caa65:sha256=83fe8ff3cda3700452b0e58da485f96f38dc40bca8b4997fdc417ba577c251f7",
+  "surfaceIds": [
+    "SURFACE-ACP-INTREPID-PERSISTENT",
+    "SURFACE-ACP-INTREPID-ORDINARY"
+  ],
+  "observations": [
+    {
+      "rowId": "ZED-ACP-CURRENT-ROUTE-CLOSURE",
+      "command": "bind the exact installed Intrepid runtime to every configured Intrepid route, one real project read per available route, explicit external unavailability, and exact route cleanup",
+      "evidencePath": "docs/test-results/zed-acp-current-route-closure.json",
+      "evidenceSha256": "15225a347b1823521b480a0f681af862095c4dac63cb176f557b86603dce2567"
+    }
+  ],
+  "historicalObservations": [
+    {
+      "rowId": "ZED-ACP-CURRENT-INSTALLED-UAT",
+      "command": "bind the ancestor installed Intrepid runtime, picker inventory, provider-backed switch/recovery journey, assembled surface UAT, and cleanup to its exact source revision",
+      "evidencePath": "docs/test-results/zed-acp-current-installed-uat.json",
+      "evidenceSha256": "65eaeab60063c3b96ca211ecdcbcd24fe1982b9f02a14b2061aeb0546e77c8ab"
+    },
+    {
+      "rowId": "ZED-ACP-INVENTORY-001",
+      "command": "computer-use installed Zed 10x in an Intrepid project: open External Agents and verify the exact eight persistent plus six ordinary Intrepid variants, unique consistent labels, and no Mac or alias-only entries",
+      "evidencePath": "docs/test-results/zed-acp-inventory-intrepid.json",
+      "evidenceSha256": "28d6af269dd3c227e4895950f605e6ff14347d80130e78a7c5cfeebfac028245"
+    },
+    {
+      "rowId": "ZED-ACP-SESSION-002",
+      "command": "computer-use installed Zed 10x Intrepid External Agents: select all fourteen visible variants once, run session/new against an isolated project sentinel, classify terminal outcomes, then prove a healthy route launches after an unavailable route",
+      "evidencePath": "docs/test-results/zed-acp-session-intrepid.json",
+      "evidenceSha256": "fc8e2bd50d84220233d5bc4fda2084dc96278dbe29f862c738dccdabca75db4c"
+    },
+    {
+      "rowId": "ZED-ACP-CLEANUP-003",
+      "command": "inspect installed Intrepid External Agent teardown after the complete route matrix and prove ordinary process groups are gone while persistent clients detach and bounded lane services remain healthy",
+      "evidencePath": "docs/test-results/zed-acp-cleanup-intrepid.json",
+      "evidenceSha256": "7ec9f1eb048cece39fa997439ea05e17e3c90fc9b2d35f1a8a4bc3ec6f62d804"
+    },
+    {
+      "rowId": "ZED-ACP-RECOVERY-004",
+      "command": "computer-use installed Zed 10x with an existing Codex (Intrepid, primary) session: restart zed-acp-session-host@codex--primary.service, invoke Retry, load the original session, and continue once",
+      "evidencePath": "docs/test-results/zed-acp-recovery-intrepid.json",
+      "evidenceSha256": "8a26fb641a509c174cd3ca71dc987f7abd3507b8d015e6b95261314ae93fb368"
+    }
+  ],
+  "capture": {
+    "command": "bind the exact installed Intrepid runtime to every configured Intrepid route, one real project read per available route, explicit external unavailability, and exact route cleanup",
+    "evidencePath": "docs/test-results/zed-acp-current-route-closure.json",
+    "evidenceSha256": "15225a347b1823521b480a0f681af862095c4dac63cb176f557b86603dce2567"
+  }
+}

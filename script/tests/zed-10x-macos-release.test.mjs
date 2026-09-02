@@ -599,6 +599,56 @@ test("bundle-mac refreshes LaunchServices only after the installed bundle verifi
   assert.ok(successOffset > registrationOffset);
 });
 
+test("bundle-mac signs local installs outside file-provider workspaces", () => {
+  const repositoryRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../..");
+  const bundleScript = fs.readFileSync(path.join(repositoryRoot, "script", "bundle-mac"), "utf8");
+  const stageOffset = bundleScript.indexOf(
+    'ditto --norsrc --noextattr --noacl "$assembled_app_path" "$staged_app_path"',
+  );
+  const signOffset = bundleScript.indexOf(
+    'codesign --force --deep --entitlements "$unsigned_entitlements_path"',
+  );
+  const installOffset = bundleScript.indexOf('mv "$app_path" "$installed_app_path"');
+
+  assert.ok(stageOffset > 0, "local installs must leave file-provider workspaces before signing");
+  assert.ok(signOffset > stageOffset, "ad-hoc signing must use the isolated copy");
+  assert.ok(installOffset > signOffset, "only the verified signing candidate may be installed");
+});
+
+test("bundle-mac cleans an isolated local signing stage on every exit path", () => {
+  const repositoryRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../..");
+  const bundleScript = fs.readFileSync(path.join(repositoryRoot, "script", "bundle-mac"), "utf8");
+  const stageOffset = bundleScript.indexOf(
+    'signing_stage_directory=$(mktemp -d "${TMPDIR:-/tmp}/zed-10x-signing.XXXXXX")',
+  );
+  const trapOffset = bundleScript.indexOf("trap cleanup EXIT");
+  const installOffset = bundleScript.indexOf('mv "$app_path" "$installed_app_path"', stageOffset);
+  const clearStageOffset = bundleScript.indexOf('signing_stage_directory=""', installOffset);
+
+  assert.ok(stageOffset > 0);
+  assert.ok(trapOffset > 0 && trapOffset < stageOffset, "cleanup must be armed before staging begins");
+  assert.ok(installOffset > stageOffset, "cleanup must cover signing and verification failures");
+  assert.ok(clearStageOffset > installOffset, "the installed stage must be marked clean");
+  assert.match(
+    bundleScript,
+    /function cleanup\(\)[\s\S]*rm -rf -- "\$signing_stage_directory"/,
+  );
+});
+
+test("bundle-mac stops after local installation instead of reusing the moved staging app", () => {
+  const repositoryRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../..");
+  const bundleScript = fs.readFileSync(path.join(repositoryRoot, "script", "bundle-mac"), "utf8");
+  const localInstallStart = bundleScript.indexOf('if [ "$local_install" = true ]; then');
+  const openOnlyStart = bundleScript.indexOf('elif [ "$open_result" = true ]; then', localInstallStart);
+
+  assert.ok(localInstallStart > 0);
+  assert.ok(openOnlyStart > localInstallStart);
+  assert.match(
+    bundleScript.slice(localInstallStart, openOnlyStart),
+    /echo "Installed application bundle: \$installed_app_path"[\s\S]*\n\s*return\n/,
+  );
+});
+
 test("release credentials are visible only to the signing step", () => {
   const repositoryRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../..");
   const workflow = fs.readFileSync(path.join(repositoryRoot, ".github", "workflows", "zed-10x-release.yml"), "utf8");

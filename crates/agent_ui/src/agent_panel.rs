@@ -1922,15 +1922,35 @@ impl AgentPanel {
                 self._draft_editor_observation = None;
                 self.retained_threads.insert(draft_id, draft);
             } else if *draft.read(cx).agent_key() != self.selected_agent {
-                let old_draft_id = draft.read(cx).thread_id;
-                ThreadMetadataStore::global(cx).update(cx, |store, cx| {
-                    store.delete(old_draft_id, cx);
-                });
-                self.draft_thread = None;
-                self._draft_editor_observation = None;
+                self.discard_empty_draft(&draft, cx);
             }
         }
         self.activate_draft(focus, source, window, cx);
+    }
+
+    /// Drop an empty ephemeral draft without letting `set_base_view` retain
+    /// its live agent connection in the background. This matters for agents
+    /// whose transport owns an exclusive writer lease: a hidden empty draft
+    /// must not prevent the replacement draft from connecting.
+    fn discard_empty_draft(&mut self, draft: &Entity<ConversationView>, cx: &mut Context<Self>) {
+        let draft_entity_id = draft.entity_id();
+        let draft_thread_id = draft.read(cx).thread_id;
+
+        if matches!(
+            &self.base_view,
+            BaseView::AgentThread { conversation_view }
+                if conversation_view.entity_id() == draft_entity_id
+        ) {
+            self.base_view = BaseView::Uninitialized;
+            self._active_draft_reclaim_observation = None;
+        }
+
+        self.retained_threads.remove(&draft_thread_id);
+        ThreadMetadataStore::global(cx).update(cx, |store, cx| {
+            store.delete(draft_thread_id, cx);
+        });
+        self.draft_thread = None;
+        self._draft_editor_observation = None;
     }
 
     fn draft_has_content(&self, draft: &Entity<ConversationView>, cx: &App) -> bool {
@@ -3338,7 +3358,7 @@ impl AgentPanel {
         cx: &mut Context<Self>,
     ) -> Entity<ConversationView> {
         let desired_agent = self.selected_agent(cx);
-        if let Some(draft) = &self.draft_thread {
+        if let Some(draft) = self.draft_thread.clone() {
             let draft_entity = draft.entity_id();
             let agent_matches = *draft.read(cx).agent_key() == desired_agent;
             let has_editor_content = draft.read(cx).root_thread_view().is_some_and(|tv| {
@@ -3368,13 +3388,7 @@ impl AgentPanel {
 
             // Clean up the old empty draft's metadata so it doesn't
             // linger as a ghost entry in the sidebar.
-            let old_draft_id = draft.read(cx).thread_id;
-            ThreadMetadataStore::global(cx).update(cx, |store, cx| {
-                store.delete(old_draft_id, cx);
-            });
-
-            self.draft_thread = None;
-            self._draft_editor_observation = None;
+            self.discard_empty_draft(&draft, cx);
         }
 
         let thread = self.create_agent_thread_with_server(
@@ -7402,10 +7416,12 @@ mod tests {
     use crate::thread_metadata_store::ThreadMetadata;
     use acp_thread::{AgentConnection, StubAgentConnection, ThreadStatus};
     use action_log::ActionLog;
+    use agent_servers::AgentServerDelegate;
     use anyhow::{Result, anyhow};
     use chrono::Utc;
     use feature_flags::FeatureFlagAppExt;
     use fs::FakeFs;
+    use futures::channel::oneshot;
     use gpui::{App, TestAppContext, UpdateGlobal, VisualTestContext};
     use parking_lot::Mutex;
     use project::agent_registry_store::{
@@ -7414,6 +7430,8 @@ mod tests {
     use project::{Project, WorktreePaths};
     use settings::{SettingsStore, WorkingDirectory};
     use std::any::Any;
+    use std::collections::VecDeque;
+    use std::sync::atomic::{AtomicUsize, Ordering};
 
     use serde_json::json;
     use std::path::{Path, PathBuf};
@@ -7432,6 +7450,7 @@ mod tests {
                             env: None,
                         },
                         aliases: Vec::new(),
+                        dedicated_connection: false,
                         default_mode: None,
                         default_config_options: HashMap::default(),
                         favorite_config_option_values: HashMap::default(),
@@ -7442,6 +7461,277 @@ mod tests {
             ),
             cx,
         );
+    }
+
+    fn set_test_dedicated_alias_agent_settings(cx: &mut App) {
+        project::agent_server_store::AllAgentServersSettings::override_global(
+            project::agent_server_store::AllAgentServersSettings(
+                [(
+                    "Canonical Dedicated".to_string(),
+                    project::agent_server_store::CustomAgentServerSettings::Custom {
+                        command: project::agent_server_store::AgentServerCommand {
+                            path: PathBuf::from("/usr/bin/false"),
+                            args: Vec::new(),
+                            env: None,
+                        },
+                        aliases: vec!["legacy-dedicated".to_string()],
+                        dedicated_connection: true,
+                        default_mode: None,
+                        default_config_options: HashMap::default(),
+                        favorite_config_option_values: HashMap::default(),
+                    },
+                )]
+                .into_iter()
+                .collect(),
+            ),
+            cx,
+        );
+    }
+
+    struct DedicatedConnectionServer {
+        connection_count: Arc<AtomicUsize>,
+    }
+
+    impl AgentServer for DedicatedConnectionServer {
+        fn logo(&self) -> ui::IconName {
+            ui::IconName::ZedAgent
+        }
+
+        fn agent_id(&self) -> AgentId {
+            "Dedicated Test".into()
+        }
+
+        fn connect(
+            &self,
+            _delegate: AgentServerDelegate,
+            _project: Entity<Project>,
+            _cx: &mut App,
+        ) -> Task<Result<Rc<dyn AgentConnection>>> {
+            self.connection_count.fetch_add(1, Ordering::SeqCst);
+            Task::ready(Ok(Rc::new(StubAgentConnection::new())))
+        }
+
+        fn requires_dedicated_connection(&self, _cx: &App) -> bool {
+            true
+        }
+
+        fn into_any(self: Rc<Self>) -> Rc<dyn Any> {
+            self
+        }
+    }
+
+    struct DelayedDedicatedConnectionServer {
+        releases: Mutex<VecDeque<oneshot::Receiver<()>>>,
+    }
+
+    impl AgentServer for DelayedDedicatedConnectionServer {
+        fn logo(&self) -> ui::IconName {
+            ui::IconName::ZedAgent
+        }
+
+        fn agent_id(&self) -> AgentId {
+            "Delayed Dedicated Test".into()
+        }
+
+        fn connect(
+            &self,
+            _delegate: AgentServerDelegate,
+            _project: Entity<Project>,
+            cx: &mut App,
+        ) -> Task<Result<Rc<dyn AgentConnection>>> {
+            let release = self
+                .releases
+                .lock()
+                .pop_front()
+                .expect("each connection attempt should have a release signal");
+            cx.spawn(async move |_cx| {
+                release.await.expect("test should release the connection");
+                Ok(Rc::new(StubAgentConnection::new()) as Rc<dyn AgentConnection>)
+            })
+        }
+
+        fn requires_dedicated_connection(&self, _cx: &App) -> bool {
+            true
+        }
+
+        fn into_any(self: Rc<Self>) -> Rc<dyn Any> {
+            self
+        }
+    }
+
+    #[gpui::test]
+    async fn test_superseded_dedicated_connection_can_finish_for_existing_owner(
+        cx: &mut TestAppContext,
+    ) {
+        let (_workspace, panel, mut cx) = setup_workspace_panel(cx).await;
+        let (first_release_tx, first_release_rx) = oneshot::channel();
+        let (second_release_tx, second_release_rx) = oneshot::channel();
+        let server: Rc<dyn AgentServer> = Rc::new(DelayedDedicatedConnectionServer {
+            releases: Mutex::new(VecDeque::from([first_release_rx, second_release_rx])),
+        });
+        let agent = Agent::Custom {
+            id: "Delayed Dedicated Test".into(),
+        };
+
+        let (first_entry, second_entry) = panel.update_in(&mut cx, |panel, _window, cx| {
+            let connection_store = panel.connection_store().clone();
+            let first_entry = connection_store.update(cx, |store, cx| {
+                store.request_fresh_connection(agent.clone(), server.clone(), cx)
+            });
+            let second_entry = connection_store.update(cx, |store, cx| {
+                store.request_fresh_connection(agent.clone(), server.clone(), cx)
+            });
+            (first_entry, second_entry)
+        });
+
+        assert_ne!(first_entry, second_entry);
+        assert_eq!(
+            first_entry.read_with(&cx, |entry, _cx| entry.status()),
+            crate::agent_connection_store::AgentConnectionStatus::Connecting
+        );
+        assert_eq!(
+            second_entry.read_with(&cx, |entry, _cx| entry.status()),
+            crate::agent_connection_store::AgentConnectionStatus::Connecting
+        );
+        panel.read_with(&cx, |panel, cx| {
+            assert_eq!(
+                panel.connection_store().read(cx).entry(&agent),
+                Some(&second_entry),
+                "only the newest dedicated entry should remain canonical"
+            );
+        });
+
+        first_release_tx
+            .send(())
+            .expect("first connection should still be observed");
+        second_release_tx
+            .send(())
+            .expect("second connection should still be observed");
+        cx.run_until_parked();
+
+        assert_eq!(
+            first_entry.read_with(&cx, |entry, _cx| entry.status()),
+            crate::agent_connection_store::AgentConnectionStatus::Connected,
+            "the superseded entry is still owned by its original thread"
+        );
+        assert_eq!(
+            second_entry.read_with(&cx, |entry, _cx| entry.status()),
+            crate::agent_connection_store::AgentConnectionStatus::Connected
+        );
+    }
+
+    #[gpui::test]
+    async fn test_retained_thread_does_not_share_dedicated_agent_connection(
+        cx: &mut TestAppContext,
+    ) {
+        let (_workspace, panel, mut cx) = setup_workspace_panel(cx).await;
+        let connection_count = Arc::new(AtomicUsize::new(0));
+        let server: Rc<dyn AgentServer> = Rc::new(DedicatedConnectionServer {
+            connection_count: connection_count.clone(),
+        });
+        let dedicated_agent = Agent::Custom {
+            id: "Dedicated Test".into(),
+        };
+
+        let first_thread_id = panel.update_in(&mut cx, |panel, window, cx| {
+            let thread = panel.create_agent_thread_with_server(
+                dedicated_agent.clone(),
+                Some(server.clone()),
+                None,
+                None,
+                None,
+                None,
+                None,
+                AgentThreadSource::AgentPanel,
+                window,
+                cx,
+            );
+            let thread_id = thread.conversation_view.read(cx).thread_id;
+            panel.set_base_view(thread.into(), true, window, cx);
+            thread_id
+        });
+        cx.run_until_parked();
+        send_message(&panel, &mut cx);
+
+        panel.update_in(&mut cx, |panel, window, cx| {
+            panel.external_thread(
+                Some(Agent::Stub),
+                None,
+                None,
+                None,
+                None,
+                true,
+                AgentThreadSource::AgentPanel,
+                window,
+                cx,
+            );
+        });
+        cx.run_until_parked();
+
+        panel.read_with(&cx, |panel, _cx| {
+            assert!(
+                panel.retained_threads.contains_key(&first_thread_id),
+                "the completed first thread should remain available after switching agents"
+            );
+        });
+
+        panel.update_in(&mut cx, |panel, window, cx| {
+            let thread = panel.create_agent_thread_with_server(
+                dedicated_agent,
+                Some(server),
+                None,
+                None,
+                None,
+                None,
+                None,
+                AgentThreadSource::AgentPanel,
+                window,
+                cx,
+            );
+            panel.set_base_view(thread.into(), true, window, cx);
+        });
+        cx.run_until_parked();
+
+        assert_eq!(
+            connection_count.load(Ordering::SeqCst),
+            2,
+            "a new thread for an agent with exclusive connection ownership must connect separately"
+        );
+    }
+
+    #[gpui::test]
+    async fn test_legacy_alias_resolves_dedicated_policy_before_connection_selection(
+        cx: &mut TestAppContext,
+    ) {
+        let (_workspace, panel, mut cx) = setup_workspace_panel(cx).await;
+        cx.update(|_, cx| set_test_dedicated_alias_agent_settings(cx));
+        cx.run_until_parked();
+
+        let legacy = Agent::Custom {
+            id: "legacy-dedicated".into(),
+        };
+        panel.read_with(&cx, |panel, cx| {
+            let canonical = legacy.canonicalized(&panel.project, cx);
+            assert_eq!(
+                canonical,
+                Agent::Custom {
+                    id: "Canonical Dedicated".into(),
+                },
+                "persisted aliases must resolve before a thread chooses shared or dedicated custody"
+            );
+
+            let server = legacy.server(
+                panel.fs.clone(),
+                panel.thread_store.clone(),
+                &panel.project,
+                cx,
+            );
+            assert_eq!(server.agent_id().as_ref(), "Canonical Dedicated");
+            assert!(
+                server.requires_dedicated_connection(cx),
+                "the pre-connect policy check must read the canonical agent's dedicated setting"
+            );
+        });
     }
 
     fn set_test_registry_agent_settings(cx: &mut App) {
@@ -13895,12 +14185,16 @@ mod tests {
             panel.activate_draft(true, AgentThreadSource::AgentPanel, window, cx);
         });
 
-        let first_draft_id = panel.read_with(cx, |panel, cx| {
+        let (first_draft_id, first_thread_id, first_draft) = panel.read_with(cx, |panel, cx| {
             assert!(panel.draft_thread.is_some());
             assert_eq!(panel.selected_agent, Agent::NativeAgent);
             let draft = panel.draft_thread.as_ref().unwrap();
             assert_eq!(*draft.read(cx).agent_key(), Agent::NativeAgent);
-            draft.entity_id()
+            (
+                draft.entity_id(),
+                draft.read(cx).thread_id,
+                draft.downgrade(),
+            )
         });
 
         // Switch selected_agent to a custom agent, then activate_draft again.
@@ -13912,6 +14206,7 @@ mod tests {
             panel.selected_agent = custom_agent.clone();
             panel.activate_draft(true, AgentThreadSource::AgentPanel, window, cx);
         });
+        cx.run_until_parked();
 
         panel.read_with(cx, |panel, cx| {
             let draft = panel.draft_thread.as_ref().expect("draft should exist");
@@ -13925,7 +14220,15 @@ mod tests {
                 custom_agent,
                 "the new draft should use the custom agent"
             );
+            assert!(
+                !panel.retained_threads.contains_key(&first_thread_id),
+                "the replaced empty draft must not retain its agent connection in the background"
+            );
         });
+        assert!(
+            first_draft.upgrade().is_none(),
+            "the replaced empty draft view and its live agent connection must be dropped"
+        );
 
         // Calling activate_draft again with the same agent should return the
         // cached draft (no replacement).
@@ -14193,6 +14496,13 @@ mod tests {
         cx.run_until_parked();
 
         let ephemeral_thread_id = crate::test_support::active_thread_id(&panel, cx);
+        let ephemeral_draft = panel.read_with(cx, |panel, _cx| {
+            panel
+                .draft_thread
+                .as_ref()
+                .expect("ephemeral draft should exist")
+                .downgrade()
+        });
         assert_ne!(ephemeral_thread_id, parked_thread_id);
         panel.read_with(cx, |panel, cx| {
             assert_eq!(
@@ -14247,7 +14557,15 @@ mod tests {
                 panel.retained_threads.contains_key(&parked_thread_id),
                 "parked draft should still be in retained_threads"
             );
+            assert!(
+                !panel.retained_threads.contains_key(&ephemeral_thread_id),
+                "the replaced background ephemeral draft must not become retained"
+            );
         });
+        assert!(
+            ephemeral_draft.upgrade().is_none(),
+            "the replaced background ephemeral draft and its connection must be dropped"
+        );
     }
 
     #[gpui::test]

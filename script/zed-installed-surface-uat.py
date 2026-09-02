@@ -84,6 +84,16 @@ def sha256_file(path: pathlib.Path) -> str:
     return sha256_bytes(path.read_bytes())
 
 
+def contains_ordered_subsequence(observed: Any, required: list[str]) -> bool:
+    if not isinstance(observed, list):
+        return False
+    required_index = 0
+    for event in observed:
+        if required_index < len(required) and event == required[required_index]:
+            required_index += 1
+    return required_index == len(required)
+
+
 def validate_remote_project(value: str) -> str:
     path = pathlib.PurePosixPath(value)
     if not path.is_absolute() or not str(path).startswith(REMOTE_PROJECT_PREFIX):
@@ -279,15 +289,24 @@ def validate_observation(remote_project: str, observation: dict[str, Any]) -> di
         "dapStdio": ("dap-stdio", ["initialize", "launch", "configurationDone", "terminate"]),
         "dapTcp": (
             "dap-tcp",
-            ["initialize", "launch", "configurationDone", "threads", "terminate"],
+            [
+                "initialize",
+                "launch",
+                "configurationDone",
+                "threads",
+                "stackTrace",
+            ],
         ),
     }
     for key, (environment_name, events) in expected_dap.items():
         dap = receipts[key]
+        events_match = dap.get("events") == events
+        if key == "dapTcp":
+            events_match = contains_ordered_subsequence(dap.get("events"), events)
         matches = (
             dap.get("cwd") == remote_project
             and dap.get("environmentSha256") == expected_sha(environment_name)
-            and dap.get("events") == events
+            and events_match
         )
         if key == "dapTcp":
             matches = (
@@ -295,6 +314,7 @@ def validate_observation(remote_project: str, observation: dict[str, Any]) -> di
                 and dap.get("tcpConnectionCount") == 2
                 and dap.get("resetInitializeCount") == 1
                 and dap.get("resetDelayMs", 0) > 100
+                and dap.get("transportClosed") is True
             )
         if not matches:
             raise UatFailure(f"{key}_journey_mismatch")

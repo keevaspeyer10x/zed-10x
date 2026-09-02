@@ -845,6 +845,13 @@ impl ConversationView {
             this.request_elicitation_form_states.clear();
             if let Some(connected) = this.as_connected() {
                 connected.close_all_sessions(cx).detach();
+                if this.agent.requires_dedicated_connection(cx) {
+                    let connection = connected.connection.clone();
+                    connection.shutdown_transport();
+                    this.connection_store.update(cx, |store, cx| {
+                        store.remove_connected_entry_if_same(&this.connection_key, &connection, cx);
+                    });
+                }
             }
             for window in this.notifications.drain(..) {
                 window
@@ -921,6 +928,15 @@ impl ConversationView {
 
         if let Some(connected) = self.as_connected() {
             connected.close_all_sessions(cx).detach();
+        }
+
+        if self.agent.requires_dedicated_connection(cx)
+            && let Some(connection) = previous_request_elicitation_connection.as_ref()
+            && !next_request_elicitation_connection
+                .as_ref()
+                .is_some_and(|next_connection| Rc::ptr_eq(connection, next_connection))
+        {
+            connection.shutdown_transport();
         }
 
         if let Some(connection) = previous_request_elicitation_connection
@@ -1041,9 +1057,11 @@ impl ConversationView {
     }
 
     fn retry_load(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.connection_store.update(cx, |store, cx| {
-            store.restart_connection(self.connection_key.clone(), self.agent.clone(), cx);
-        });
+        if !self.agent.requires_dedicated_connection(cx) {
+            self.connection_store.update(cx, |store, cx| {
+                store.restart_connection(self.connection_key.clone(), self.agent.clone(), cx);
+            });
+        }
         telemetry::event!("Agent Panel Load Retried", agent = self.agent.agent_id(),);
         self.reset(window, cx);
     }
@@ -1072,8 +1090,13 @@ impl ConversationView {
         }
         let session_work_dirs = work_dirs.unwrap_or_else(|| project.read(cx).default_path_list(cx));
 
+        let requires_dedicated_connection = agent.requires_dedicated_connection(cx);
         let connection_entry = connection_store.update(cx, |store, cx| {
-            store.request_connection(connection_key, agent.clone(), cx)
+            if requires_dedicated_connection {
+                store.request_fresh_connection(connection_key, agent.clone(), cx)
+            } else {
+                store.request_connection(connection_key, agent.clone(), cx)
+            }
         });
 
         let connection_entry_subscription =
@@ -3692,11 +3715,91 @@ pub(crate) mod tests {
     async fn test_drop(cx: &mut TestAppContext) {
         init_test(cx);
 
-        let (conversation_view, _cx) =
-            setup_conversation_view(StubAgentServer::default_response(), cx).await;
+        let connection = StubAgentConnection::new();
+        let (conversation_view, cx) =
+            setup_conversation_view(StubAgentServer::new(connection.clone()), cx).await;
         let weak_view = conversation_view.downgrade();
         drop(conversation_view);
+        cx.update(|_, _| {});
+        cx.run_until_parked();
         assert!(!weak_view.is_upgradable());
+        assert_eq!(
+            connection.shutdown_count(),
+            0,
+            "releasing a shared view must not retire the shared transport"
+        );
+    }
+
+    #[gpui::test]
+    async fn test_drop_shuts_down_dedicated_transport(cx: &mut TestAppContext) {
+        use std::sync::atomic::Ordering;
+
+        init_test(cx);
+
+        let connection = StubAgentConnection::new();
+        let (server, fail, _) = FlakyAgentServer::new_dedicated(connection.clone());
+        fail.store(false, Ordering::SeqCst);
+        let (conversation_view, cx) = setup_conversation_view(server, cx).await;
+        assert_eq!(connection.shutdown_count(), 0);
+
+        let (connection_store, connection_key) = conversation_view.read_with(cx, |view, _cx| {
+            (view.connection_store.clone(), view.connection_key.clone())
+        });
+
+        let weak_view = conversation_view.downgrade();
+        drop(conversation_view);
+        cx.update(|_, _| {});
+        cx.run_until_parked();
+
+        assert!(!weak_view.is_upgradable());
+        assert_eq!(
+            connection.shutdown_count(),
+            1,
+            "releasing a dedicated view must retire its owned transport"
+        );
+        assert_eq!(
+            connection_store.read_with(cx, |store, cx| {
+                store.connection_status(&connection_key, cx)
+            }),
+            crate::agent_connection_store::AgentConnectionStatus::Disconnected,
+            "releasing a dedicated view must remove its retired canonical connection"
+        );
+    }
+
+    #[gpui::test]
+    async fn test_drop_preserves_newer_dedicated_connection_entry(cx: &mut TestAppContext) {
+        use std::sync::atomic::Ordering;
+
+        init_test(cx);
+
+        let owned_connection = StubAgentConnection::new();
+        let (server, fail, _) = FlakyAgentServer::new_dedicated(owned_connection.clone());
+        fail.store(false, Ordering::SeqCst);
+        let (conversation_view, cx) = setup_conversation_view(server, cx).await;
+        let (connection_store, connection_key) = conversation_view.read_with(cx, |view, _cx| {
+            (view.connection_store.clone(), view.connection_key.clone())
+        });
+
+        let replacement = StubAgentConnection::new();
+        let replacement_entry = connection_store.update(cx, |store, cx| {
+            store.request_fresh_connection(
+                connection_key.clone(),
+                Rc::new(StubAgentServer::new(replacement)),
+                cx,
+            )
+        });
+        cx.run_until_parked();
+
+        drop(conversation_view);
+        cx.update(|_, _| {});
+        cx.run_until_parked();
+
+        assert_eq!(owned_connection.shutdown_count(), 1);
+        assert_eq!(
+            connection_store.read_with(cx, |store, _cx| store.entry(&connection_key).cloned()),
+            Some(replacement_entry),
+            "an older view release must not evict a newer canonical connection"
+        );
     }
 
     #[gpui::test]
@@ -4280,6 +4383,76 @@ pub(crate) mod tests {
     }
 
     #[gpui::test]
+    async fn test_retry_after_acp_server_exit_loads_the_original_session(cx: &mut TestAppContext) {
+        init_test(cx);
+
+        let server = FakeAcpAgentServer::new();
+        let load_session_count = server.load_session_count();
+        let close_session_count = server.close_session_count();
+        let (conversation_view, cx) = setup_conversation_view(server.clone(), cx).await;
+        let original_session_id = conversation_view
+            .read_with(cx, |view, _cx| view.root_session_id.clone())
+            .expect("the initial connection should create a session");
+
+        assert_eq!(
+            load_session_count.load(std::sync::atomic::Ordering::SeqCst),
+            0,
+            "the initial connection should create rather than load a session"
+        );
+
+        server.simulate_server_exit();
+        cx.run_until_parked();
+
+        conversation_view.read_with(cx, |view, _cx| {
+            assert!(
+                matches!(
+                    view.server_state,
+                    ServerState::LoadError {
+                        error: LoadError::Exited { .. }
+                    }
+                ),
+                "the real ACP exit event should present a retryable load error"
+            );
+            assert_eq!(
+                view.root_session_id.as_ref(),
+                Some(&original_session_id),
+                "the failed view must retain the session identity needed by Retry"
+            );
+        });
+        assert_eq!(
+            close_session_count.load(std::sync::atomic::Ordering::SeqCst),
+            1,
+            "the failed connection should close the old ACP session before retry"
+        );
+
+        conversation_view.update_in(cx, |view, window, cx| {
+            view.retry_load(window, cx);
+        });
+        cx.run_until_parked();
+
+        assert_eq!(
+            load_session_count.load(std::sync::atomic::Ordering::SeqCst),
+            1,
+            "Retry should load the original session on a fresh transport"
+        );
+        conversation_view.read_with(cx, |view, cx| {
+            let connected = view
+                .as_connected()
+                .expect("Retry should reconnect after the ACP process exits");
+            assert_eq!(connected.active_id.as_ref(), Some(&original_session_id));
+            let thread_session_id = view
+                .active_thread()
+                .expect("Retry should restore the original thread")
+                .read(cx)
+                .thread
+                .read(cx)
+                .session_id()
+                .clone();
+            assert_eq!(thread_session_id, original_session_id);
+        });
+    }
+
+    #[gpui::test]
     async fn test_thread_view_seeds_existing_elicitation_form_state(cx: &mut TestAppContext) {
         init_test(cx);
         cx.update(|cx| {
@@ -4792,6 +4965,74 @@ pub(crate) mod tests {
                 .session_id()
                 .clone();
             assert_eq!(thread_session_id, original_session_id);
+        });
+    }
+
+    #[gpui::test]
+    async fn test_retry_load_refreshes_dedicated_transport_and_preserves_session_id(
+        cx: &mut TestAppContext,
+    ) {
+        use std::sync::atomic::Ordering;
+
+        init_test(cx);
+
+        let connection = StubAgentConnection::new().with_supports_load_session(true);
+        let (server, fail, connect_attempts) = FlakyAgentServer::new_dedicated(connection.clone());
+        fail.store(false, Ordering::SeqCst);
+        let (conversation_view, cx) = setup_conversation_view(server, cx).await;
+        let original_session_id = conversation_view
+            .read_with(cx, |view, _cx| view.root_session_id.clone())
+            .expect("the initial dedicated connection should create a session");
+        assert_eq!(connect_attempts.load(Ordering::SeqCst), 1);
+        let previous_connection_entry = conversation_view.read_with(cx, |view, cx| {
+            view.connection_store
+                .read(cx)
+                .entry(&view.connection_key)
+                .expect("the initial dedicated connection should remain canonical")
+                .downgrade()
+        });
+
+        conversation_view.update(cx, |view, cx| {
+            view.set_server_state(
+                ServerState::LoadError {
+                    error: LoadError::Other("incoming_transport_closed".into()),
+                },
+                cx,
+            );
+        });
+        assert_eq!(
+            connection.shutdown_count(),
+            1,
+            "replacing a dedicated connection must retire its owned transport immediately"
+        );
+        conversation_view.update_in(cx, |view, window, cx| {
+            view.retry_load(window, cx);
+        });
+        cx.run_until_parked();
+
+        assert_eq!(
+            connect_attempts.load(Ordering::SeqCst),
+            2,
+            "dedicated Retry must create exactly one fresh transport"
+        );
+        assert!(
+            !previous_connection_entry.is_upgradable(),
+            "dedicated Retry must drop the superseded connection entry before retaining the replacement"
+        );
+        conversation_view.read_with(cx, |view, cx| {
+            let connected = view
+                .as_connected()
+                .expect("dedicated Retry should reconnect the agent");
+            assert_eq!(connected.active_id.as_ref(), Some(&original_session_id));
+            assert_eq!(
+                view.active_thread()
+                    .expect("dedicated Retry should restore the original thread")
+                    .read(cx)
+                    .thread
+                    .read(cx)
+                    .session_id(),
+                &original_session_id
+            );
         });
     }
 
@@ -5869,11 +6110,33 @@ pub(crate) mod tests {
         connection: StubAgentConnection,
         fail: Arc<std::sync::atomic::AtomicBool>,
         connect_attempts: Arc<std::sync::atomic::AtomicUsize>,
+        dedicated_connection: bool,
     }
 
     impl FlakyAgentServer {
         pub(crate) fn new(
             connection: StubAgentConnection,
+        ) -> (
+            Self,
+            Arc<std::sync::atomic::AtomicBool>,
+            Arc<std::sync::atomic::AtomicUsize>,
+        ) {
+            Self::new_with_connection_policy(connection, false)
+        }
+
+        fn new_dedicated(
+            connection: StubAgentConnection,
+        ) -> (
+            Self,
+            Arc<std::sync::atomic::AtomicBool>,
+            Arc<std::sync::atomic::AtomicUsize>,
+        ) {
+            Self::new_with_connection_policy(connection, true)
+        }
+
+        fn new_with_connection_policy(
+            connection: StubAgentConnection,
+            dedicated_connection: bool,
         ) -> (
             Self,
             Arc<std::sync::atomic::AtomicBool>,
@@ -5886,6 +6149,7 @@ pub(crate) mod tests {
                     connection,
                     fail: fail.clone(),
                     connect_attempts: connect_attempts.clone(),
+                    dedicated_connection,
                 },
                 fail,
                 connect_attempts,
@@ -5917,6 +6181,10 @@ pub(crate) mod tests {
             } else {
                 Task::ready(Ok(Rc::new(self.connection.clone())))
             }
+        }
+
+        fn requires_dedicated_connection(&self, _cx: &App) -> bool {
+            self.dedicated_connection
         }
 
         fn into_any(self: Rc<Self>) -> Rc<dyn Any> {

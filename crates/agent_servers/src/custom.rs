@@ -41,6 +41,15 @@ impl AgentServer for CustomAgentServer {
         IconName::Terminal
     }
 
+    fn requires_dedicated_connection(&self, cx: &App) -> bool {
+        cx.read_global(|settings: &SettingsStore, _| {
+            settings
+                .get::<AllAgentServersSettings>(None)
+                .get(self.agent_id().as_ref())
+                .is_some_and(|settings| settings.requires_dedicated_connection())
+        })
+    }
+
     fn default_mode(&self, cx: &App) -> Option<acp::SessionModeId> {
         let settings = cx.read_global(|settings: &SettingsStore, _| {
             settings
@@ -434,6 +443,54 @@ mod tests {
         );
         cx.update(|cx| {
             assert!(is_registry_agent("agent-from-settings", cx));
+        });
+    }
+
+    #[gpui::test]
+    fn test_custom_agent_dedicated_connection_setting(cx: &mut TestAppContext) {
+        init_test(cx);
+        set_agent_server_settings(
+            cx,
+            vec![
+                (
+                    "dedicated-agent",
+                    settings::CustomAgentServerSettings::Custom {
+                        path: "dedicated-agent".into(),
+                        args: Vec::new(),
+                        aliases: Vec::new(),
+                        dedicated_connection: true,
+                        env: HashMap::default(),
+                        default_mode: None,
+                        default_config_options: HashMap::default(),
+                        favorite_config_option_values: HashMap::default(),
+                    },
+                ),
+                (
+                    "shared-agent",
+                    settings::CustomAgentServerSettings::Custom {
+                        path: "shared-agent".into(),
+                        args: Vec::new(),
+                        aliases: Vec::new(),
+                        dedicated_connection: false,
+                        env: HashMap::default(),
+                        default_mode: None,
+                        default_config_options: HashMap::default(),
+                        favorite_config_option_values: HashMap::default(),
+                    },
+                ),
+            ],
+        );
+
+        cx.update(|cx| {
+            assert!(
+                CustomAgentServer::new("dedicated-agent".into()).requires_dedicated_connection(cx)
+            );
+            assert!(
+                !CustomAgentServer::new("shared-agent".into()).requires_dedicated_connection(cx)
+            );
+            assert!(
+                !CustomAgentServer::new("registry-agent".into()).requires_dedicated_connection(cx)
+            );
         });
     }
 }

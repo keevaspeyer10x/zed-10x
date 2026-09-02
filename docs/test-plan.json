@@ -1,2319 +1,1389 @@
 {
   "schemaVersion": 3,
+  "coverageClosureVersion": 2,
   "freshLifecycle": true,
-  "generatedAt": "2026-08-26T15:37:43.971Z",
-  "scope": "zed-10x-remote-execution-release",
-  "counts": {
-    "totalRows": 19,
-    "readyNow": 19,
-    "needsTooling": 0
+  "generatedAt": "2026-09-02T18:25:09.445Z",
+  "northStar": "Keeva can choose any visible External Agent with an unambiguous host/profile label, start it in the current project, switch among agents without hidden ownership, understand genuine provider unavailability, and recover a persistent Intrepid session after transport loss without losing work.",
+  "scope": {
+    "included": "Installed External Agent inventory, launch, project outcome, cross-agent state transitions, cleanup, and persistent session recovery on Mac and Intrepid.",
+    "excluded": [
+      "Zed Agent and Terminal native picker entries",
+      "provider account repair",
+      "public notarized distribution",
+      "unrelated upstream editor features"
+    ]
   },
-  "freshnessDelta": {
-    "priorRows": 6,
-    "newRows": 19,
-    "addedRows": 13,
-    "removedRows": 0,
-    "materiallyChangedRows": 6,
-    "reason": "The security incident proved the prior ACP-only plan omitted every sibling remote execution consumer."
+  "counts": {
+    "totalRows": 5,
+    "readyNowRows": 5,
+    "productSurfaces": 3,
+    "criticalJourneys": 5,
+    "applicableSurfaceJourneyCells": 14,
+    "selectableVariants": 22,
+    "directVariantJourneyCells": 72
+  },
+  "surfaceJourneyCoverage": {
+    "cells": [
+      {
+        "surfaceId": "SURFACE-ACP-MAC-LOCAL",
+        "journeyId": "JOURNEY-HOST-SCOPED-INVENTORY",
+        "applicability": "applicable",
+        "requiredEvidenceBoundary": "installed_boundary",
+        "rowIds": [
+          "ZED-ACP-INVENTORY-001"
+        ]
+      },
+      {
+        "surfaceId": "SURFACE-ACP-MAC-LOCAL",
+        "journeyId": "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
+        "applicability": "applicable",
+        "requiredEvidenceBoundary": "installed_boundary",
+        "rowIds": [
+          "ZED-ACP-SESSION-002"
+        ]
+      },
+      {
+        "surfaceId": "SURFACE-ACP-MAC-LOCAL",
+        "journeyId": "JOURNEY-TERMINATION-CLEANUP",
+        "applicability": "applicable",
+        "requiredEvidenceBoundary": "installed_boundary",
+        "rowIds": [
+          "ZED-ACP-CLEANUP-003"
+        ]
+      },
+      {
+        "surfaceId": "SURFACE-ACP-MAC-LOCAL",
+        "journeyId": "JOURNEY-PERSISTENT-SESSION-RECOVERY",
+        "applicability": "not_applicable",
+        "reason": "Mac-local routes do not cross the Intrepid remote-server transport boundary."
+      },
+      {
+        "surfaceId": "SURFACE-ACP-MAC-LOCAL",
+        "journeyId": "JOURNEY-AGENT-SWITCH-AND-RETURN",
+        "applicability": "applicable",
+        "requiredEvidenceBoundary": "installed_boundary",
+        "rowIds": [
+          "ZED-ACP-SWITCH-005"
+        ]
+      },
+      {
+        "surfaceId": "SURFACE-ACP-INTREPID-PERSISTENT",
+        "journeyId": "JOURNEY-HOST-SCOPED-INVENTORY",
+        "applicability": "applicable",
+        "requiredEvidenceBoundary": "installed_boundary",
+        "rowIds": [
+          "ZED-ACP-INVENTORY-001"
+        ]
+      },
+      {
+        "surfaceId": "SURFACE-ACP-INTREPID-PERSISTENT",
+        "journeyId": "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
+        "applicability": "applicable",
+        "requiredEvidenceBoundary": "installed_boundary",
+        "rowIds": [
+          "ZED-ACP-SESSION-002"
+        ]
+      },
+      {
+        "surfaceId": "SURFACE-ACP-INTREPID-PERSISTENT",
+        "journeyId": "JOURNEY-TERMINATION-CLEANUP",
+        "applicability": "applicable",
+        "requiredEvidenceBoundary": "installed_boundary",
+        "rowIds": [
+          "ZED-ACP-CLEANUP-003"
+        ]
+      },
+      {
+        "surfaceId": "SURFACE-ACP-INTREPID-PERSISTENT",
+        "journeyId": "JOURNEY-PERSISTENT-SESSION-RECOVERY",
+        "applicability": "applicable",
+        "requiredEvidenceBoundary": "installed_boundary",
+        "rowIds": [
+          "ZED-ACP-RECOVERY-004"
+        ]
+      },
+      {
+        "surfaceId": "SURFACE-ACP-INTREPID-PERSISTENT",
+        "journeyId": "JOURNEY-AGENT-SWITCH-AND-RETURN",
+        "applicability": "applicable",
+        "requiredEvidenceBoundary": "installed_boundary",
+        "rowIds": [
+          "ZED-ACP-SWITCH-005"
+        ]
+      },
+      {
+        "surfaceId": "SURFACE-ACP-INTREPID-ORDINARY",
+        "journeyId": "JOURNEY-HOST-SCOPED-INVENTORY",
+        "applicability": "applicable",
+        "requiredEvidenceBoundary": "installed_boundary",
+        "rowIds": [
+          "ZED-ACP-INVENTORY-001"
+        ]
+      },
+      {
+        "surfaceId": "SURFACE-ACP-INTREPID-ORDINARY",
+        "journeyId": "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
+        "applicability": "applicable",
+        "requiredEvidenceBoundary": "installed_boundary",
+        "rowIds": [
+          "ZED-ACP-SESSION-002"
+        ]
+      },
+      {
+        "surfaceId": "SURFACE-ACP-INTREPID-ORDINARY",
+        "journeyId": "JOURNEY-TERMINATION-CLEANUP",
+        "applicability": "applicable",
+        "requiredEvidenceBoundary": "installed_boundary",
+        "rowIds": [
+          "ZED-ACP-CLEANUP-003"
+        ]
+      },
+      {
+        "surfaceId": "SURFACE-ACP-INTREPID-ORDINARY",
+        "journeyId": "JOURNEY-PERSISTENT-SESSION-RECOVERY",
+        "applicability": "applicable",
+        "requiredEvidenceBoundary": "installed_boundary",
+        "rowIds": [
+          "ZED-ACP-RECOVERY-004"
+        ]
+      },
+      {
+        "surfaceId": "SURFACE-ACP-INTREPID-ORDINARY",
+        "journeyId": "JOURNEY-AGENT-SWITCH-AND-RETURN",
+        "applicability": "applicable",
+        "requiredEvidenceBoundary": "installed_boundary",
+        "rowIds": [
+          "ZED-ACP-SWITCH-005"
+        ]
+      }
+    ]
+  },
+  "variantJourneyCoverage": {
+    "cells": [
+      {
+        "variantId": "VAR-MAC-CLAUDE-PRIMARY",
+        "journeyId": "JOURNEY-HOST-SCOPED-INVENTORY",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-INVENTORY-001"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-CLAUDE-PRIMARY",
+        "journeyId": "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-SESSION-002"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-CLAUDE-PRIMARY",
+        "journeyId": "JOURNEY-TERMINATION-CLEANUP",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-CLEANUP-003"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-CLAUDE-SECONDARY",
+        "journeyId": "JOURNEY-HOST-SCOPED-INVENTORY",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-INVENTORY-001"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-CLAUDE-SECONDARY",
+        "journeyId": "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-SESSION-002"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-CLAUDE-SECONDARY",
+        "journeyId": "JOURNEY-TERMINATION-CLEANUP",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-CLEANUP-003"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-CLAUDE-WORK",
+        "journeyId": "JOURNEY-HOST-SCOPED-INVENTORY",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-INVENTORY-001"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-CLAUDE-WORK",
+        "journeyId": "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-SESSION-002"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-CLAUDE-WORK",
+        "journeyId": "JOURNEY-TERMINATION-CLEANUP",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-CLEANUP-003"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-CODEX",
+        "journeyId": "JOURNEY-HOST-SCOPED-INVENTORY",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-INVENTORY-001"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-CODEX",
+        "journeyId": "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-SESSION-002"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-CODEX",
+        "journeyId": "JOURNEY-TERMINATION-CLEANUP",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-CLEANUP-003"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-CODEX",
+        "journeyId": "JOURNEY-AGENT-SWITCH-AND-RETURN",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-SWITCH-005"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-CODEX-SECONDARY",
+        "journeyId": "JOURNEY-HOST-SCOPED-INVENTORY",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-INVENTORY-001"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-CODEX-SECONDARY",
+        "journeyId": "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-SESSION-002"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-CODEX-SECONDARY",
+        "journeyId": "JOURNEY-TERMINATION-CLEANUP",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-CLEANUP-003"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-CODEX-WORK",
+        "journeyId": "JOURNEY-HOST-SCOPED-INVENTORY",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-INVENTORY-001"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-CODEX-WORK",
+        "journeyId": "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-SESSION-002"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-CODEX-WORK",
+        "journeyId": "JOURNEY-TERMINATION-CLEANUP",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-CLEANUP-003"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-CURSOR",
+        "journeyId": "JOURNEY-HOST-SCOPED-INVENTORY",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-INVENTORY-001"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-CURSOR",
+        "journeyId": "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-SESSION-002"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-CURSOR",
+        "journeyId": "JOURNEY-TERMINATION-CLEANUP",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-CLEANUP-003"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-CURSOR",
+        "journeyId": "JOURNEY-AGENT-SWITCH-AND-RETURN",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-SWITCH-005"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-GROK",
+        "journeyId": "JOURNEY-HOST-SCOPED-INVENTORY",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-INVENTORY-001"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-GROK",
+        "journeyId": "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-SESSION-002"
+        ]
+      },
+      {
+        "variantId": "VAR-MAC-GROK",
+        "journeyId": "JOURNEY-TERMINATION-CLEANUP",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-CLEANUP-003"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CLAUDE-PRIMARY",
+        "journeyId": "JOURNEY-HOST-SCOPED-INVENTORY",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-INVENTORY-001"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CLAUDE-PRIMARY",
+        "journeyId": "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-SESSION-002"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CLAUDE-PRIMARY",
+        "journeyId": "JOURNEY-TERMINATION-CLEANUP",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-CLEANUP-003"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CLAUDE-SECONDARY",
+        "journeyId": "JOURNEY-HOST-SCOPED-INVENTORY",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-INVENTORY-001"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CLAUDE-SECONDARY",
+        "journeyId": "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-SESSION-002"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CLAUDE-SECONDARY",
+        "journeyId": "JOURNEY-TERMINATION-CLEANUP",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-CLEANUP-003"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CLAUDE-SELECTED",
+        "journeyId": "JOURNEY-HOST-SCOPED-INVENTORY",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-INVENTORY-001"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CLAUDE-SELECTED",
+        "journeyId": "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-SESSION-002"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CLAUDE-SELECTED",
+        "journeyId": "JOURNEY-TERMINATION-CLEANUP",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-CLEANUP-003"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CLAUDE-WORK",
+        "journeyId": "JOURNEY-HOST-SCOPED-INVENTORY",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-INVENTORY-001"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CLAUDE-WORK",
+        "journeyId": "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-SESSION-002"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CLAUDE-WORK",
+        "journeyId": "JOURNEY-TERMINATION-CLEANUP",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-CLEANUP-003"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CODEX-PRIMARY",
+        "journeyId": "JOURNEY-HOST-SCOPED-INVENTORY",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-INVENTORY-001"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CODEX-PRIMARY",
+        "journeyId": "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-SESSION-002"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CODEX-PRIMARY",
+        "journeyId": "JOURNEY-TERMINATION-CLEANUP",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-CLEANUP-003"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CODEX-PRIMARY",
+        "journeyId": "JOURNEY-PERSISTENT-SESSION-RECOVERY",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-RECOVERY-004"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CODEX-SECONDARY",
+        "journeyId": "JOURNEY-HOST-SCOPED-INVENTORY",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-INVENTORY-001"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CODEX-SECONDARY",
+        "journeyId": "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-SESSION-002"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CODEX-SECONDARY",
+        "journeyId": "JOURNEY-TERMINATION-CLEANUP",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-CLEANUP-003"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CODEX-SECONDARY",
+        "journeyId": "JOURNEY-AGENT-SWITCH-AND-RETURN",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-SWITCH-005"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CODEX-SELECTED",
+        "journeyId": "JOURNEY-HOST-SCOPED-INVENTORY",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-INVENTORY-001"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CODEX-SELECTED",
+        "journeyId": "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-SESSION-002"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CODEX-SELECTED",
+        "journeyId": "JOURNEY-TERMINATION-CLEANUP",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-CLEANUP-003"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CODEX-WORK",
+        "journeyId": "JOURNEY-HOST-SCOPED-INVENTORY",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-INVENTORY-001"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CODEX-WORK",
+        "journeyId": "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-SESSION-002"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CODEX-WORK",
+        "journeyId": "JOURNEY-TERMINATION-CLEANUP",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-CLEANUP-003"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CLAUDE-AGENT",
+        "journeyId": "JOURNEY-HOST-SCOPED-INVENTORY",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-INVENTORY-001"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CLAUDE-AGENT",
+        "journeyId": "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-SESSION-002"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CLAUDE-AGENT",
+        "journeyId": "JOURNEY-TERMINATION-CLEANUP",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-CLEANUP-003"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CURSOR",
+        "journeyId": "JOURNEY-HOST-SCOPED-INVENTORY",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-INVENTORY-001"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CURSOR",
+        "journeyId": "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-SESSION-002"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CURSOR",
+        "journeyId": "JOURNEY-TERMINATION-CLEANUP",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-CLEANUP-003"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CURSOR",
+        "journeyId": "JOURNEY-PERSISTENT-SESSION-RECOVERY",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-RECOVERY-004"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-CURSOR",
+        "journeyId": "JOURNEY-AGENT-SWITCH-AND-RETURN",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-SWITCH-005"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-DEVIN",
+        "journeyId": "JOURNEY-HOST-SCOPED-INVENTORY",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-INVENTORY-001"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-DEVIN",
+        "journeyId": "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-SESSION-002"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-DEVIN",
+        "journeyId": "JOURNEY-TERMINATION-CLEANUP",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-CLEANUP-003"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-GLM",
+        "journeyId": "JOURNEY-HOST-SCOPED-INVENTORY",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-INVENTORY-001"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-GLM",
+        "journeyId": "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-SESSION-002"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-GLM",
+        "journeyId": "JOURNEY-TERMINATION-CLEANUP",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-CLEANUP-003"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-GROK",
+        "journeyId": "JOURNEY-HOST-SCOPED-INVENTORY",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-INVENTORY-001"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-GROK",
+        "journeyId": "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-SESSION-002"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-GROK",
+        "journeyId": "JOURNEY-TERMINATION-CLEANUP",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-CLEANUP-003"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-KIMI",
+        "journeyId": "JOURNEY-HOST-SCOPED-INVENTORY",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-INVENTORY-001"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-KIMI",
+        "journeyId": "JOURNEY-NEW-SESSION-PROJECT-OUTCOME",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-SESSION-002"
+        ]
+      },
+      {
+        "variantId": "VAR-INTREPID-KIMI",
+        "journeyId": "JOURNEY-TERMINATION-CLEANUP",
+        "coverageMode": "direct",
+        "evidenceLayer": "assembled_product",
+        "rowIds": [
+          "ZED-ACP-CLEANUP-003"
+        ]
+      }
+    ]
   },
   "tests": [
     {
-      "id": "ACP-SMOKE-001",
-      "title": "Cold-open and reconnect inventory is receiver-driven and timing-independent",
-      "readiness": "ready_now",
+      "section": "0-critical-path-smoke",
       "risk": "critical",
       "tier": 0,
-      "runner": "cargo-test+installed-zed-uat",
-      "rowKind": "journey",
-      "surfaceIds": [
-        "SURFACE-MAC-LOCAL-ACP",
-        "SURFACE-MAC-REMOTE-INTREPID-ACP"
-      ],
-      "journeyIds": [
-        "JOURNEY-ACP"
-      ],
-      "requirementIds": [
-        "REQ-ACP-001"
-      ],
-      "provenance": [
-        {
-          "source": "prior_defect",
-          "ref": "DEFECT-ACP-INITIAL-INVENTORY-RACE"
-        }
-      ],
-      "plannedEvidence": [
-        "server-first cold open",
-        "client-first settings update",
-        "reconnect with stale-response suppression",
-        "installed inventory readback"
-      ],
-      "specificOracles": [
-        "exact latest names",
-        "no stale or duplicate names",
-        "no fixed delay"
-      ],
-      "negativeCase": "server-push-before-client-handler",
-      "decisionRule": "hard_fail"
-    },
-    {
-      "id": "ACP-JOURNEY-002",
-      "title": "Every advertised Mac-local and Intrepid picker entry reaches a project-bound terminal outcome",
       "readiness": "ready_now",
-      "risk": "critical",
-      "tier": 0,
-      "runner": "zed-agent-picker-uat+zed-acp-live-canary",
+      "runner": "installed-zed-computer-use+content-free-receipts",
       "rowKind": "journey",
+      "evidenceStrength": "direct",
+      "evidenceLayer": "assembled_product",
+      "evidenceBoundary": "installed_boundary",
+      "decisionRule": "hard_fail",
+      "confidenceOnly": false,
+      "weakRow": false,
+      "uatPersona": "Keeva using Zed 10x",
+      "observabilityChecks": [
+        "no product-origin Failed to Launch error",
+        "provider readiness failures are classified explicitly",
+        "no prompt or response content is retained in evidence"
+      ],
+      "dataCleanup": "Close created threads and prove route-appropriate process cleanup or persistent detach.",
+      "id": "ZED-ACP-INVENTORY-001",
+      "title": "Installed picker is complete, host-scoped, consistently labelled, and duplicate-free",
+      "requirementIds": [
+        "REQ-HOST-001",
+        "REQ-LABEL-002",
+        "REQ-INVENTORY-003",
+        "REQ-RUNTIME-009"
+      ],
+      "requirements": [
+        "REQ-HOST-001",
+        "REQ-LABEL-002",
+        "REQ-INVENTORY-003",
+        "REQ-RUNTIME-009"
+      ],
+      "irRefs": [
+        "External Agents picker",
+        "execution-host settings",
+        "alias de-duplication"
+      ],
       "surfaceIds": [
-        "SURFACE-MAC-LOCAL-ACP",
-        "SURFACE-MAC-REMOTE-INTREPID-ACP"
+        "SURFACE-ACP-MAC-LOCAL",
+        "SURFACE-ACP-INTREPID-PERSISTENT",
+        "SURFACE-ACP-INTREPID-ORDINARY"
       ],
       "journeyIds": [
-        "JOURNEY-ACP",
-        "JOURNEY-PRIVACY-FAILURE",
-        "JOURNEY-CLEANUP"
-      ],
-      "requirementIds": [
-        "REQ-ACP-002"
+        "JOURNEY-HOST-SCOPED-INVENTORY"
       ],
       "variantIds": [
         "VAR-MAC-CLAUDE-PRIMARY",
         "VAR-MAC-CLAUDE-SECONDARY",
         "VAR-MAC-CLAUDE-WORK",
-        "VAR-MAC-CODEX-PRIMARY",
+        "VAR-MAC-CODEX",
         "VAR-MAC-CODEX-SECONDARY",
         "VAR-MAC-CODEX-WORK",
-        "VAR-MAC-ANTIGRAVITY",
-        "VAR-MAC-CLAUDE-REGISTRY",
-        "VAR-MAC-CODEX-REGISTRY",
         "VAR-MAC-CURSOR",
-        "VAR-MAC-DEVIN",
-        "VAR-MAC-GLM-REGISTRY",
         "VAR-MAC-GROK",
-        "VAR-MAC-KIMI-REGISTRY",
-        "VAR-INTREPID-GLM",
-        "VAR-INTREPID-KIMI",
-        "VAR-INTREPID-CLAUDE-SELECTED",
         "VAR-INTREPID-CLAUDE-PRIMARY",
         "VAR-INTREPID-CLAUDE-SECONDARY",
+        "VAR-INTREPID-CLAUDE-SELECTED",
         "VAR-INTREPID-CLAUDE-WORK",
-        "VAR-INTREPID-CODEX-SELECTED",
         "VAR-INTREPID-CODEX-PRIMARY",
         "VAR-INTREPID-CODEX-SECONDARY",
+        "VAR-INTREPID-CODEX-SELECTED",
         "VAR-INTREPID-CODEX-WORK",
-        "VAR-INTREPID-ANTIGRAVITY",
-        "VAR-INTREPID-CLAUDE-REGISTRY",
-        "VAR-INTREPID-CODEX-REGISTRY",
+        "VAR-INTREPID-CLAUDE-AGENT",
         "VAR-INTREPID-CURSOR",
         "VAR-INTREPID-DEVIN",
-        "VAR-INTREPID-GLM-REGISTRY",
+        "VAR-INTREPID-GLM",
         "VAR-INTREPID-GROK",
-        "VAR-INTREPID-KIMI-REGISTRY"
+        "VAR-INTREPID-KIMI"
       ],
       "provenance": [
         {
           "source": "prior_defect",
-          "ref": "DEFECT-ACP-CANARY-BYPASS"
+          "ref": "missing, duplicated, and inconsistent picker labels"
+        },
+        {
+          "source": "code",
+          "ref": "crates/agent_ui/src/agent_panel.rs"
         }
       ],
       "plannedEvidence": [
-        "exact 12-entry Mac and 16-entry Intrepid picker reconciliation",
-        "one completed ACP journey, safely refused interactive permission request, or explicit external-readiness classification per advertised entry",
-        "completed ACP tool call from real cwd",
-        "withheld sentinel digest",
-        "terminal response",
-        "zero approved permissions"
+        "installed picker accessibility snapshot",
+        "exact 8/8/6 visible variant inventory"
       ],
       "specificOracles": [
-        "every declared entry invoked once",
-        "product-origin failure blocks",
-        "tool call completed",
-        "cwd exact",
-        "sentinel exact",
-        "prompt echo cannot pass"
+        "8 Mac-local, 8 Intrepid persistent, and 6 Intrepid ordinary External Agent entries",
+        "no retired, off-host, or alias-only duplicate entry"
       ],
-      "negativeCase": "omitted-entry-stale-entry-marker-only-or-prompt-echo",
-      "decisionRule": "hard_fail",
-      "resourceLocks": [
-        "ai-provider",
-        "remote-intrepid"
-      ]
+      "steps": [
+        "Open a Mac-local project and inspect External Agents",
+        "Open an Intrepid project and inspect External Agents",
+        "Compare every visible entry to the checked inventory and host-label grammar"
+      ],
+      "expectedResult": "All 22 host-valid External Agent variants are visible exactly once on the correct project host.",
+      "passCriteria": [
+        "exact label sets match",
+        "no duplicates",
+        "no off-host entries"
+      ],
+      "userGoal": "Choose an agent without guessing where it runs.",
+      "acceptanceCriteria": [
+        "every supported route is findable",
+        "host and profile are unambiguous"
+      ],
+      "frictionSignals": [
+        "missing route",
+        "duplicate route",
+        "inconsistent capitalization or parentheses"
+      ],
+      "evidenceRequired": [
+        "installed UI snapshot",
+        "inventory digest"
+      ],
+      "negativeCase": "configured route exists but is missing, duplicated, or labelled as the wrong host",
+      "newInformationTarget": "Whether the installed picker, not merely configuration files, exposes the exact supported set."
     },
     {
-      "id": "ACP-ASSEMBLED-019",
-      "title": "Installed Zed picker launches one exact representative of every production execution class",
-      "readiness": "ready_now",
+      "section": "0-critical-path-smoke",
       "risk": "critical",
       "tier": 0,
-      "runner": "installed-zed-computer-use+log-census",
+      "readiness": "ready_now",
+      "runner": "installed-zed-computer-use+content-free-receipts",
       "rowKind": "journey",
+      "evidenceStrength": "direct",
+      "evidenceLayer": "assembled_product",
+      "evidenceBoundary": "installed_boundary",
+      "decisionRule": "hard_fail",
+      "confidenceOnly": false,
+      "weakRow": false,
+      "uatPersona": "Keeva using Zed 10x",
+      "observabilityChecks": [
+        "no product-origin Failed to Launch error",
+        "provider readiness failures are classified explicitly",
+        "no prompt or response content is retained in evidence"
+      ],
+      "dataCleanup": "Close created threads and prove route-appropriate process cleanup or persistent detach.",
+      "id": "ZED-ACP-SESSION-002",
+      "title": "Every visible External Agent starts the named route and reaches a project-bound outcome",
+      "requirementIds": [
+        "REQ-LAUNCH-004",
+        "REQ-PROJECT-005",
+        "REQ-ERROR-006",
+        "REQ-RUNTIME-009"
+      ],
+      "requirements": [
+        "REQ-LAUNCH-004",
+        "REQ-PROJECT-005",
+        "REQ-ERROR-006",
+        "REQ-RUNTIME-009"
+      ],
+      "irRefs": [
+        "session/new",
+        "project sentinel",
+        "provider readiness classification"
+      ],
       "surfaceIds": [
-        "SURFACE-MAC-LOCAL-ACP",
-        "SURFACE-MAC-REMOTE-INTREPID-ACP"
+        "SURFACE-ACP-MAC-LOCAL",
+        "SURFACE-ACP-INTREPID-PERSISTENT",
+        "SURFACE-ACP-INTREPID-ORDINARY"
       ],
       "journeyIds": [
-        "JOURNEY-ACP",
-        "JOURNEY-PRIVACY-FAILURE",
-        "JOURNEY-CLEANUP"
-      ],
-      "requirementIds": [
-        "REQ-ACP-002"
+        "JOURNEY-NEW-SESSION-PROJECT-OUTCOME"
       ],
       "variantIds": [
-        "VAR-MAC-CODEX-PRIMARY",
-        "VAR-MAC-DEVIN",
-        "VAR-INTREPID-GLM",
+        "VAR-MAC-CLAUDE-PRIMARY",
+        "VAR-MAC-CLAUDE-SECONDARY",
+        "VAR-MAC-CLAUDE-WORK",
+        "VAR-MAC-CODEX",
+        "VAR-MAC-CODEX-SECONDARY",
+        "VAR-MAC-CODEX-WORK",
+        "VAR-MAC-CURSOR",
+        "VAR-MAC-GROK",
+        "VAR-INTREPID-CLAUDE-PRIMARY",
+        "VAR-INTREPID-CLAUDE-SECONDARY",
+        "VAR-INTREPID-CLAUDE-SELECTED",
+        "VAR-INTREPID-CLAUDE-WORK",
+        "VAR-INTREPID-CODEX-PRIMARY",
         "VAR-INTREPID-CODEX-SECONDARY",
-        "VAR-INTREPID-DEVIN"
+        "VAR-INTREPID-CODEX-SELECTED",
+        "VAR-INTREPID-CODEX-WORK",
+        "VAR-INTREPID-CLAUDE-AGENT",
+        "VAR-INTREPID-CURSOR",
+        "VAR-INTREPID-DEVIN",
+        "VAR-INTREPID-GLM",
+        "VAR-INTREPID-GROK",
+        "VAR-INTREPID-KIMI"
       ],
       "provenance": [
         {
           "source": "prior_defect",
-          "ref": "DEFECT-ASSEMBLED-PICKER-BYPASS"
+          "ref": "direct canary passed while installed picker launch failed"
+        },
+        {
+          "source": "risk",
+          "ref": "independently selectable provider and profile variants"
         }
       ],
       "plannedEvidence": [
-        "installed Zed 10x picker selection and session/new for one representative of each production launch class",
-        "Mac custom, Mac registry, Intrepid local custom, Intrepid persistent, and Intrepid registry paths",
-        "real project cwd, completed tool call or explicit external-readiness result, and ordinary cleanup",
-        "all non-representative routes independently exercised by ACP-JOURNEY-002"
+        "current installed selection of every visible route",
+        "per-route session/new and project-bound outcome",
+        "per-route content-free receipt from the complete current matrix"
       ],
       "specificOracles": [
-        "picker label selects the expected canonical agent",
-        "session/new traverses the installed app and host transport",
-        "no exit-127, exit-0-as-failure, incoming-transport-close, or missing-registration product error",
-        "project-bound terminal result and no owned residue"
+        "successful route reads the withheld project sentinel",
+        "unavailable route reports authentication, capacity, or interaction rather than a product failure",
+        "no fallback, host swap, or profile substitution"
       ],
-      "negativeCase": "wrong-picker-binding-missing-executable-transport-close-or-stale-host-projection",
+      "steps": [
+        "Select every visible route through the current installed provider-launch boundary",
+        "For each route, create a new session and reach a project-bound ready or precise external-readiness outcome",
+        "Reject a missing receipt, product-origin failure, substitution, or incomplete matrix"
+      ],
+      "expectedResult": "Every variant has a product-green terminal outcome and healthy routes remain usable after a failed provider.",
+      "passCriteria": [
+        "all 22 current variants have direct route receipts",
+        "zero product failures",
+        "no substitution"
+      ],
+      "userGoal": "Start any listed agent and work in the current project.",
+      "acceptanceCriteria": [
+        "working routes respond",
+        "unavailable routes explain the real action needed"
+      ],
+      "frictionSignals": [
+        "blank thread",
+        "exit 0 shown as failure",
+        "incoming transport closed",
+        "missing executable"
+      ],
+      "evidenceRequired": [
+        "content-free route receipts",
+        "installed UI terminal states"
+      ],
+      "negativeCase": "a direct provider canary passes while the installed route wrapper, cwd, or transport fails",
+      "newInformationTarget": "Whether every user-selectable route works through the real assembled launch path."
+    },
+    {
+      "section": "0-critical-path-smoke",
+      "risk": "critical",
+      "tier": 0,
+      "readiness": "ready_now",
+      "runner": "installed-zed-computer-use+content-free-receipts",
+      "rowKind": "journey",
+      "evidenceStrength": "direct",
+      "evidenceLayer": "assembled_product",
+      "evidenceBoundary": "installed_boundary",
       "decisionRule": "hard_fail",
-      "resourceLocks": [
-        "installed-zed-10x",
-        "ai-provider",
-        "remote-intrepid"
-      ]
-    },
-    {
-      "id": "ACP-NEG-003",
-      "title": "External-agent failures remain explicit and non-green",
-      "readiness": "ready_now",
-      "risk": "high",
-      "tier": 1,
-      "runner": "zed-acp-live-canary",
-      "rowKind": "contract",
-      "surfaceIds": [
-        "SURFACE-MAC-LOCAL-ACP",
-        "SURFACE-MAC-REMOTE-INTREPID-ACP"
+      "confidenceOnly": false,
+      "weakRow": false,
+      "uatPersona": "Keeva using Zed 10x",
+      "observabilityChecks": [
+        "no product-origin Failed to Launch error",
+        "provider readiness failures are classified explicitly",
+        "no prompt or response content is retained in evidence"
       ],
-      "journeyIds": [
-        "JOURNEY-ACP",
-        "JOURNEY-PRIVACY-FAILURE"
-      ],
+      "dataCleanup": "Close created threads and prove route-appropriate process cleanup or persistent detach.",
+      "id": "ZED-ACP-CLEANUP-003",
+      "title": "Closing and failure leave route-appropriate process and journal state",
       "requirementIds": [
-        "REQ-ACP-002",
-        "REQ-ENV-004"
+        "REQ-CLEANUP-008"
       ],
-      "provenance": [
-        {
-          "source": "observation",
-          "ref": "exit-127-auth-capacity-timeout-incidents"
-        }
+      "requirements": [
+        "REQ-CLEANUP-008"
       ],
-      "plannedEvidence": [
-        "missing executable",
-        "authentication",
-        "capacity",
-        "permission request",
-        "nonterminal timeout"
-      ],
-      "specificOracles": [
-        "distinct failure class",
-        "no false success",
-        "timeout kills owned process group"
-      ],
-      "negativeCase": "all-known-route-failure-classes",
-      "decisionRule": "hard_fail"
-    },
-    {
-      "id": "ACP-OPS-004",
-      "title": "External-agent completion and timeout prove cleanup",
-      "readiness": "ready_now",
-      "risk": "high",
-      "tier": 1,
-      "runner": "zed-acp-live-canary+installed-zed-uat",
-      "rowKind": "contract",
-      "surfaceIds": [
-        "SURFACE-MAC-LOCAL-ACP",
-        "SURFACE-MAC-REMOTE-INTREPID-ACP"
-      ],
-      "journeyIds": [
-        "JOURNEY-ACP",
-        "JOURNEY-CLEANUP"
-      ],
-      "requirementIds": [
-        "REQ-ENV-005"
-      ],
-      "provenance": [
-        {
-          "source": "risk",
-          "ref": "agent-process-residue"
-        }
-      ],
-      "plannedEvidence": [
-        "normal process group gone",
-        "timeout process group gone",
-        "installed route cleanup"
-      ],
-      "specificOracles": [
-        "captured PID identities absent"
-      ],
-      "negativeCase": "hung-agent",
-      "decisionRule": "hard_fail"
-    },
-    {
-      "id": "ENV-FRAME-005",
-      "title": "Private environment frame round-trips and rejects malformed input families",
-      "readiness": "ready_now",
-      "risk": "critical",
-      "tier": 0,
-      "runner": "cargo-test",
-      "rowKind": "contract",
-      "tags": [
-        "security",
-        "property",
-        "contract_compat"
+      "irRefs": [
+        "process-group cleanup",
+        "persistent detach",
+        "provider reaper"
       ],
       "surfaceIds": [
-        "SURFACE-MAC-REMOTE-INTREPID"
+        "SURFACE-ACP-MAC-LOCAL",
+        "SURFACE-ACP-INTREPID-PERSISTENT",
+        "SURFACE-ACP-INTREPID-ORDINARY"
       ],
       "journeyIds": [
-        "JOURNEY-CAPABILITY",
-        "JOURNEY-PRIVACY-FAILURE"
+        "JOURNEY-TERMINATION-CLEANUP"
       ],
-      "requirementIds": [
-        "REQ-ENV-003",
-        "REQ-ENV-004"
-      ],
-      "provenance": [
-        {
-          "source": "risk",
-          "ref": "private-frame-parser"
-        }
-      ],
-      "plannedEvidence": [
-        "partial reads",
-        "following protocol bytes preserved",
-        "Unicode quotes and newlines",
-        "invalid names and NULs",
-        "truncated leading-zero malformed and oversized frames"
-      ],
-      "specificOracles": [
-        "exact map round-trip",
-        "first application bytes unchanged",
-        "every malformed family rejected"
-      ],
-      "negativeCase": "malformed-truncated-oversized",
-      "decisionRule": "hard_fail"
-    },
-    {
-      "id": "ENV-SSH-006",
-      "title": "SSH builders never serialize environment values and preserve command semantics",
-      "readiness": "ready_now",
-      "risk": "critical",
-      "tier": 0,
-      "runner": "cargo-test",
-      "rowKind": "contract",
-      "tags": [
-        "security",
-        "contract_compat"
-      ],
-      "surfaceIds": [
-        "SURFACE-MAC-REMOTE-INTREPID"
-      ],
-      "journeyIds": [
-        "JOURNEY-CAPABILITY",
-        "JOURNEY-PRIVACY-FAILURE"
-      ],
-      "requirementIds": [
-        "REQ-ENV-001",
-        "REQ-ENV-002",
-        "REQ-PACKAGE-001"
+      "variantIds": [
+        "VAR-MAC-CLAUDE-PRIMARY",
+        "VAR-MAC-CLAUDE-SECONDARY",
+        "VAR-MAC-CLAUDE-WORK",
+        "VAR-MAC-CODEX",
+        "VAR-MAC-CODEX-SECONDARY",
+        "VAR-MAC-CODEX-WORK",
+        "VAR-MAC-CURSOR",
+        "VAR-MAC-GROK",
+        "VAR-INTREPID-CLAUDE-PRIMARY",
+        "VAR-INTREPID-CLAUDE-SECONDARY",
+        "VAR-INTREPID-CLAUDE-SELECTED",
+        "VAR-INTREPID-CLAUDE-WORK",
+        "VAR-INTREPID-CODEX-PRIMARY",
+        "VAR-INTREPID-CODEX-SECONDARY",
+        "VAR-INTREPID-CODEX-SELECTED",
+        "VAR-INTREPID-CODEX-WORK",
+        "VAR-INTREPID-CLAUDE-AGENT",
+        "VAR-INTREPID-CURSOR",
+        "VAR-INTREPID-DEVIN",
+        "VAR-INTREPID-GLM",
+        "VAR-INTREPID-GROK",
+        "VAR-INTREPID-KIMI"
       ],
       "provenance": [
         {
           "source": "prior_defect",
-          "ref": "DEFECT-SSH-ENV-ARGV-LEAK"
-        }
-      ],
-      "plannedEvidence": [
-        "generic builder rejects nonempty env",
-        "PTY and non-PTY secure builders carry only framed stdin",
-        "empty-env argv PTY and port-forward unchanged",
-        "home-relative bootstrap remains anchored after cd"
-      ],
-      "specificOracles": [
-        "sentinel absent from args Debug and errors",
-        "exact working directory and port forward"
-      ],
-      "negativeCase": "generic-builder-with-env",
-      "decisionRule": "hard_fail"
-    },
-    {
-      "id": "ENV-PTY-007",
-      "title": "Real PTY handshake prevents echo and preserves terminal behavior",
-      "readiness": "ready_now",
-      "risk": "critical",
-      "tier": 0,
-      "runner": "cargo-test",
-      "rowKind": "journey",
-      "tags": [
-        "security",
-        "stateful"
-      ],
-      "surfaceIds": [
-        "SURFACE-MAC-REMOTE-INTREPID"
-      ],
-      "journeyIds": [
-        "JOURNEY-TERMINAL",
-        "JOURNEY-TASK",
-        "JOURNEY-PRIVACY-FAILURE"
-      ],
-      "requirementIds": [
-        "REQ-ENV-001",
-        "REQ-ENV-003",
-        "REQ-ENV-004"
-      ],
-      "provenance": [
+          "ref": "client exit was mistaken for full containment cleanup"
+        },
         {
           "source": "risk",
-          "ref": "pty-echo-and-canonical-buffering"
+          "ref": "ordinary and persistent routes have different lifecycle ownership"
         }
       ],
       "plannedEvidence": [
-        "real openpty readiness",
-        "no echo",
-        "frame consumed",
-        "tty restored",
-        "application stdin preserved",
-        "TerminalBuilder withholds UI/input",
-        "child exit before readiness fails"
+        "current per-route ordinary process-group absence",
+        "current persistent client detach",
+        "healthy bounded lane services"
       ],
       "specificOracles": [
-        "secret absent from PTY output",
-        "terminal flags restored",
-        "markers cleared",
-        "application input exact"
+        "no owned ordinary wrapper or provider residue",
+        "persistent journal remains loadable after client detach",
+        "idle provider lifecycle stays bounded by the installed host policy"
       ],
-      "negativeCase": "malformed-frame-or-early-exit",
-      "decisionRule": "hard_fail"
+      "steps": [
+        "Close every current route launched by the complete route matrix",
+        "Require every route receipt to prove its owned process group is gone",
+        "Verify persistent attachments detached and lane services remain healthy"
+      ],
+      "expectedResult": "No leaked ordinary ownership and no accidental destruction of persistent recovery state.",
+      "passCriteria": [
+        "ordinary cleanup green",
+        "persistent detach green",
+        "journal and service health green"
+      ],
+      "userGoal": "Leave or recover sessions without degrading the machine or losing durable work.",
+      "acceptanceCriteria": [
+        "no accumulating processes",
+        "persistent work remains recoverable"
+      ],
+      "frictionSignals": [
+        "lag after testing",
+        "zombie wrappers",
+        "missing journal",
+        "dead lane"
+      ],
+      "evidenceRequired": [
+        "process census",
+        "service and journal health"
+      ],
+      "negativeCase": "attachment exits but an ordinary child leaks, or persistent cleanup deletes recovery state",
+      "newInformationTarget": "Whether cleanup matches each route's real ownership semantics."
     },
     {
-      "id": "ENV-TERMINAL-008",
-      "title": "Installed remote terminal preserves cwd, environment, input, resize, and interrupt",
-      "readiness": "ready_now",
+      "section": "0-critical-path-smoke",
       "risk": "critical",
       "tier": 0,
-      "runner": "installed-zed-uat",
-      "rowKind": "journey",
-      "surfaceIds": [
-        "SURFACE-MAC-REMOTE-INTREPID"
-      ],
-      "journeyIds": [
-        "JOURNEY-TERMINAL",
-        "JOURNEY-CLEANUP"
-      ],
-      "requirementIds": [
-        "REQ-ENV-001",
-        "REQ-ENV-002",
-        "REQ-ENV-005"
-      ],
-      "provenance": [
-        {
-          "source": "observation",
-          "ref": "live-ssh-argv-leak"
-        }
-      ],
-      "plannedEvidence": [
-        "real project cwd",
-        "directory and terminal.env sentinels",
-        "interactive input",
-        "resize",
-        "Ctrl-C",
-        "ordinary close"
-      ],
-      "specificOracles": [
-        "terminal output hashes expected values",
-        "no sentinel in local process argv or logs",
-        "owned process gone"
-      ],
-      "negativeCase": "cancel-long-running-command",
-      "decisionRule": "hard_fail",
-      "resourceLocks": [
-        "remote-intrepid"
-      ]
-    },
-    {
-      "id": "ENV-TASK-009",
-      "title": "Installed remote task preserves task environment and cancellation",
       "readiness": "ready_now",
-      "risk": "high",
-      "tier": 0,
-      "runner": "installed-zed-uat",
+      "runner": "installed-zed-computer-use+content-free-receipts",
       "rowKind": "journey",
-      "surfaceIds": [
-        "SURFACE-MAC-REMOTE-INTREPID"
-      ],
-      "journeyIds": [
-        "JOURNEY-TASK",
-        "JOURNEY-CLEANUP"
-      ],
-      "requirementIds": [
-        "REQ-ENV-001",
-        "REQ-ENV-002",
-        "REQ-ENV-005"
-      ],
-      "provenance": [
-        {
-          "source": "code",
-          "ref": "crates/project/src/terminals.rs"
-        }
-      ],
-      "plannedEvidence": [
-        "task-specific env",
-        "directory/toolchain env",
-        "terminal output",
-        "cancel and cleanup"
-      ],
-      "specificOracles": [
-        "all configured hashes match",
-        "no argv/log sentinel",
-        "task process gone"
-      ],
-      "negativeCase": "cancel-running-task",
+      "evidenceStrength": "direct",
+      "evidenceLayer": "assembled_product",
+      "evidenceBoundary": "installed_boundary",
       "decisionRule": "hard_fail",
-      "resourceLocks": [
-        "remote-intrepid"
-      ]
-    },
-    {
-      "id": "ENV-SHELL-010",
-      "title": "Remote Vim shell command receives private environment before application stdin",
-      "readiness": "ready_now",
-      "risk": "high",
-      "tier": 1,
-      "runner": "cargo-test+installed-zed-uat",
-      "rowKind": "journey",
-      "surfaceIds": [
-        "SURFACE-MAC-REMOTE-INTREPID"
+      "confidenceOnly": false,
+      "weakRow": false,
+      "uatPersona": "Keeva using Zed 10x",
+      "observabilityChecks": [
+        "no product-origin Failed to Launch error",
+        "provider readiness failures are classified explicitly",
+        "no prompt or response content is retained in evidence"
       ],
-      "journeyIds": [
-        "JOURNEY-SHELL"
-      ],
+      "dataCleanup": "Close created threads and prove route-appropriate process cleanup or persistent detach.",
+      "id": "ZED-ACP-RECOVERY-004",
+      "title": "Intrepid restart recovery preserves sessions and replaces dedicated transports exactly once",
       "requirementIds": [
-        "REQ-ENV-001",
-        "REQ-ENV-002",
-        "REQ-ENV-003"
+        "REQ-RECOVERY-007",
+        "REQ-RUNTIME-009"
       ],
-      "provenance": [
-        {
-          "source": "code",
-          "ref": "crates/vim/src/command.rs"
-        }
+      "requirements": [
+        "REQ-RECOVERY-007",
+        "REQ-RUNTIME-009"
       ],
-      "plannedEvidence": [
-        "prelude flushed before selected text",
-        "real cwd and env",
-        "command output replaces or filters selection"
-      ],
-      "specificOracles": [
-        "first application byte preserved",
-        "output exact",
-        "no argv/log sentinel"
-      ],
-      "negativeCase": "missing-capability",
-      "decisionRule": "hard_fail",
-      "resourceLocks": [
-        "remote-intrepid"
-      ]
-    },
-    {
-      "id": "ENV-MCP-011",
-      "title": "Remote context-server stdio writes private prelude before MCP initialize",
-      "readiness": "ready_now",
-      "risk": "high",
-      "tier": 0,
-      "runner": "cargo-test+installed-zed-uat",
-      "rowKind": "journey",
-      "surfaceIds": [
-        "SURFACE-MAC-REMOTE-INTREPID"
-      ],
-      "journeyIds": [
-        "JOURNEY-CONTEXT"
-      ],
-      "requirementIds": [
-        "REQ-ENV-001",
-        "REQ-ENV-002",
-        "REQ-ENV-003"
-      ],
-      "provenance": [
-        {
-          "source": "code",
-          "ref": "crates/context_server/src/transport/stdio_transport.rs"
-        }
-      ],
-      "plannedEvidence": [
-        "prelude before first JSON-RPC line",
-        "remote MCP initialize and one request",
-        "cleanup"
-      ],
-      "specificOracles": [
-        "captured byte order exact",
-        "tool/list or ping succeeds",
-        "no argv/log sentinel"
-      ],
-      "negativeCase": "truncated-prelude-or-server-exit",
-      "decisionRule": "hard_fail",
-      "resourceLocks": [
-        "remote-intrepid"
-      ]
-    },
-    {
-      "id": "ENV-DAP-STDIO-012",
-      "title": "Remote stdio debug adapter writes private prelude before DAP initialize",
-      "readiness": "ready_now",
-      "risk": "high",
-      "tier": 0,
-      "runner": "cargo-test+installed-zed-uat",
-      "rowKind": "journey",
-      "surfaceIds": [
-        "SURFACE-MAC-REMOTE-INTREPID"
-      ],
-      "journeyIds": [
-        "JOURNEY-DAP-STDIO"
-      ],
-      "requirementIds": [
-        "REQ-ENV-001",
-        "REQ-ENV-002",
-        "REQ-ENV-003"
-      ],
-      "provenance": [
-        {
-          "source": "code",
-          "ref": "crates/dap/src/transport.rs"
-        }
-      ],
-      "plannedEvidence": [
-        "deterministic first-byte ordering",
-        "representative remote stdio adapter initialize",
-        "cleanup"
-      ],
-      "specificOracles": [
-        "prelude bytes precede Content-Length",
-        "session reaches initialized",
-        "no argv/log sentinel"
-      ],
-      "negativeCase": "adapter-exits-before-initialize",
-      "decisionRule": "hard_fail",
-      "resourceLocks": [
-        "remote-intrepid"
-      ]
-    },
-    {
-      "id": "ENV-DAP-TCP-013",
-      "title": "Remote TCP debug adapter consumes private prelude before forwarded connection",
-      "readiness": "ready_now",
-      "risk": "high",
-      "tier": 0,
-      "runner": "cargo-test+installed-zed-uat",
-      "rowKind": "journey",
-      "surfaceIds": [
-        "SURFACE-MAC-REMOTE-INTREPID"
-      ],
-      "journeyIds": [
-        "JOURNEY-DAP-TCP"
-      ],
-      "requirementIds": [
-        "REQ-ENV-001",
-        "REQ-ENV-002",
-        "REQ-ENV-003"
-      ],
-      "provenance": [
-        {
-          "source": "code",
-          "ref": "crates/project/src/debugger/dap_store.rs"
-        }
-      ],
-      "plannedEvidence": [
-        "secure builder retains port forwarding",
-        "stdin is piped and closed after prelude",
-        "representative TCP adapter initializes",
-        "cleanup"
-      ],
-      "specificOracles": [
-        "exact -L forwarding",
-        "remote listener sees env",
-        "DAP exchange succeeds",
-        "no argv/log sentinel"
-      ],
-      "negativeCase": "bootstrap-fails-before-listen",
-      "decisionRule": "hard_fail",
-      "resourceLocks": [
-        "remote-intrepid",
-        "network-port:dynamic"
-      ]
-    },
-    {
-      "id": "ENV-CONSUMER-MATRIX-014",
-      "title": "Every environment-bearing remote consumer uses the secure builder",
-      "readiness": "ready_now",
-      "risk": "critical",
-      "tier": 0,
-      "runner": "cargo-check+source-contract-test",
-      "rowKind": "contract",
-      "tags": [
-        "security"
+      "irRefs": [
+        "LoadError::Exited",
+        "restart_connection",
+        "session/load",
+        "durable journal"
       ],
       "surfaceIds": [
-        "SURFACE-MAC-REMOTE-INTREPID",
-        "SURFACE-MAC-REMOTE-INTREPID-ACP"
+        "SURFACE-ACP-INTREPID-PERSISTENT",
+        "SURFACE-ACP-INTREPID-ORDINARY"
       ],
       "journeyIds": [
-        "JOURNEY-TERMINAL",
-        "JOURNEY-TASK",
-        "JOURNEY-SHELL",
-        "JOURNEY-CONTEXT",
-        "JOURNEY-DAP-STDIO",
-        "JOURNEY-DAP-TCP",
-        "JOURNEY-ACP"
+        "JOURNEY-PERSISTENT-SESSION-RECOVERY"
       ],
-      "requirementIds": [
-        "REQ-ENV-001",
-        "REQ-ENV-002"
+      "variantIds": [
+        "VAR-INTREPID-CODEX-PRIMARY",
+        "VAR-INTREPID-CURSOR"
       ],
       "provenance": [
         {
           "source": "prior_defect",
-          "ref": "DEFECT-PLAN-SURFACE-OMISSION"
-        }
-      ],
-      "plannedEvidence": [
-        "caller inventory",
-        "no nonempty env reaches generic remote builder",
-        "affected crates compile and test"
-      ],
-      "specificOracles": [
-        "only recent-project empty-env probe uses generic SSH builder",
-        "all seven consumers map to secure transport"
-      ],
-      "negativeCase": "sibling-consumer-bypasses-secure-builder",
-      "decisionRule": "hard_fail"
-    },
-    {
-      "id": "ENV-CAPABILITY-015",
-      "title": "Missing or drifted capability fails closed without fallback",
-      "readiness": "ready_now",
-      "risk": "critical",
-      "tier": 0,
-      "runner": "cargo-test+installed-zed-uat",
-      "rowKind": "contract",
-      "tags": [
-        "security",
-        "contract_compat"
-      ],
-      "surfaceIds": [
-        "SURFACE-MAC-REMOTE-INTREPID"
-      ],
-      "journeyIds": [
-        "JOURNEY-CAPABILITY",
-        "JOURNEY-PRIVACY-FAILURE"
-      ],
-      "requirementIds": [
-        "REQ-ENV-004",
-        "REQ-PACKAGE-001"
-      ],
-      "provenance": [
-        {
-          "source": "risk",
-          "ref": "client-server-version-drift"
-        }
-      ],
-      "plannedEvidence": [
-        "capabilities parsed independently",
-        "missing PTY or non-PTY capability errors",
-        "no argv fallback",
-        "reconnect installs matching binary"
-      ],
-      "specificOracles": [
-        "content-free error",
-        "zero child launch",
-        "matching server advertises both capabilities"
-      ],
-      "negativeCase": "old-remote-server",
-      "decisionRule": "hard_fail",
-      "resourceLocks": [
-        "remote-intrepid"
-      ]
-    },
-    {
-      "id": "ENV-PRIVACY-016",
-      "title": "Installed process, debug, error, and log evidence contains no environment sentinel",
-      "readiness": "ready_now",
-      "risk": "critical",
-      "tier": 0,
-      "runner": "privacy-safe-installed-uat",
-      "rowKind": "gate",
-      "tags": [
-        "security",
-        "observability"
-      ],
-      "surfaceIds": [
-        "SURFACE-MAC-LOCAL-ACP",
-        "SURFACE-MAC-REMOTE-INTREPID",
-        "SURFACE-UNSUPPORTED-ENV-BACKENDS",
-        "SURFACE-MAC-REMOTE-INTREPID-ACP"
-      ],
-      "journeyIds": [
-        "JOURNEY-PRIVACY-FAILURE",
-        "JOURNEY-CLEANUP"
-      ],
-      "requirementIds": [
-        "REQ-ENV-001",
-        "REQ-ENV-005"
-      ],
-      "provenance": [
-        {
-          "source": "observation",
-          "ref": "live-ssh-argv-leak"
-        }
-      ],
-      "plannedEvidence": [
-        "unique sentinel supplied through each consumer",
-        "content-free argv census",
-        "CommandTemplate Debug/error assertions",
-        "log file boolean scan",
-        "post-journey cleanup"
-      ],
-      "specificOracles": [
-        "zero sentinel matches",
-        "zero owned residue",
-        "audit never prints environment values"
-      ],
-      "negativeCase": "known-leaking-command-fixture-detected",
-      "decisionRule": "hard_fail",
-      "resourceLocks": [
-        "remote-intrepid"
-      ]
-    },
-    {
-      "id": "ENV-PLATFORM-017",
-      "title": "Unsupported environment-bearing backends fail closed",
-      "readiness": "ready_now",
-      "risk": "high",
-      "tier": 1,
-      "runner": "cargo-test",
-      "rowKind": "contract",
-      "tags": [
-        "security",
-        "contract_compat"
-      ],
-      "surfaceIds": [
-        "SURFACE-UNSUPPORTED-ENV-BACKENDS"
-      ],
-      "journeyIds": [
-        "JOURNEY-PRIVACY-FAILURE"
-      ],
-      "requirementIds": [
-        "REQ-ENV-004"
-      ],
-      "provenance": [
-        {
-          "source": "risk",
-          "ref": "sibling-transport-exposure"
-        }
-      ],
-      "plannedEvidence": [
-        "Windows SSH rejects secure environment",
-        "WSL rejects nonempty env",
-        "Docker command and proxy reject configured or caller env"
-      ],
-      "specificOracles": [
-        "content-free error",
-        "no command template or process start"
-      ],
-      "negativeCase": "nonempty-env-on-unsupported-backend",
-      "decisionRule": "hard_fail"
-    },
-    {
-      "id": "ENV-PACKAGE-018",
-      "title": "Built and installed app carries matching secure remote-server capability",
-      "readiness": "ready_now",
-      "risk": "critical",
-      "tier": 0,
-      "runner": "bundle+installed-uat",
-      "rowKind": "gate",
-      "tags": [
-        "migration",
-        "contract_compat"
-      ],
-      "surfaceIds": [
-        "SURFACE-MAC-REMOTE-INTREPID"
-      ],
-      "journeyIds": [
-        "JOURNEY-CAPABILITY",
-        "JOURNEY-CLEANUP"
-      ],
-      "requirementIds": [
-        "REQ-PACKAGE-001",
-        "REQ-ENV-005"
-      ],
-      "provenance": [
-        {
-          "source": "prior_defect",
-          "ref": "remote-server-path-and-debug-assets-incidents"
+          "ref": "zed-acp-session-attach peer closed before client input after lane OOM kill"
         },
         {
           "source": "prior_defect",
-          "ref": "DEFECT-STALE-BUNDLE-LAUNCH"
+          "ref": "remote-server restart left both old and replacement ordinary agent transports alive"
+        },
+        {
+          "source": "code",
+          "ref": "crates/agent_ui/src/conversation_view.rs"
         }
       ],
       "plannedEvidence": [
-        "debug bundle includes remote_server debug assets",
-        "canonical installed app identity",
-        "stale same-identifier LaunchServices registrations removed",
-        "actual launched process path and commit",
-        "remote binary version and capabilities",
-        "home-anchored launch after project cd",
-        "rollback backup",
-        "ordinary cleanup"
+        "real persistent lane-service restart",
+        "same persistent session ID and history",
+        "real ordinary remote-server restart",
+        "one replacement dedicated transport and zero superseded transport residue"
       ],
       "specificOracles": [
-        "LaunchServices contains only the canonical installed bundle",
-        "launched process path and commit match the installed app",
-        "both capability lines exact",
-        "remote project and journeys succeed",
-        "backup remains recoverable"
+        "Retry starts a fresh connection rather than reusing the exited one",
+        "session/load uses the original session ID",
+        "history and project remain visible",
+        "the superseded dedicated transport exits before the replacement becomes the sole active owner",
+        "normal app close removes the replacement transport"
       ],
-      "negativeCase": "stale-same-identifier-bundle-or-remote-binary",
+      "steps": [
+        "Attach to a completed persistent Intrepid session",
+        "Restart its exact user service while Zed remains attached",
+        "Verify Retry restores the same session and project",
+        "Start one ordinary dedicated Intrepid route in the installed app",
+        "Terminate the exact remote-server process and observe one automatic replacement",
+        "Verify the old dedicated transport exits, exactly one replacement remains, and app close leaves no owned agent residue"
+      ],
+      "expectedResult": "Intrepid disruption is finite: persistent work reloads, and ordinary agents continue through one clean transport replacement.",
+      "passCriteria": [
+        "persistent route uses a fresh transport with the same session ID, history, and project",
+        "ordinary route has exactly one replacement transport",
+        "superseded ordinary transport is gone",
+        "normal app close leaves no owned agent residue"
+      ],
+      "userGoal": "Keep working after Intrepid, a session lane, or the remote editor server restarts.",
+      "acceptanceCriteria": [
+        "no persistent history loss",
+        "no duplicate agent process",
+        "no app restart required"
+      ],
+      "frictionSignals": [
+        "peer closed",
+        "blank history",
+        "new session ID",
+        "repeat restart loop",
+        "duplicate provider process"
+      ],
+      "evidenceRequired": [
+        "installed persistent UI recovery",
+        "exact ordinary remote-server replacement identity",
+        "before/after transport process census"
+      ],
+      "negativeCase": "a restart loses persistent state, reuses a dead transport, or leaves both old and replacement ordinary transports alive",
+      "statefulJourney": "persistent: attached -> exited -> retrying -> loaded-original; ordinary: connected -> remote-server-exited -> one-replacement -> old-transport-gone -> app-close-clean",
+      "newInformationTarget": "Whether every Intrepid ownership model recovers across its real transport transition without state loss or duplicate processes."
+    },
+    {
+      "section": "0-critical-path-smoke",
+      "risk": "critical",
+      "tier": 0,
+      "readiness": "ready_now",
+      "runner": "installed-zed-computer-use+content-free-receipts",
+      "rowKind": "journey",
+      "evidenceStrength": "direct",
+      "evidenceLayer": "assembled_product",
+      "evidenceBoundary": "installed_boundary",
       "decisionRule": "hard_fail",
-      "resourceLocks": [
-        "dist-build",
-        "remote-intrepid"
-      ]
+      "confidenceOnly": false,
+      "weakRow": false,
+      "uatPersona": "Keeva using Zed 10x",
+      "observabilityChecks": [
+        "no product-origin Failed to Launch error",
+        "provider readiness failures are classified explicitly",
+        "no prompt or response content is retained in evidence"
+      ],
+      "dataCleanup": "Close created threads and prove route-appropriate process cleanup or persistent detach.",
+      "id": "ZED-ACP-SWITCH-005",
+      "title": "Switch-and-return releases replaceable drafts and isolates retained sessions",
+      "requirementIds": [
+        "REQ-SWITCH-010",
+        "REQ-LAUNCH-004"
+      ],
+      "requirements": [
+        "REQ-SWITCH-010",
+        "REQ-LAUNCH-004"
+      ],
+      "irRefs": [
+        "AgentPanel::discard_empty_draft",
+        "activate_new_thread",
+        "ensure_draft",
+        "AgentConnectionStore::request_fresh_connection",
+        "AgentServer::requires_dedicated_connection"
+      ],
+      "surfaceIds": [
+        "SURFACE-ACP-MAC-LOCAL",
+        "SURFACE-ACP-INTREPID-PERSISTENT",
+        "SURFACE-ACP-INTREPID-ORDINARY"
+      ],
+      "journeyIds": [
+        "JOURNEY-AGENT-SWITCH-AND-RETURN"
+      ],
+      "variantIds": [
+        "VAR-MAC-CODEX",
+        "VAR-MAC-CURSOR",
+        "VAR-INTREPID-CODEX-SECONDARY",
+        "VAR-INTREPID-CURSOR"
+      ],
+      "provenance": [
+        {
+          "source": "prior_defect",
+          "ref": "connection already owns a session after Codex -> Cursor -> Codex"
+        },
+        {
+          "source": "code",
+          "ref": "crates/agent_ui/src/agent_panel.rs"
+        },
+        {
+          "source": "risk",
+          "ref": "state transitions between independently selectable variants"
+        }
+      ],
+      "plannedEvidence": [
+        "installed Mac Codex -> Cursor -> Codex switch-and-return",
+        "installed Intrepid persistent Codex secondary -> ordinary Cursor -> persistent Codex secondary switch-and-return",
+        "deterministic proof that the replaced empty draft view is dropped",
+        "deterministic proof that a retained non-empty single-owner thread does not share its connection with a new thread"
+      ],
+      "specificOracles": [
+        "each replacement reaches a ready composer without a product launch or session-ownership error",
+        "returning to the first agent creates or reuses only valid current state",
+        "the old empty draft is absent from retained threads and its entity is dropped",
+        "the retained non-empty thread remains available while a new thread for the same single-owner adapter gets a separate connection"
+      ],
+      "steps": [
+        "Exercise both a ready empty draft and a non-empty retained thread on a direct representative for each installed host surface",
+        "Switch to a representative from another independently selectable agent class",
+        "Switch back to the first representative without restarting Zed",
+        "Verify ready composer state, retained history usability, no hidden ownership error, and route-appropriate cleanup"
+      ],
+      "expectedResult": "Every installed host surface supports switch-and-return across empty and retained states without a ghost draft, stale connection, or session-ownership collision.",
+      "passCriteria": [
+        "Mac Codex -> Cursor -> Codex succeeds",
+        "Intrepid persistent Codex secondary -> ordinary Cursor -> persistent Codex secondary succeeds",
+        "old empty draft entity is dropped deterministically",
+        "retained non-empty single-owner threads use distinct connections"
+      ],
+      "userGoal": "Change agents in one panel without restarting Zed or losing the ability to return.",
+      "acceptanceCriteria": [
+        "no hidden replaceable draft",
+        "retained non-empty thread remains usable",
+        "no duplicate writer or session ownership",
+        "no app restart required"
+      ],
+      "frictionSignals": [
+        "connection already owns a session",
+        "blank composer",
+        "Failed to Launch",
+        "agent only works after restart"
+      ],
+      "evidenceRequired": [
+        "installed transition receipts for Mac and Intrepid",
+        "deterministic empty-draft lifetime regression",
+        "deterministic retained-thread connection-isolation regression"
+      ],
+      "negativeCase": "the new agent appears selected while replaceable state is retained or a non-empty retained session shares a connection whose adapter permits only one owned session",
+      "statefulJourney": "first-ready-empty -> second-ready-empty -> first-ready-empty; first-nonempty-retained -> second-ready -> first/new-first-ready",
+      "newInformationTarget": "Whether transitions between individually green selectable agents preserve panel and connection ownership invariants."
     }
-  ],
-  "variantJourneyCoverage": {
-    "cells": [
-      {
-        "variantId": "VAR-MAC-CLAUDE-PRIMARY",
-        "journeyId": "JOURNEY-ACP",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-MAC-CODEX-PRIMARY",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-MAC-CLAUDE-PRIMARY",
-        "journeyId": "JOURNEY-PRIVACY-FAILURE",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-MAC-CODEX-PRIMARY",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-MAC-CLAUDE-PRIMARY",
-        "journeyId": "JOURNEY-CLEANUP",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-MAC-CODEX-PRIMARY",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-MAC-CLAUDE-SECONDARY",
-        "journeyId": "JOURNEY-ACP",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-MAC-CODEX-PRIMARY",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-MAC-CLAUDE-SECONDARY",
-        "journeyId": "JOURNEY-PRIVACY-FAILURE",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-MAC-CODEX-PRIMARY",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-MAC-CLAUDE-SECONDARY",
-        "journeyId": "JOURNEY-CLEANUP",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-MAC-CODEX-PRIMARY",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-MAC-CLAUDE-WORK",
-        "journeyId": "JOURNEY-ACP",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-MAC-CODEX-PRIMARY",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-MAC-CLAUDE-WORK",
-        "journeyId": "JOURNEY-PRIVACY-FAILURE",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-MAC-CODEX-PRIMARY",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-MAC-CLAUDE-WORK",
-        "journeyId": "JOURNEY-CLEANUP",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-MAC-CODEX-PRIMARY",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-MAC-CODEX-PRIMARY",
-        "journeyId": "JOURNEY-ACP",
-        "coverageMode": "direct",
-        "evidenceLayer": "assembled_product",
-        "rowIds": [
-          "ACP-ASSEMBLED-019"
-        ]
-      },
-      {
-        "variantId": "VAR-MAC-CODEX-PRIMARY",
-        "journeyId": "JOURNEY-PRIVACY-FAILURE",
-        "coverageMode": "direct",
-        "evidenceLayer": "assembled_product",
-        "rowIds": [
-          "ACP-ASSEMBLED-019"
-        ]
-      },
-      {
-        "variantId": "VAR-MAC-CODEX-PRIMARY",
-        "journeyId": "JOURNEY-CLEANUP",
-        "coverageMode": "direct",
-        "evidenceLayer": "assembled_product",
-        "rowIds": [
-          "ACP-ASSEMBLED-019"
-        ]
-      },
-      {
-        "variantId": "VAR-MAC-CODEX-SECONDARY",
-        "journeyId": "JOURNEY-ACP",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-MAC-CODEX-PRIMARY",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-MAC-CODEX-SECONDARY",
-        "journeyId": "JOURNEY-PRIVACY-FAILURE",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-MAC-CODEX-PRIMARY",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-MAC-CODEX-SECONDARY",
-        "journeyId": "JOURNEY-CLEANUP",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-MAC-CODEX-PRIMARY",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-MAC-CODEX-WORK",
-        "journeyId": "JOURNEY-ACP",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-MAC-CODEX-PRIMARY",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-MAC-CODEX-WORK",
-        "journeyId": "JOURNEY-PRIVACY-FAILURE",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-MAC-CODEX-PRIMARY",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-MAC-CODEX-WORK",
-        "journeyId": "JOURNEY-CLEANUP",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-MAC-CODEX-PRIMARY",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-MAC-ANTIGRAVITY",
-        "journeyId": "JOURNEY-ACP",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-MAC-DEVIN",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-MAC-ANTIGRAVITY",
-        "journeyId": "JOURNEY-PRIVACY-FAILURE",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-MAC-DEVIN",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-MAC-ANTIGRAVITY",
-        "journeyId": "JOURNEY-CLEANUP",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-MAC-DEVIN",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-MAC-CLAUDE-REGISTRY",
-        "journeyId": "JOURNEY-ACP",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-MAC-DEVIN",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-MAC-CLAUDE-REGISTRY",
-        "journeyId": "JOURNEY-PRIVACY-FAILURE",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-MAC-DEVIN",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-MAC-CLAUDE-REGISTRY",
-        "journeyId": "JOURNEY-CLEANUP",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-MAC-DEVIN",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-MAC-CODEX-REGISTRY",
-        "journeyId": "JOURNEY-ACP",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-MAC-DEVIN",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-MAC-CODEX-REGISTRY",
-        "journeyId": "JOURNEY-PRIVACY-FAILURE",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-MAC-DEVIN",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-MAC-CODEX-REGISTRY",
-        "journeyId": "JOURNEY-CLEANUP",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-MAC-DEVIN",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-MAC-CURSOR",
-        "journeyId": "JOURNEY-ACP",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-MAC-DEVIN",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-MAC-CURSOR",
-        "journeyId": "JOURNEY-PRIVACY-FAILURE",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-MAC-DEVIN",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-MAC-CURSOR",
-        "journeyId": "JOURNEY-CLEANUP",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-MAC-DEVIN",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-MAC-DEVIN",
-        "journeyId": "JOURNEY-ACP",
-        "coverageMode": "direct",
-        "evidenceLayer": "assembled_product",
-        "rowIds": [
-          "ACP-ASSEMBLED-019"
-        ]
-      },
-      {
-        "variantId": "VAR-MAC-DEVIN",
-        "journeyId": "JOURNEY-PRIVACY-FAILURE",
-        "coverageMode": "direct",
-        "evidenceLayer": "assembled_product",
-        "rowIds": [
-          "ACP-ASSEMBLED-019"
-        ]
-      },
-      {
-        "variantId": "VAR-MAC-DEVIN",
-        "journeyId": "JOURNEY-CLEANUP",
-        "coverageMode": "direct",
-        "evidenceLayer": "assembled_product",
-        "rowIds": [
-          "ACP-ASSEMBLED-019"
-        ]
-      },
-      {
-        "variantId": "VAR-MAC-GLM-REGISTRY",
-        "journeyId": "JOURNEY-ACP",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-MAC-DEVIN",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-MAC-GLM-REGISTRY",
-        "journeyId": "JOURNEY-PRIVACY-FAILURE",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-MAC-DEVIN",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-MAC-GLM-REGISTRY",
-        "journeyId": "JOURNEY-CLEANUP",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-MAC-DEVIN",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-MAC-GROK",
-        "journeyId": "JOURNEY-ACP",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-MAC-DEVIN",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-MAC-GROK",
-        "journeyId": "JOURNEY-PRIVACY-FAILURE",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-MAC-DEVIN",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-MAC-GROK",
-        "journeyId": "JOURNEY-CLEANUP",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-MAC-DEVIN",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-MAC-KIMI-REGISTRY",
-        "journeyId": "JOURNEY-ACP",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-MAC-DEVIN",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-MAC-KIMI-REGISTRY",
-        "journeyId": "JOURNEY-PRIVACY-FAILURE",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-MAC-DEVIN",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-MAC-KIMI-REGISTRY",
-        "journeyId": "JOURNEY-CLEANUP",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-MAC-DEVIN",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-INTREPID-GLM",
-        "journeyId": "JOURNEY-ACP",
-        "coverageMode": "direct",
-        "evidenceLayer": "assembled_product",
-        "rowIds": [
-          "ACP-ASSEMBLED-019"
-        ]
-      },
-      {
-        "variantId": "VAR-INTREPID-GLM",
-        "journeyId": "JOURNEY-PRIVACY-FAILURE",
-        "coverageMode": "direct",
-        "evidenceLayer": "assembled_product",
-        "rowIds": [
-          "ACP-ASSEMBLED-019"
-        ]
-      },
-      {
-        "variantId": "VAR-INTREPID-GLM",
-        "journeyId": "JOURNEY-CLEANUP",
-        "coverageMode": "direct",
-        "evidenceLayer": "assembled_product",
-        "rowIds": [
-          "ACP-ASSEMBLED-019"
-        ]
-      },
-      {
-        "variantId": "VAR-INTREPID-KIMI",
-        "journeyId": "JOURNEY-ACP",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-INTREPID-GLM",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-INTREPID-KIMI",
-        "journeyId": "JOURNEY-PRIVACY-FAILURE",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-INTREPID-GLM",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-INTREPID-KIMI",
-        "journeyId": "JOURNEY-CLEANUP",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-INTREPID-GLM",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-INTREPID-CLAUDE-SELECTED",
-        "journeyId": "JOURNEY-ACP",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-INTREPID-CODEX-SECONDARY",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-INTREPID-CLAUDE-SELECTED",
-        "journeyId": "JOURNEY-PRIVACY-FAILURE",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-INTREPID-CODEX-SECONDARY",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-INTREPID-CLAUDE-SELECTED",
-        "journeyId": "JOURNEY-CLEANUP",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-INTREPID-CODEX-SECONDARY",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-INTREPID-CLAUDE-PRIMARY",
-        "journeyId": "JOURNEY-ACP",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-INTREPID-CODEX-SECONDARY",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-INTREPID-CLAUDE-PRIMARY",
-        "journeyId": "JOURNEY-PRIVACY-FAILURE",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-INTREPID-CODEX-SECONDARY",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-INTREPID-CLAUDE-PRIMARY",
-        "journeyId": "JOURNEY-CLEANUP",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-INTREPID-CODEX-SECONDARY",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-INTREPID-CLAUDE-SECONDARY",
-        "journeyId": "JOURNEY-ACP",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-INTREPID-CODEX-SECONDARY",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-INTREPID-CLAUDE-SECONDARY",
-        "journeyId": "JOURNEY-PRIVACY-FAILURE",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-INTREPID-CODEX-SECONDARY",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-INTREPID-CLAUDE-SECONDARY",
-        "journeyId": "JOURNEY-CLEANUP",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-INTREPID-CODEX-SECONDARY",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-INTREPID-CLAUDE-WORK",
-        "journeyId": "JOURNEY-ACP",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-INTREPID-CODEX-SECONDARY",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-INTREPID-CLAUDE-WORK",
-        "journeyId": "JOURNEY-PRIVACY-FAILURE",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-INTREPID-CODEX-SECONDARY",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-INTREPID-CLAUDE-WORK",
-        "journeyId": "JOURNEY-CLEANUP",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-INTREPID-CODEX-SECONDARY",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-INTREPID-CODEX-SELECTED",
-        "journeyId": "JOURNEY-ACP",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-INTREPID-CODEX-SECONDARY",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-INTREPID-CODEX-SELECTED",
-        "journeyId": "JOURNEY-PRIVACY-FAILURE",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-INTREPID-CODEX-SECONDARY",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-INTREPID-CODEX-SELECTED",
-        "journeyId": "JOURNEY-CLEANUP",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-INTREPID-CODEX-SECONDARY",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-INTREPID-CODEX-PRIMARY",
-        "journeyId": "JOURNEY-ACP",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-INTREPID-CODEX-SECONDARY",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-INTREPID-CODEX-PRIMARY",
-        "journeyId": "JOURNEY-PRIVACY-FAILURE",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-INTREPID-CODEX-SECONDARY",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-INTREPID-CODEX-PRIMARY",
-        "journeyId": "JOURNEY-CLEANUP",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-INTREPID-CODEX-SECONDARY",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-INTREPID-CODEX-SECONDARY",
-        "journeyId": "JOURNEY-ACP",
-        "coverageMode": "direct",
-        "evidenceLayer": "assembled_product",
-        "rowIds": [
-          "ACP-ASSEMBLED-019"
-        ]
-      },
-      {
-        "variantId": "VAR-INTREPID-CODEX-SECONDARY",
-        "journeyId": "JOURNEY-PRIVACY-FAILURE",
-        "coverageMode": "direct",
-        "evidenceLayer": "assembled_product",
-        "rowIds": [
-          "ACP-ASSEMBLED-019"
-        ]
-      },
-      {
-        "variantId": "VAR-INTREPID-CODEX-SECONDARY",
-        "journeyId": "JOURNEY-CLEANUP",
-        "coverageMode": "direct",
-        "evidenceLayer": "assembled_product",
-        "rowIds": [
-          "ACP-ASSEMBLED-019"
-        ]
-      },
-      {
-        "variantId": "VAR-INTREPID-CODEX-WORK",
-        "journeyId": "JOURNEY-ACP",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-INTREPID-CODEX-SECONDARY",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-INTREPID-CODEX-WORK",
-        "journeyId": "JOURNEY-PRIVACY-FAILURE",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-INTREPID-CODEX-SECONDARY",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-INTREPID-CODEX-WORK",
-        "journeyId": "JOURNEY-CLEANUP",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-INTREPID-CODEX-SECONDARY",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-INTREPID-ANTIGRAVITY",
-        "journeyId": "JOURNEY-ACP",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-INTREPID-DEVIN",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-INTREPID-ANTIGRAVITY",
-        "journeyId": "JOURNEY-PRIVACY-FAILURE",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-INTREPID-DEVIN",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-INTREPID-ANTIGRAVITY",
-        "journeyId": "JOURNEY-CLEANUP",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-INTREPID-DEVIN",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-INTREPID-CLAUDE-REGISTRY",
-        "journeyId": "JOURNEY-ACP",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-INTREPID-DEVIN",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-INTREPID-CLAUDE-REGISTRY",
-        "journeyId": "JOURNEY-PRIVACY-FAILURE",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-INTREPID-DEVIN",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-INTREPID-CLAUDE-REGISTRY",
-        "journeyId": "JOURNEY-CLEANUP",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-INTREPID-DEVIN",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-INTREPID-CODEX-REGISTRY",
-        "journeyId": "JOURNEY-ACP",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-INTREPID-DEVIN",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-INTREPID-CODEX-REGISTRY",
-        "journeyId": "JOURNEY-PRIVACY-FAILURE",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-INTREPID-DEVIN",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-INTREPID-CODEX-REGISTRY",
-        "journeyId": "JOURNEY-CLEANUP",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-INTREPID-DEVIN",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-INTREPID-CURSOR",
-        "journeyId": "JOURNEY-ACP",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-INTREPID-DEVIN",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-INTREPID-CURSOR",
-        "journeyId": "JOURNEY-PRIVACY-FAILURE",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-INTREPID-DEVIN",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-INTREPID-CURSOR",
-        "journeyId": "JOURNEY-CLEANUP",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-INTREPID-DEVIN",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-INTREPID-DEVIN",
-        "journeyId": "JOURNEY-ACP",
-        "coverageMode": "direct",
-        "evidenceLayer": "assembled_product",
-        "rowIds": [
-          "ACP-ASSEMBLED-019"
-        ]
-      },
-      {
-        "variantId": "VAR-INTREPID-DEVIN",
-        "journeyId": "JOURNEY-PRIVACY-FAILURE",
-        "coverageMode": "direct",
-        "evidenceLayer": "assembled_product",
-        "rowIds": [
-          "ACP-ASSEMBLED-019"
-        ]
-      },
-      {
-        "variantId": "VAR-INTREPID-DEVIN",
-        "journeyId": "JOURNEY-CLEANUP",
-        "coverageMode": "direct",
-        "evidenceLayer": "assembled_product",
-        "rowIds": [
-          "ACP-ASSEMBLED-019"
-        ]
-      },
-      {
-        "variantId": "VAR-INTREPID-GLM-REGISTRY",
-        "journeyId": "JOURNEY-ACP",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-INTREPID-DEVIN",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-INTREPID-GLM-REGISTRY",
-        "journeyId": "JOURNEY-PRIVACY-FAILURE",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-INTREPID-DEVIN",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-INTREPID-GLM-REGISTRY",
-        "journeyId": "JOURNEY-CLEANUP",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-INTREPID-DEVIN",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-INTREPID-GROK",
-        "journeyId": "JOURNEY-ACP",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-INTREPID-DEVIN",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-INTREPID-GROK",
-        "journeyId": "JOURNEY-PRIVACY-FAILURE",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-INTREPID-DEVIN",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-INTREPID-GROK",
-        "journeyId": "JOURNEY-CLEANUP",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-INTREPID-DEVIN",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-INTREPID-KIMI-REGISTRY",
-        "journeyId": "JOURNEY-ACP",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-INTREPID-DEVIN",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-INTREPID-KIMI-REGISTRY",
-        "journeyId": "JOURNEY-PRIVACY-FAILURE",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-INTREPID-DEVIN",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      },
-      {
-        "variantId": "VAR-INTREPID-KIMI-REGISTRY",
-        "journeyId": "JOURNEY-CLEANUP",
-        "coverageMode": "mechanically_equivalent",
-        "equivalentToVariantId": "VAR-INTREPID-DEVIN",
-        "equivalenceEvidence": [
-          "the exact route matrix invokes both target and comparator once through the same checked production launch implementation, with project evidence, zero permission approvals, session close, and process cleanup"
-        ],
-        "equivalenceRowIds": [
-          "ACP-JOURNEY-002"
-        ]
-      }
-    ]
-  },
-  "surfaceJourneyCoverage": {
-    "cells": [
-      {
-        "surfaceId": "SURFACE-MAC-LOCAL-ACP",
-        "journeyId": "JOURNEY-ACP",
-        "applicability": "applicable",
-        "rowIds": [
-          "ACP-SMOKE-001",
-          "ACP-JOURNEY-002",
-          "ACP-NEG-003",
-          "ACP-OPS-004"
-        ]
-      },
-      {
-        "surfaceId": "SURFACE-MAC-LOCAL-ACP",
-        "journeyId": "JOURNEY-TERMINAL",
-        "applicability": "not_applicable",
-        "reason": "No SSH environment transport is crossed."
-      },
-      {
-        "surfaceId": "SURFACE-MAC-LOCAL-ACP",
-        "journeyId": "JOURNEY-TASK",
-        "applicability": "not_applicable",
-        "reason": "No SSH environment transport is crossed."
-      },
-      {
-        "surfaceId": "SURFACE-MAC-LOCAL-ACP",
-        "journeyId": "JOURNEY-SHELL",
-        "applicability": "not_applicable",
-        "reason": "No SSH environment transport is crossed."
-      },
-      {
-        "surfaceId": "SURFACE-MAC-LOCAL-ACP",
-        "journeyId": "JOURNEY-CONTEXT",
-        "applicability": "not_applicable",
-        "reason": "Only remote context launch changed."
-      },
-      {
-        "surfaceId": "SURFACE-MAC-LOCAL-ACP",
-        "journeyId": "JOURNEY-DAP-STDIO",
-        "applicability": "not_applicable",
-        "reason": "Only remote DAP launch changed."
-      },
-      {
-        "surfaceId": "SURFACE-MAC-LOCAL-ACP",
-        "journeyId": "JOURNEY-DAP-TCP",
-        "applicability": "not_applicable",
-        "reason": "Only remote DAP launch changed."
-      },
-      {
-        "surfaceId": "SURFACE-MAC-LOCAL-ACP",
-        "journeyId": "JOURNEY-CAPABILITY",
-        "applicability": "not_applicable",
-        "reason": "Capability is remote-only."
-      },
-      {
-        "surfaceId": "SURFACE-MAC-LOCAL-ACP",
-        "journeyId": "JOURNEY-PRIVACY-FAILURE",
-        "applicability": "applicable",
-        "rowIds": [
-          "ACP-NEG-003",
-          "ENV-PRIVACY-016"
-        ]
-      },
-      {
-        "surfaceId": "SURFACE-MAC-LOCAL-ACP",
-        "journeyId": "JOURNEY-CLEANUP",
-        "applicability": "applicable",
-        "rowIds": [
-          "ACP-OPS-004",
-          "ENV-PRIVACY-016"
-        ]
-      },
-      {
-        "surfaceId": "SURFACE-MAC-REMOTE-INTREPID",
-        "journeyId": "JOURNEY-ACP",
-        "applicability": "not_applicable",
-        "reason": "ACP picker selection is owned by the separate Intrepid ACP surface."
-      },
-      {
-        "surfaceId": "SURFACE-MAC-REMOTE-INTREPID",
-        "journeyId": "JOURNEY-TERMINAL",
-        "applicability": "applicable",
-        "rowIds": [
-          "ENV-PTY-007",
-          "ENV-TERMINAL-008",
-          "ENV-CONSUMER-MATRIX-014"
-        ]
-      },
-      {
-        "surfaceId": "SURFACE-MAC-REMOTE-INTREPID",
-        "journeyId": "JOURNEY-TASK",
-        "applicability": "applicable",
-        "rowIds": [
-          "ENV-PTY-007",
-          "ENV-TASK-009",
-          "ENV-CONSUMER-MATRIX-014"
-        ]
-      },
-      {
-        "surfaceId": "SURFACE-MAC-REMOTE-INTREPID",
-        "journeyId": "JOURNEY-SHELL",
-        "applicability": "applicable",
-        "rowIds": [
-          "ENV-SHELL-010",
-          "ENV-CONSUMER-MATRIX-014"
-        ]
-      },
-      {
-        "surfaceId": "SURFACE-MAC-REMOTE-INTREPID",
-        "journeyId": "JOURNEY-CONTEXT",
-        "applicability": "applicable",
-        "rowIds": [
-          "ENV-MCP-011",
-          "ENV-CONSUMER-MATRIX-014"
-        ]
-      },
-      {
-        "surfaceId": "SURFACE-MAC-REMOTE-INTREPID",
-        "journeyId": "JOURNEY-DAP-STDIO",
-        "applicability": "applicable",
-        "rowIds": [
-          "ENV-DAP-STDIO-012",
-          "ENV-CONSUMER-MATRIX-014"
-        ]
-      },
-      {
-        "surfaceId": "SURFACE-MAC-REMOTE-INTREPID",
-        "journeyId": "JOURNEY-DAP-TCP",
-        "applicability": "applicable",
-        "rowIds": [
-          "ENV-DAP-TCP-013",
-          "ENV-CONSUMER-MATRIX-014"
-        ]
-      },
-      {
-        "surfaceId": "SURFACE-MAC-REMOTE-INTREPID",
-        "journeyId": "JOURNEY-CAPABILITY",
-        "applicability": "applicable",
-        "rowIds": [
-          "ENV-FRAME-005",
-          "ENV-SSH-006",
-          "ENV-CAPABILITY-015",
-          "ENV-PACKAGE-018"
-        ]
-      },
-      {
-        "surfaceId": "SURFACE-MAC-REMOTE-INTREPID",
-        "journeyId": "JOURNEY-PRIVACY-FAILURE",
-        "applicability": "applicable",
-        "rowIds": [
-          "ENV-FRAME-005",
-          "ENV-SSH-006",
-          "ENV-PTY-007",
-          "ENV-CAPABILITY-015",
-          "ENV-PRIVACY-016"
-        ]
-      },
-      {
-        "surfaceId": "SURFACE-MAC-REMOTE-INTREPID",
-        "journeyId": "JOURNEY-CLEANUP",
-        "applicability": "applicable",
-        "rowIds": [
-          "ENV-TERMINAL-008",
-          "ENV-TASK-009",
-          "ENV-PRIVACY-016",
-          "ENV-PACKAGE-018"
-        ]
-      },
-      {
-        "surfaceId": "SURFACE-UNSUPPORTED-ENV-BACKENDS",
-        "journeyId": "JOURNEY-ACP",
-        "applicability": "not_applicable",
-        "reason": "No supported private environment channel exists."
-      },
-      {
-        "surfaceId": "SURFACE-UNSUPPORTED-ENV-BACKENDS",
-        "journeyId": "JOURNEY-TERMINAL",
-        "applicability": "not_applicable",
-        "reason": "Environment-bearing launch is unsupported."
-      },
-      {
-        "surfaceId": "SURFACE-UNSUPPORTED-ENV-BACKENDS",
-        "journeyId": "JOURNEY-TASK",
-        "applicability": "not_applicable",
-        "reason": "Environment-bearing launch is unsupported."
-      },
-      {
-        "surfaceId": "SURFACE-UNSUPPORTED-ENV-BACKENDS",
-        "journeyId": "JOURNEY-SHELL",
-        "applicability": "not_applicable",
-        "reason": "Environment-bearing launch is unsupported."
-      },
-      {
-        "surfaceId": "SURFACE-UNSUPPORTED-ENV-BACKENDS",
-        "journeyId": "JOURNEY-CONTEXT",
-        "applicability": "not_applicable",
-        "reason": "Environment-bearing launch is unsupported."
-      },
-      {
-        "surfaceId": "SURFACE-UNSUPPORTED-ENV-BACKENDS",
-        "journeyId": "JOURNEY-DAP-STDIO",
-        "applicability": "not_applicable",
-        "reason": "Environment-bearing launch is unsupported."
-      },
-      {
-        "surfaceId": "SURFACE-UNSUPPORTED-ENV-BACKENDS",
-        "journeyId": "JOURNEY-DAP-TCP",
-        "applicability": "not_applicable",
-        "reason": "Environment-bearing launch is unsupported."
-      },
-      {
-        "surfaceId": "SURFACE-UNSUPPORTED-ENV-BACKENDS",
-        "journeyId": "JOURNEY-CAPABILITY",
-        "applicability": "not_applicable",
-        "reason": "POSIX SSH capability does not apply."
-      },
-      {
-        "surfaceId": "SURFACE-UNSUPPORTED-ENV-BACKENDS",
-        "journeyId": "JOURNEY-PRIVACY-FAILURE",
-        "applicability": "applicable",
-        "rowIds": [
-          "ENV-PLATFORM-017",
-          "ENV-PRIVACY-016"
-        ]
-      },
-      {
-        "surfaceId": "SURFACE-UNSUPPORTED-ENV-BACKENDS",
-        "journeyId": "JOURNEY-CLEANUP",
-        "applicability": "not_applicable",
-        "reason": "Fail-closed construction starts no process."
-      },
-      {
-        "surfaceId": "SURFACE-MAC-REMOTE-INTREPID-ACP",
-        "journeyId": "JOURNEY-ACP",
-        "applicability": "applicable",
-        "rowIds": [
-          "ACP-SMOKE-001",
-          "ACP-JOURNEY-002",
-          "ACP-NEG-003",
-          "ACP-OPS-004"
-        ]
-      },
-      {
-        "surfaceId": "SURFACE-MAC-REMOTE-INTREPID-ACP",
-        "journeyId": "JOURNEY-TERMINAL",
-        "applicability": "not_applicable",
-        "reason": "This picker variant changes only ACP launch, failure/privacy handling, and session cleanup."
-      },
-      {
-        "surfaceId": "SURFACE-MAC-REMOTE-INTREPID-ACP",
-        "journeyId": "JOURNEY-TASK",
-        "applicability": "not_applicable",
-        "reason": "This picker variant changes only ACP launch, failure/privacy handling, and session cleanup."
-      },
-      {
-        "surfaceId": "SURFACE-MAC-REMOTE-INTREPID-ACP",
-        "journeyId": "JOURNEY-SHELL",
-        "applicability": "not_applicable",
-        "reason": "This picker variant changes only ACP launch, failure/privacy handling, and session cleanup."
-      },
-      {
-        "surfaceId": "SURFACE-MAC-REMOTE-INTREPID-ACP",
-        "journeyId": "JOURNEY-CONTEXT",
-        "applicability": "not_applicable",
-        "reason": "This picker variant changes only ACP launch, failure/privacy handling, and session cleanup."
-      },
-      {
-        "surfaceId": "SURFACE-MAC-REMOTE-INTREPID-ACP",
-        "journeyId": "JOURNEY-DAP-STDIO",
-        "applicability": "not_applicable",
-        "reason": "This picker variant changes only ACP launch, failure/privacy handling, and session cleanup."
-      },
-      {
-        "surfaceId": "SURFACE-MAC-REMOTE-INTREPID-ACP",
-        "journeyId": "JOURNEY-DAP-TCP",
-        "applicability": "not_applicable",
-        "reason": "This picker variant changes only ACP launch, failure/privacy handling, and session cleanup."
-      },
-      {
-        "surfaceId": "SURFACE-MAC-REMOTE-INTREPID-ACP",
-        "journeyId": "JOURNEY-CAPABILITY",
-        "applicability": "not_applicable",
-        "reason": "This picker variant changes only ACP launch, failure/privacy handling, and session cleanup."
-      },
-      {
-        "surfaceId": "SURFACE-MAC-REMOTE-INTREPID-ACP",
-        "journeyId": "JOURNEY-PRIVACY-FAILURE",
-        "applicability": "applicable",
-        "rowIds": [
-          "ACP-NEG-003",
-          "ENV-PRIVACY-016"
-        ]
-      },
-      {
-        "surfaceId": "SURFACE-MAC-REMOTE-INTREPID-ACP",
-        "journeyId": "JOURNEY-CLEANUP",
-        "applicability": "applicable",
-        "rowIds": [
-          "ACP-OPS-004",
-          "ENV-PRIVACY-016"
-        ]
-      }
-    ]
-  },
-  "coverageClosureVersion": 2
+  ]
 }

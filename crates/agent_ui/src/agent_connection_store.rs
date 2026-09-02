@@ -186,6 +186,44 @@ impl AgentConnectionStore {
         self.request_connection(key, server, cx)
     }
 
+    pub fn request_fresh_connection(
+        &mut self,
+        key: Agent,
+        server: Rc<dyn AgentServer>,
+        cx: &mut Context<Self>,
+    ) -> Entity<AgentConnectionEntry> {
+        let key = self.canonical_agent_key(&key, cx);
+        if let Some(existing_key) = self.equivalent_entry_key(&key, cx) {
+            // Replace only the store's canonical cache entry. Existing thread
+            // views retain their own entry (and its in-flight connect task), so
+            // a superseded entry must still be allowed to finish independently.
+            self.entries.remove(&existing_key);
+        }
+        self.request_connection(key, server, cx)
+    }
+
+    pub fn remove_connected_entry_if_same(
+        &mut self,
+        key: &Agent,
+        connection: &Rc<dyn AgentConnection>,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(entry_key) = self.equivalent_entry_key(key, cx) else {
+            return;
+        };
+        let should_remove = self.entries.get(&entry_key).is_some_and(|entry| {
+            matches!(
+                entry.read(cx),
+                AgentConnectionEntry::Connected(state)
+                    if Rc::ptr_eq(&state.connection, connection)
+            )
+        });
+        if should_remove {
+            self.entries.remove(&entry_key);
+            cx.notify();
+        }
+    }
+
     pub fn request_connection(
         &mut self,
         key: Agent,
@@ -212,15 +250,13 @@ impl AgentConnectionStore {
         cx.notify();
 
         cx.spawn({
+            // Shadow with a clone so the outer key remains available to the
+            // independent new-version task below.
             let key = key.clone();
             let entry = entry.downgrade();
             async move |this, cx| match connect_task.await {
                 Ok(connected_state) => {
-                    this.update(cx, move |this, cx| {
-                        if this.entries.get(&key) != entry.upgrade().as_ref() {
-                            return;
-                        }
-
+                    this.update(cx, move |_this, cx| {
                         entry
                             .update(cx, move |entry, cx| {
                                 if let AgentConnectionEntry::Connecting { .. } = entry {
@@ -235,10 +271,6 @@ impl AgentConnectionStore {
                 }
                 Err(error) => {
                     this.update(cx, move |this, cx| {
-                        if this.entries.get(&key) != entry.upgrade().as_ref() {
-                            return;
-                        }
-
                         entry
                             .update(cx, move |entry, cx| {
                                 if let AgentConnectionEntry::Connecting { .. } = entry {
@@ -247,7 +279,9 @@ impl AgentConnectionStore {
                                 }
                             })
                             .ok();
-                        this.entries.remove(&key);
+                        if this.entries.get(&key) == entry.upgrade().as_ref() {
+                            this.entries.remove(&key);
+                        }
                         cx.notify();
                     })
                     .ok();
@@ -257,7 +291,6 @@ impl AgentConnectionStore {
         .detach();
 
         cx.spawn({
-            let key = key.clone();
             let entry = entry.downgrade();
             async move |this, cx| {
                 while let Ok(version) = new_version_rx.recv().await {
@@ -266,10 +299,6 @@ impl AgentConnectionStore {
                     };
 
                     this.update(cx, move |this, cx| {
-                        if this.entries.get(&key) != entry.upgrade().as_ref() {
-                            return;
-                        }
-
                         entry
                             .update(cx, move |_entry, cx| {
                                 cx.emit(AgentConnectionEntryEvent::NewVersionAvailable(
@@ -277,7 +306,9 @@ impl AgentConnectionStore {
                                 ));
                             })
                             .ok();
-                        this.entries.remove(&key);
+                        if this.entries.get(&key) == entry.upgrade().as_ref() {
+                            this.entries.remove(&key);
+                        }
                         cx.notify();
                     })
                     .ok();
@@ -292,13 +323,8 @@ impl AgentConnectionStore {
             async move |this, cx| {
                 while let Ok(status) = loading_status_rx.recv().await {
                     let status = status.map(SharedString::from);
-                    let key = key.clone();
                     let entry = entry.clone();
-                    this.update(cx, move |this, cx| {
-                        if this.entries.get(&key) != entry.upgrade().as_ref() {
-                            return;
-                        }
-
+                    this.update(cx, move |_this, cx| {
                         entry
                             .update(cx, move |_entry, cx| {
                                 cx.emit(AgentConnectionEntryEvent::LoadingStatusChanged(status));

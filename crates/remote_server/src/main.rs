@@ -43,6 +43,23 @@ fn main() -> anyhow::Result<()> {
         use remote_server::ExecuteProxyError;
 
         let res = remote_server::run(command);
+        #[cfg(unix)]
+        if let Err(error) = &res
+            && let Some(error) = error.downcast_ref::<remote_server::EnvExecExitError>()
+        {
+            std::io::stderr()
+                .write_fmt(format_args!("{error:#}\n"))
+                .ok();
+            if let Some(signal) = error.signal() {
+                // Preserve the command's signal identity after all owned
+                // descendants and forwarding threads have been cleaned up.
+                unsafe {
+                    libc::signal(signal, libc::SIG_DFL);
+                    libc::raise(signal);
+                }
+            }
+            std::process::exit(error.to_exit_code());
+        }
         if let Err(e) = &res
             && let Some(e) = e.downcast_ref::<ExecuteProxyError>()
         {

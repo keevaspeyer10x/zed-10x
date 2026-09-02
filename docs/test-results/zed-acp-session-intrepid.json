@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "id": "ZED-ACP-SESSION-002",
+  "command": "computer-use installed Zed 10x Intrepid External Agents: select all fourteen visible variants once, run session/new against an isolated project sentinel, classify terminal outcomes, then prove a healthy route launches after an unavailable route",
+  "status": "passed",
+  "runtimeIdentity": "zed-remote-server-linux-x86_64@fb1fb76791553cfdd807ab7efd3850d228ce1ed4:sha256=02713af960f213199a9a7662c2e1256916cc0f754ead69167721edb05b0c8db7",
+  "observedAt": "2026-09-01T06:05:51Z",
+  "attemptedVariantCount": 14,
+  "productFailureCount": 0,
+  "currentRuntimeClosure": {
+    "representative": "Cursor (Intrepid)",
+    "sessionNewUsable": true,
+    "deployedPayloadSha256MatchesBundle": true,
+    "capturedProcessIds": [
+      992476,
+      992486,
+      993698,
+      993888,
+      994294,
+      995576,
+      995580
+    ],
+    "capturedProcessGroupId": 992486,
+    "capturedSessionId": 992486,
+    "allVariantLoadBearingInputsUnchangedSinceCompleteMatrix": true
+  },
+  "supplementalEvidence": [
+    {
+      "path": "docs/test-results/zed-acp-route-matrix-intrepid-raw.json",
+      "sha256": "e3b3260140afbb1a857515741159131e4192eec029989a52d13405620815f31c"
+    }
+  ]
+}

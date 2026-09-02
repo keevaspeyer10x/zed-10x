@@ -18,7 +18,14 @@ mod unix {
     fn wait_with_timeout(
         child: &mut std::process::Child,
     ) -> std::io::Result<std::process::ExitStatus> {
-        let deadline = Instant::now() + EXIT_TIMEOUT;
+        wait_with_timeout_for(child, EXIT_TIMEOUT)
+    }
+
+    fn wait_with_timeout_for(
+        child: &mut std::process::Child,
+        timeout: Duration,
+    ) -> std::io::Result<std::process::ExitStatus> {
+        let deadline = Instant::now() + timeout;
         loop {
             if let Some(status) = child.try_wait()? {
                 return Ok(status);
@@ -60,6 +67,58 @@ mod unix {
                     "env-exec command did not become observable; \
                      last command line: {command_line}"
                 );
+            }
+            thread::sleep(Duration::from_millis(10));
+        }
+    }
+
+    #[allow(clippy::disallowed_methods)] // This process-boundary helper inspects a real child.
+    fn wait_for_child_process(parent_pid: u32, command_fragment: &str) -> anyhow::Result<u32> {
+        let deadline = Instant::now() + EXIT_TIMEOUT;
+        loop {
+            let output = Command::new("ps")
+                .args(["-axo", "pid=,ppid=,command="])
+                .output()?;
+            for line in String::from_utf8(output.stdout)?.lines() {
+                let mut fields = line.split_whitespace();
+                let Some(pid) = fields.next().and_then(|value| value.parse::<u32>().ok()) else {
+                    continue;
+                };
+                let Some(ppid) = fields.next().and_then(|value| value.parse::<u32>().ok()) else {
+                    continue;
+                };
+                if ppid == parent_pid && line.contains(command_fragment) {
+                    return Ok(pid);
+                }
+            }
+            if Instant::now() >= deadline {
+                anyhow::bail!(
+                    "child process containing {command_fragment:?} did not appear under {parent_pid}"
+                );
+            }
+            thread::sleep(Duration::from_millis(10));
+        }
+    }
+
+    #[allow(clippy::disallowed_methods)] // This process-boundary helper inspects a real child.
+    fn wait_for_any_child(parent_pid: u32) -> anyhow::Result<u32> {
+        let deadline = Instant::now() + EXIT_TIMEOUT;
+        loop {
+            let output = Command::new("ps").args(["-axo", "pid=,ppid="]).output()?;
+            for line in String::from_utf8(output.stdout)?.lines() {
+                let mut fields = line.split_whitespace();
+                let Some(pid) = fields.next().and_then(|value| value.parse::<u32>().ok()) else {
+                    continue;
+                };
+                let Some(ppid) = fields.next().and_then(|value| value.parse::<u32>().ok()) else {
+                    continue;
+                };
+                if ppid == parent_pid {
+                    return Ok(pid);
+                }
+            }
+            if Instant::now() >= deadline {
+                anyhow::bail!("child process did not appear under {parent_pid}");
             }
             thread::sleep(Duration::from_millis(10));
         }
@@ -115,6 +174,457 @@ mod unix {
         assert_eq!(
             String::from_utf8(output.stdout)?,
             format!("{secret}|{suffix}")
+        );
+        Ok(())
+    }
+
+    #[test]
+    #[allow(clippy::disallowed_methods)] // This process-boundary test needs the real binary.
+    fn env_exec_preserves_the_command_exit_identity() -> anyhow::Result<()> {
+        use std::os::unix::process::ExitStatusExt as _;
+
+        for (script, expected_code, expected_signal) in [
+            ("exit 23", Some(23), None),
+            ("kill -TERM $$", None, Some(libc::SIGTERM)),
+        ] {
+            let mut child = Command::new(env!("CARGO_BIN_EXE_remote_server"))
+                .args(["env-exec", "--", "/bin/sh", "-c", script])
+                .stdin(Stdio::piped())
+                .stdout(Stdio::null())
+                .stderr(Stdio::piped())
+                .spawn()?;
+            let mut stdin = child.stdin.take().expect("piped stdin");
+            stdin.write_all(&remote::encode_stdin_environment(&HashMap::default())?)?;
+            stdin.flush()?;
+
+            let status = wait_with_timeout(&mut child)?;
+            assert_eq!(status.code(), expected_code, "script: {script}");
+            assert_eq!(status.signal(), expected_signal, "script: {script}");
+            drop(stdin);
+        }
+        Ok(())
+    }
+
+    #[test]
+    #[allow(clippy::disallowed_methods)] // This validates the hidden process boundary.
+    fn env_exec_guardian_rejects_standard_descriptors() -> anyhow::Result<()> {
+        let output = Command::new(env!("CARGO_BIN_EXE_remote_server"))
+            .args([
+                "env-exec-guardian",
+                "--owner-fd",
+                "1",
+                "--report-fd",
+                "2",
+                "--",
+                "/usr/bin/true",
+            ])
+            .output()?;
+
+        assert!(!output.status.success());
+        assert!(
+            String::from_utf8(output.stderr)?.contains("must not use a standard descriptor"),
+            "guardian must reject descriptors it cannot exclusively own"
+        );
+        Ok(())
+    }
+
+    #[test]
+    #[allow(clippy::disallowed_methods)] // This process-boundary test inspects the real child.
+    fn env_exec_reaps_a_command_group_that_ignores_transport_eof() -> anyhow::Result<()> {
+        use std::io::{BufRead as _, BufReader};
+
+        let script = "trap '' HUP TERM; printf '%s\\n' \"$$\"; while :; do sleep 60; done";
+        let mut child = Command::new(env!("CARGO_BIN_EXE_remote_server"))
+            .args(["env-exec", "--", "/bin/sh", "-c", script])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()?;
+        let mut stdin = child.stdin.take().expect("piped stdin");
+        stdin.write_all(&remote::encode_stdin_environment(&HashMap::default())?)?;
+        stdin.flush()?;
+
+        let stdout = child.stdout.take().expect("piped stdout");
+        let mut reader = BufReader::new(stdout);
+        let mut pid_line = String::new();
+        reader.read_line(&mut pid_line)?;
+        let command_pid = pid_line.trim().parse::<u32>()?;
+
+        drop(stdin);
+        let status = wait_with_timeout_for(&mut child, Duration::from_secs(5));
+        if status.is_err() {
+            let _ = Command::new("kill")
+                .args(["-KILL", &command_pid.to_string()])
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .status();
+        }
+        let status = status.context("env-exec did not terminate after transport EOF")?;
+        assert!(
+            !status.success(),
+            "transport EOF must terminate an otherwise live command group"
+        );
+
+        let still_running = Command::new("kill")
+            .args(["-0", &command_pid.to_string()])
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()?
+            .success();
+        assert!(!still_running, "remote command survived env-exec cleanup");
+        Ok(())
+    }
+
+    #[test]
+    #[allow(clippy::disallowed_methods)] // This process-boundary test inspects the real child.
+    fn env_exec_reaps_descendants_after_the_direct_command_exits() -> anyhow::Result<()> {
+        use std::io::{BufRead as _, BufReader};
+
+        let script = "sleep 60 & printf '%s\\n' \"$!\"";
+        let mut child = Command::new(env!("CARGO_BIN_EXE_remote_server"))
+            .args(["env-exec", "--", "/bin/sh", "-c", script])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()?;
+        let mut stdin = child.stdin.take().expect("piped stdin");
+        stdin.write_all(&remote::encode_stdin_environment(&HashMap::default())?)?;
+        stdin.flush()?;
+
+        let stdout = child.stdout.take().expect("piped stdout");
+        let mut reader = BufReader::new(stdout);
+        let mut pid_line = String::new();
+        reader.read_line(&mut pid_line)?;
+        let descendant_pid = pid_line.trim().parse::<u32>()?;
+
+        let status = wait_with_timeout_for(&mut child, Duration::from_secs(5));
+        if status.is_err() {
+            let _ = Command::new("kill")
+                .args(["-KILL", &descendant_pid.to_string()])
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .status();
+        }
+        let status = status.context("env-exec did not terminate after its command exited")?;
+        assert!(status.success(), "the direct command exited successfully");
+
+        let still_running = Command::new("kill")
+            .args(["-0", &descendant_pid.to_string()])
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()?
+            .success();
+        assert!(!still_running, "command descendant survived its owner exit");
+        drop(stdin);
+        Ok(())
+    }
+
+    #[test]
+    #[allow(clippy::disallowed_methods)] // This process-boundary test kills the real supervisor.
+    fn env_exec_reaps_its_command_group_when_the_supervisor_is_killed() -> anyhow::Result<()> {
+        use std::io::{BufRead as _, BufReader};
+
+        let script = "trap '' HUP TERM; (trap '' HUP TERM; while :; do sleep 60; done) & descendant=$!; printf '%s %s\\n' \"$$\" \"$descendant\"; while :; do sleep 60; done";
+        let mut supervisor = Command::new(env!("CARGO_BIN_EXE_remote_server"))
+            .args(["env-exec", "--", "/bin/sh", "-c", script])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()?;
+        let mut stdin = supervisor.stdin.take().expect("piped stdin");
+        stdin.write_all(&remote::encode_stdin_environment(&HashMap::default())?)?;
+        stdin.flush()?;
+
+        let stdout = supervisor.stdout.take().expect("piped stdout");
+        let mut reader = BufReader::new(stdout);
+        let mut pid_line = String::new();
+        reader.read_line(&mut pid_line)?;
+        let mut pids = pid_line.split_whitespace().map(str::parse::<u32>);
+        let command_pid = pids.next().context("missing command pid")??;
+        let descendant_pid = pids.next().context("missing descendant pid")??;
+        assert!(pids.next().is_none(), "unexpected pid output: {pid_line:?}");
+        let guardian_pid =
+            wait_for_child_process(supervisor.id(), "env-exec-guardian")? as libc::pid_t;
+
+        supervisor.kill()?;
+        supervisor.wait()?;
+
+        let deadline = Instant::now() + Duration::from_secs(2);
+        let survivors = loop {
+            let survivors = [command_pid, descendant_pid]
+                .into_iter()
+                .filter(|pid| unsafe { libc::kill(*pid as i32, 0) } == 0)
+                .collect::<Vec<_>>();
+            if survivors.is_empty() || Instant::now() >= deadline {
+                break survivors;
+            }
+            thread::sleep(Duration::from_millis(10));
+        };
+
+        if !survivors.is_empty() {
+            // The pre-fix implementation leaks this process group. Keep the RED
+            // test itself hygienic so a failed assertion never leaves it behind.
+            unsafe {
+                libc::killpg(guardian_pid, libc::SIGKILL);
+            }
+        }
+        assert!(
+            survivors.is_empty(),
+            "command group survived env-exec supervisor death: {survivors:?}"
+        );
+        drop(stdin);
+        Ok(())
+    }
+
+    #[test]
+    #[allow(clippy::disallowed_methods)] // This process-boundary test kills the real supervisor.
+    fn env_exec_reaps_its_command_group_when_supervisor_dies_before_identity_report()
+    -> anyhow::Result<()> {
+        let script = "trap '' HUP TERM; (trap '' HUP TERM; while :; do sleep 60; done) & while :; do sleep 60; done";
+        let mut supervisor = Command::new(env!("CARGO_BIN_EXE_remote_server"))
+            .args(["env-exec", "--", "/bin/sh", "-c", script])
+            .env("ZED_ENV_EXEC_TEST_GUARDIAN_REPORT_DELAY_MS", "5000")
+            .stdin(Stdio::piped())
+            .stdout(Stdio::null())
+            .stderr(Stdio::piped())
+            .spawn()?;
+        let mut stdin = supervisor.stdin.take().expect("piped stdin");
+        stdin.write_all(&remote::encode_stdin_environment(&HashMap::default())?)?;
+        stdin.flush()?;
+
+        let guardian_pid = wait_for_child_process(supervisor.id(), "env-exec-guardian")?;
+        let command_pid = wait_for_any_child(guardian_pid)?;
+        let descendant_pid = wait_for_any_child(command_pid)?;
+
+        supervisor.kill()?;
+        supervisor.wait()?;
+
+        let deadline = Instant::now() + Duration::from_secs(7);
+        let survivors = loop {
+            let survivors = [guardian_pid, command_pid, descendant_pid]
+                .into_iter()
+                .filter(|pid| unsafe { libc::kill(*pid as i32, 0) } == 0)
+                .collect::<Vec<_>>();
+            if survivors.is_empty() || Instant::now() >= deadline {
+                break survivors;
+            }
+            thread::sleep(Duration::from_millis(10));
+        };
+        if !survivors.is_empty() {
+            unsafe {
+                libc::killpg(guardian_pid as i32, libc::SIGKILL);
+                libc::kill(guardian_pid as i32, libc::SIGKILL);
+            }
+        }
+        assert!(
+            survivors.is_empty(),
+            "command group survived pre-report supervisor death: {survivors:?}"
+        );
+        drop(stdin);
+        Ok(())
+    }
+
+    #[test]
+    #[allow(clippy::disallowed_methods)] // This process-boundary test kills the real guardian.
+    fn env_exec_reaps_its_command_group_when_guardian_dies_before_readiness_report()
+    -> anyhow::Result<()> {
+        let script = "trap '' HUP TERM; (trap '' HUP TERM; while :; do sleep 60; done) & while :; do sleep 60; done";
+        let mut supervisor = Command::new(env!("CARGO_BIN_EXE_remote_server"))
+            .args(["env-exec", "--", "/bin/sh", "-c", script])
+            .env("ZED_ENV_EXEC_TEST_GUARDIAN_REPORT_DELAY_MS", "5000")
+            .stdin(Stdio::piped())
+            .stdout(Stdio::null())
+            .stderr(Stdio::piped())
+            .spawn()?;
+        let mut stdin = supervisor.stdin.take().expect("piped stdin");
+        stdin.write_all(&remote::encode_stdin_environment(&HashMap::default())?)?;
+        stdin.flush()?;
+
+        let guardian_pid = wait_for_child_process(supervisor.id(), "env-exec-guardian")?;
+        let command_pid = wait_for_any_child(guardian_pid)?;
+        let descendant_pid = wait_for_any_child(command_pid)?;
+        if unsafe { libc::kill(guardian_pid as i32, libc::SIGKILL) } != 0 {
+            unsafe {
+                libc::killpg(command_pid as i32, libc::SIGKILL);
+            }
+            anyhow::bail!(
+                "failed to kill env-exec guardian: {}",
+                std::io::Error::last_os_error()
+            );
+        }
+
+        let status = wait_with_timeout_for(&mut supervisor, Duration::from_secs(5));
+        if status.is_err() {
+            unsafe {
+                libc::killpg(command_pid as i32, libc::SIGKILL);
+            }
+        }
+        let status =
+            status.context("env-exec did not terminate after pre-report guardian death")?;
+        assert!(!status.success(), "guardian death must fail env-exec");
+
+        let deadline = Instant::now() + Duration::from_secs(2);
+        let survivors = loop {
+            let survivors = [command_pid, descendant_pid]
+                .into_iter()
+                .filter(|pid| unsafe { libc::kill(*pid as i32, 0) } == 0)
+                .collect::<Vec<_>>();
+            if survivors.is_empty() || Instant::now() >= deadline {
+                break survivors;
+            }
+            thread::sleep(Duration::from_millis(10));
+        };
+        if !survivors.is_empty() {
+            unsafe {
+                libc::killpg(command_pid as i32, libc::SIGKILL);
+            }
+        }
+        assert!(
+            survivors.is_empty(),
+            "command group survived pre-report guardian death: {survivors:?}"
+        );
+        drop(stdin);
+        Ok(())
+    }
+
+    #[test]
+    #[allow(clippy::disallowed_methods)] // This process-boundary test kills the real guardian.
+    fn env_exec_reaps_its_command_group_when_the_guardian_is_killed() -> anyhow::Result<()> {
+        use std::io::{BufRead as _, BufReader};
+
+        let script = "trap '' HUP TERM; (trap '' HUP TERM; while :; do sleep 60; done) & descendant=$!; printf '%s %s\\n' \"$$\" \"$descendant\"; while :; do sleep 60; done";
+        let mut supervisor = Command::new(env!("CARGO_BIN_EXE_remote_server"))
+            .args(["env-exec", "--", "/bin/sh", "-c", script])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()?;
+        let mut stdin = supervisor.stdin.take().expect("piped stdin");
+        stdin.write_all(&remote::encode_stdin_environment(&HashMap::default())?)?;
+        stdin.flush()?;
+
+        let stdout = supervisor.stdout.take().expect("piped stdout");
+        let mut reader = BufReader::new(stdout);
+        let mut pid_line = String::new();
+        reader.read_line(&mut pid_line)?;
+        let mut pids = pid_line.split_whitespace().map(str::parse::<u32>);
+        let command_pid = pids.next().context("missing command pid")??;
+        let descendant_pid = pids.next().context("missing descendant pid")??;
+        assert!(pids.next().is_none(), "unexpected pid output: {pid_line:?}");
+
+        let guardian_pid =
+            wait_for_child_process(supervisor.id(), "env-exec-guardian")? as libc::pid_t;
+        let kill_result = unsafe { libc::kill(guardian_pid, libc::SIGKILL) };
+        if kill_result != 0 {
+            unsafe {
+                libc::killpg(command_pid as i32, libc::SIGKILL);
+            }
+            anyhow::bail!(
+                "failed to kill env-exec guardian: {}",
+                std::io::Error::last_os_error()
+            );
+        }
+
+        let status = wait_with_timeout_for(&mut supervisor, Duration::from_secs(5));
+        if status.is_err() {
+            unsafe {
+                libc::killpg(command_pid as i32, libc::SIGKILL);
+            }
+        }
+        let status = status.context("env-exec did not terminate after guardian death")?;
+        assert!(!status.success(), "guardian death must fail env-exec");
+
+        let deadline = Instant::now() + Duration::from_secs(2);
+        let survivors = loop {
+            let survivors = [command_pid, descendant_pid]
+                .into_iter()
+                .filter(|pid| unsafe { libc::kill(*pid as i32, 0) } == 0)
+                .collect::<Vec<_>>();
+            if survivors.is_empty() || Instant::now() >= deadline {
+                break survivors;
+            }
+            thread::sleep(Duration::from_millis(10));
+        };
+        if !survivors.is_empty() {
+            unsafe {
+                libc::killpg(command_pid as i32, libc::SIGKILL);
+            }
+        }
+        assert!(
+            survivors.is_empty(),
+            "command group survived env-exec guardian death: {survivors:?}"
+        );
+        drop(stdin);
+        Ok(())
+    }
+
+    #[test]
+    #[allow(clippy::disallowed_methods)] // This process-boundary test kills the real guardian.
+    fn env_exec_reaps_its_command_group_when_guardian_dies_after_transport_eof()
+    -> anyhow::Result<()> {
+        use std::io::{BufRead as _, BufReader};
+
+        let script = "trap '' HUP TERM; (trap '' HUP TERM; while :; do sleep 60; done) & descendant=$!; printf '%s %s\\n' \"$$\" \"$descendant\"; while :; do sleep 60; done";
+        let mut supervisor = Command::new(env!("CARGO_BIN_EXE_remote_server"))
+            .args(["env-exec", "--", "/bin/sh", "-c", script])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()?;
+        let mut stdin = supervisor.stdin.take().expect("piped stdin");
+        stdin.write_all(&remote::encode_stdin_environment(&HashMap::default())?)?;
+        stdin.flush()?;
+
+        let stdout = supervisor.stdout.take().expect("piped stdout");
+        let mut reader = BufReader::new(stdout);
+        let mut pid_line = String::new();
+        reader.read_line(&mut pid_line)?;
+        let mut pids = pid_line.split_whitespace().map(str::parse::<u32>);
+        let command_pid = pids.next().context("missing command pid")??;
+        let descendant_pid = pids.next().context("missing descendant pid")??;
+        let guardian_pid =
+            wait_for_child_process(supervisor.id(), "env-exec-guardian")? as libc::pid_t;
+
+        drop(stdin);
+        thread::sleep(Duration::from_millis(100));
+        if unsafe { libc::kill(guardian_pid, libc::SIGKILL) } != 0 {
+            unsafe {
+                libc::killpg(command_pid as i32, libc::SIGKILL);
+            }
+            anyhow::bail!(
+                "failed to kill env-exec guardian: {}",
+                std::io::Error::last_os_error()
+            );
+        }
+
+        let status = wait_with_timeout_for(&mut supervisor, Duration::from_secs(5));
+        if status.is_err() {
+            unsafe {
+                libc::killpg(command_pid as i32, libc::SIGKILL);
+            }
+        }
+        let status = status.context("env-exec did not terminate after guardian death")?;
+        assert!(!status.success(), "guardian death must fail env-exec");
+
+        let deadline = Instant::now() + Duration::from_secs(2);
+        let survivors = loop {
+            let survivors = [command_pid, descendant_pid]
+                .into_iter()
+                .filter(|pid| unsafe { libc::kill(*pid as i32, 0) } == 0)
+                .collect::<Vec<_>>();
+            if survivors.is_empty() || Instant::now() >= deadline {
+                break survivors;
+            }
+            thread::sleep(Duration::from_millis(10));
+        };
+        if !survivors.is_empty() {
+            unsafe {
+                libc::killpg(command_pid as i32, libc::SIGKILL);
+            }
+        }
+        assert!(
+            survivors.is_empty(),
+            "command group survived guardian death during transport grace: {survivors:?}"
         );
         Ok(())
     }
