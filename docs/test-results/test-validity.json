@@ -153,7 +153,7 @@
   "reviewTooling": {
     "multimindsDoctor": "ready_route_available_with_optional_degraded_diagnostics",
     "usedAsAcceptanceEvidence": false,
-    "independentExactDiffReview": "required_on_the_final_exact_candidate_before_merge"
+    "independentExactDiffReview": "preflight_review_completed; latest alias-policy finding rejected by exact source tracing and a passing boundary regression; repository review remains scheduled under the current policy"
   },
   "executionEvidence": {
     "advertisedRouteMatrix": {

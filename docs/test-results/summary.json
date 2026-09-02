@@ -1,6 +1,6 @@
 {
   "schemaVersion": 3,
-  "generatedAt": "2026-09-01T16:22:17Z",
+  "generatedAt": "2026-09-02T12:06:07Z",
   "decisionCandidate": "production_ready",
   "plannedRows": 5,
   "implementedRows": 5,
@@ -120,6 +120,8 @@
       "The installed UI, remote server, session lane, durable thread, Retry action, and ordinary cleanup now pass together on the exact installed candidate.",
       "The surface UAT covers terminal, task, Vim, MCP, DAP stdio, and DAP TCP reset/reconnect rather than substituting unit-level protocol checks.",
       "The exact 2bde4bdf installed runtime passed all eight Mac routes and every available Intrepid route; Claude Intrepid work was isolated as expired external authentication, and one transient Claude secondary response passed its single bounded retry."
+      ,
+      "A reviewer concern that persisted aliases might bypass dedicated connection policy was disproved at the real pre-connect construction boundary and is now guarded by a regression test."
     ],
     "lowYieldAssessment": "high_yield",
     "residualRisk": [
@@ -128,7 +130,7 @@
   },
   "evidenceBinding": {
     "testedRevision": "2bde4bdfcbaac21a4ca6328298a0bd847e3caa65",
-    "harnessRevision": "c47745948b459c1262ca7f5c73d02623b832863a",
+    "harnessRevision": "dd74b2a8440fde14af8586cd166999fe605c5f8d",
     "loadBearingInputs": [
       {
         "path": "crates/agent_servers/src/acp.rs",
@@ -144,7 +146,7 @@
       },
       {
         "path": "crates/agent_ui/src/agent_panel.rs",
-        "sha256": "9d2e13452243b164c6d1627a03cb3b4e9546890590d191ba22905b0ffb5e555d"
+        "sha256": "e2f6d93e2663d2ef051032c3d4bf13661cc73497372ddb4b9a64e7e9f74ed9b7"
       },
       {
         "path": "crates/agent_ui/src/conversation_view.rs",

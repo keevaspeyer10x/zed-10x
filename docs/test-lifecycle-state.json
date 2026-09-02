@@ -16,6 +16,7 @@
   },
   "implementationTarget": "full_plan_implemented",
   "freshLifecycleRequired": true,
+  "architectureContextGate": "UNAVAILABLE — no checked-in repo-local wrapper; exact current-source tracing settled the bounded alias-policy question without a new abstraction",
   "phases": {
     "0-preflight": {
       "status": "complete",
@@ -75,5 +76,5 @@
       "externalRouteResidual": "Claude (Intrepid, work) requires provider-account reauthentication; its product launch and cleanup path was healthy and this does not block Zed product readiness."
     }
   },
-  "completedAt": "2026-09-01T16:22:17Z"
+  "completedAt": "2026-09-02T12:06:07Z"
 }
