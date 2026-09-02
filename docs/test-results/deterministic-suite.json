@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "status": "passed",
-  "sourceCommit": "a4a75c90197ef594921c2c654920f6a99e9c5da2",
-  "sourceTree": "4bf6cadfd6391ca949bd3641039030fa8531ab6c",
-  "installedProductCommit": "a4a75c90197ef594921c2c654920f6a99e9c5da2",
+  "sourceCommit": "0d7494220712f38a5e639ab2c708795d270bf366",
+  "sourceTree": "b97bb1340ac7ad1fe78ae870206b62314c23ee52",
+  "installedProductCommit": "0d7494220712f38a5e639ab2c708795d270bf366",
   "installedCandidateDifference": "None. The deterministic suites and installed reconnect journey exercised the same committed revision.",
   "testedWorkingTree": false,
   "testedWorkingTreeChanges": [],
@@ -12,7 +12,7 @@
       "name": "changed-rust-matrix",
       "command": "./script/cargo test --locked -p acp_thread -p agent_servers -p agent_ui -p remote_server --all-targets -- --test-threads=1",
       "status": "passed",
-      "tests": 643,
+      "tests": 644,
       "failed": 0,
       "scope": "all targets for the changed agent protocol, UI lifecycle, remote server, and process-boundary owners"
     },
@@ -31,7 +31,7 @@
       "name": "changed-node-contracts",
       "command": "node --test script/tests/*.test.mjs",
       "status": "passed",
-      "tests": 142,
+      "tests": 144,
       "failed": 0,
       "skipped": 0
     },
@@ -44,7 +44,7 @@
       "name": "installed-surface-uat-runner",
       "command": "python3 -m unittest script.tests.zed_installed_surface_uat_test",
       "status": "passed",
-      "tests": 11,
+      "tests": 12,
       "failed": 0,
       "skipped": 1,
       "skipReason": "The Linux procfs ancestry regression is exercised by Linux CI; macOS has no /proc.",
@@ -56,11 +56,19 @@
       "name": "mac-bundle",
       "command": "./script/bundle-mac -d -i",
       "status": "passed",
-      "installedCommit": "a4a75c90197ef594921c2c654920f6a99e9c5da2",
+      "installedCommit": "0d7494220712f38a5e639ab2c708795d270bf366",
       "installedWorkingTree": false,
       "signatureVerified": true,
-      "runtimeSha256": "bc17652677bc7398b3e3af669792cccd3db0ec208525150c0fc90a5e675bfc9e",
-      "remoteRuntimeSha256": "453151ca1b6189ddc9d838174cbb3f664fa8c901aea26b6c30ffcb1a632f1f9d"
+      "runtimeSha256": "3ddc1d6bbdab054972d8f8028c58d61342d7762f5a5feef84363688a774a15ba",
+      "remoteRuntimeSha256": "dfcda8d80438fca533dabfdc704b06cb59627265872563b6a84ec320a32b0f4f"
+    },
+    {
+      "name": "focused-ci-workflow-contract",
+      "command": "tests/test_zed_10x_ci_workflows.sh",
+      "status": "passed",
+      "tests": 104,
+      "failed": 0,
+      "scope": "job-local settings, exact step ordering, protected triggers, pinned actions, and release authority"
     }
   ]
 }

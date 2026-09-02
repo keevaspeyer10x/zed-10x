@@ -1,6 +1,6 @@
 {
   "schemaVersion": 3,
-  "generatedAt": "2026-09-02T14:33:56Z",
+  "generatedAt": "2026-09-02T18:11:08Z",
   "decisionCandidate": "production_ready",
   "plannedRows": 5,
   "implementedRows": 5,
@@ -29,7 +29,7 @@
     "currentRouteEvidencePath": "docs/test-results/zed-acp-current-route-closure.json",
     "currentRouteInstalledProductRevision": "2bde4bdfcbaac21a4ca6328298a0bd847e3caa65",
     "ordinaryReconnectEvidencePath": "docs/test-results/zed-acp-ordinary-reconnect-intrepid.json",
-    "ordinaryReconnectInstalledProductRevision": "a4a75c90197ef594921c2c654920f6a99e9c5da2"
+    "ordinaryReconnectInstalledProductRevision": "0d7494220712f38a5e639ab2c708795d270bf366"
   },
   "observability": {
     "status": "passed",
@@ -50,14 +50,14 @@
     "evidencePath": "docs/test-results/test-validity.json"
   },
   "evidenceBinding": {
-    "testedRevision": "a4a75c90197ef594921c2c654920f6a99e9c5da2",
-    "harnessRevision": "a4a75c90197ef594921c2c654920f6a99e9c5da2",
+    "testedRevision": "0d7494220712f38a5e639ab2c708795d270bf366",
+    "harnessRevision": "0d7494220712f38a5e639ab2c708795d270bf366",
     "loadBearingInputs": [
       { "path": "crates/agent_servers/src/acp.rs", "sha256": "644ac328dc553515df1764e41b417aabd4bddfbff230b0acba62af7d332c879b" },
       { "path": "crates/agent_servers/src/custom.rs", "sha256": "5ea9931dea9c056173a54b00e150494fce560496f83fa71b78326376b5dd4e18" },
-      { "path": "crates/agent_ui/src/agent_connection_store.rs", "sha256": "207974c8a689300604763d43a0813183b40ae9dfa9d5bc2dad4dc09e19ad68e0" },
+      { "path": "crates/agent_ui/src/agent_connection_store.rs", "sha256": "471b0b7a1eb3f2a05ca6bcf4183d903301b844945500ec91d9a12a9d6743cfdb" },
       { "path": "crates/agent_ui/src/agent_panel.rs", "sha256": "e2f6d93e2663d2ef051032c3d4bf13661cc73497372ddb4b9a64e7e9f74ed9b7" },
-      { "path": "crates/agent_ui/src/conversation_view.rs", "sha256": "4b7e68b5e7572f674e48b20b9c6b1a1453b81b30d911dd32b8d9ae089b6ff750" },
+      { "path": "crates/agent_ui/src/conversation_view.rs", "sha256": "7c00c0173a73482a9313b8d6923f27f4550f0f81b4bce41614fcf9dec359c074" },
       { "path": "crates/project/src/agent_server_store.rs", "sha256": "57216bb824440c30346689f717804f771f8b9a2354b9b48a258190ab1963c01d" },
       { "path": "crates/project/src/project_settings.rs", "sha256": "9594d63f671836be5cd7bcbca5a29da7cd7a9f30ca86b04a90716b4d0907fda0" },
       { "path": "docs/test-plan-inputs/zed-agent-picker-inventory.json", "sha256": "80f4bae3b0a5966e3b9f3a356ad26f0ea27f87dc144451722d56747befc98246" }
@@ -104,7 +104,7 @@
     "weakRows": [],
     "newInformationSummary": [
       "The complete installed route matrix remains valid because its route, picker, and host-binding bytes are unchanged.",
-      "The exact a4a75c9 installed app survived one real Intrepid remote-server replacement, retired the old ordinary agent transport, created exactly one replacement, and cleaned all canary-owned processes on close.",
+      "The exact 0d74942 installed app survived one real Intrepid remote-server replacement, retired the old ordinary agent transport, created exactly one replacement, and cleaned all canary-owned processes on close.",
       "The expanded Rust package matrix now compiles and runs the acp_thread target as well as the transport owners."
     ],
     "lowYieldAssessment": "high_yield",
@@ -122,7 +122,7 @@
     "ordinaryReconnect": {
       "path": "docs/test-results/zed-acp-ordinary-reconnect-intrepid.json",
       "status": "passed",
-      "installedProductRevision": "a4a75c90197ef594921c2c654920f6a99e9c5da2",
+      "installedProductRevision": "0d7494220712f38a5e639ab2c708795d270bf366",
       "duplicateTransportCount": 0
     }
   }

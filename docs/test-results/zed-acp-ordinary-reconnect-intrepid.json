@@ -2,28 +2,28 @@
   "schemaVersion": 1,
   "schema": "zed-acp-ordinary-reconnect-v1",
   "status": "passed",
-  "publishedAt": "2026-09-02T14:33:56Z",
-  "observedWindowStartedAt": "2026-09-02T14:24:20Z",
+  "publishedAt": "2026-09-02T18:11:08Z",
+  "observedWindowStartedAt": "2026-09-02T18:07:33Z",
   "source": {
-    "commit": "a4a75c90197ef594921c2c654920f6a99e9c5da2",
-    "tree": "4bf6cadfd6391ca949bd3641039030fa8531ab6c",
+    "commit": "0d7494220712f38a5e639ab2c708795d270bf366",
+    "tree": "b97bb1340ac7ad1fe78ae870206b62314c23ee52",
     "workingTreeBuild": false
   },
   "installedMacRuntime": {
     "bundlePath": "/Applications/Zed 10x.app",
     "bundleIdentifier": "ai.10xlabs.Zed10x",
     "version": "1.14.0",
-    "bundleVersion": "20260902.141902",
-    "reportedCommit": "a4a75c90197ef594921c2c654920f6a99e9c5da2",
+    "bundleVersion": "20260902.180141",
+    "reportedCommit": "0d7494220712f38a5e639ab2c708795d270bf366",
     "signatureVerified": true,
     "launcherSha256": "55751e5a20d8760323dd3dc0076af7fb85ac26973e2726f73f9e501b51418c93",
-    "cliSha256": "9b7497824c9a3aceee56f27172f9eafe7a4fd2957bd6bc3015d6e26fbd473373",
-    "runtimeSha256": "bc17652677bc7398b3e3af669792cccd3db0ec208525150c0fc90a5e675bfc9e"
+    "cliSha256": "42968660d635a6f04b85228e2a95c978fbd4eeef45c1ff7f0f83f187b6b4dccd",
+    "runtimeSha256": "3ddc1d6bbdab054972d8f8028c58d61342d7762f5a5feef84363688a774a15ba"
   },
   "installedIntrepidRuntime": {
-    "path": "/home/keeva/.zed-10x-server/zed-remote-server-dev-1.14.0+dev.a4a75c90197ef594921c2c654920f6a99e9c5da2",
-    "reportedCommit": "a4a75c90197ef594921c2c654920f6a99e9c5da2",
-    "sha256": "453151ca1b6189ddc9d838174cbb3f664fa8c901aea26b6c30ffcb1a632f1f9d",
+    "path": "/home/keeva/.zed-10x-server/zed-remote-server-dev-1.14.0+dev.0d7494220712f38a5e639ab2c708795d270bf366",
+    "reportedCommit": "0d7494220712f38a5e639ab2c708795d270bf366",
+    "sha256": "dfcda8d80438fca533dabfdc704b06cb59627265872563b6a84ec320a32b0f4f",
     "mode": "0755",
     "sizeBytes": 205750488
   },
@@ -31,22 +31,25 @@
     "surface": "SURFACE-ACP-INTREPID-ORDINARY",
     "variant": "VAR-INTREPID-CURSOR",
     "app": {
-      "pid": 20831,
-      "startIdentity": "Thu Sep 3 00:24:20 2026 AEST",
+      "pid": 68646,
+      "startIdentity": "Thu Sep 3 04:07:33 2026 AEST",
       "stayedAliveAcrossRemoteRestart": true
     },
     "initial": {
-      "remoteServerPid": 2791144,
-      "remoteServerStartTicks": 266539988,
-      "agentEnvironmentPid": 2791643,
-      "agentGuardianPid": 2791662
+      "remoteServerPid": 1937045,
+      "remoteServerStartTicks": 267881554,
+      "agentEnvironmentPid": 1937791,
+      "agentEnvironmentStartTicks": 267881691,
+      "agentGuardianPid": 1937811,
+      "agentGuardianStartTicks": 267881694
     },
     "replacement": {
-      "remoteServerPid": 2798750,
-      "remoteServerStartTicks": 266543747,
-      "agentEnvironmentPid": 2800185,
-      "agentEnvironmentStartTicks": 266543975,
-      "agentGuardianPid": 2800214,
+      "remoteServerPid": 1958426,
+      "remoteServerStartTicks": 267887023,
+      "agentEnvironmentPid": 1959124,
+      "agentEnvironmentStartTicks": 267887127,
+      "agentGuardianPid": 1959138,
+      "agentGuardianStartTicks": 267887129,
       "replacementCount": 1
     },
     "oracles": {
@@ -63,6 +66,7 @@
     "sshProxyResidueCount": 0,
     "localRuntimeResidueCount": 0,
     "canaryOwnedRemoteServerRemoved": true,
+    "installedRemoteServerBinaryRetained": true,
     "persistentUnrelatedProcessesModified": false,
     "status": "passed"
   },
