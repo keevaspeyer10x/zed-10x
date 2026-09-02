@@ -845,6 +845,9 @@ impl ConversationView {
             this.request_elicitation_form_states.clear();
             if let Some(connected) = this.as_connected() {
                 connected.close_all_sessions(cx).detach();
+                if this.agent.requires_dedicated_connection(cx) {
+                    connected.connection.shutdown_transport();
+                }
             }
             for window in this.notifications.drain(..) {
                 window
@@ -921,6 +924,15 @@ impl ConversationView {
 
         if let Some(connected) = self.as_connected() {
             connected.close_all_sessions(cx).detach();
+        }
+
+        if self.agent.requires_dedicated_connection(cx)
+            && let Some(connection) = previous_request_elicitation_connection.as_ref()
+            && !next_request_elicitation_connection
+                .as_ref()
+                .is_some_and(|next_connection| Rc::ptr_eq(connection, next_connection))
+        {
+            connection.shutdown_transport();
         }
 
         if let Some(connection) = previous_request_elicitation_connection
@@ -3699,11 +3711,44 @@ pub(crate) mod tests {
     async fn test_drop(cx: &mut TestAppContext) {
         init_test(cx);
 
-        let (conversation_view, _cx) =
-            setup_conversation_view(StubAgentServer::default_response(), cx).await;
+        let connection = StubAgentConnection::new();
+        let (conversation_view, cx) =
+            setup_conversation_view(StubAgentServer::new(connection.clone()), cx).await;
         let weak_view = conversation_view.downgrade();
         drop(conversation_view);
+        cx.update(|_, _| {});
+        cx.run_until_parked();
         assert!(!weak_view.is_upgradable());
+        assert_eq!(
+            connection.shutdown_count(),
+            0,
+            "releasing a shared view must not retire the shared transport"
+        );
+    }
+
+    #[gpui::test]
+    async fn test_drop_shuts_down_dedicated_transport(cx: &mut TestAppContext) {
+        use std::sync::atomic::Ordering;
+
+        init_test(cx);
+
+        let connection = StubAgentConnection::new();
+        let (server, fail, _) = FlakyAgentServer::new_dedicated(connection.clone());
+        fail.store(false, Ordering::SeqCst);
+        let (conversation_view, cx) = setup_conversation_view(server, cx).await;
+        assert_eq!(connection.shutdown_count(), 0);
+
+        let weak_view = conversation_view.downgrade();
+        drop(conversation_view);
+        cx.update(|_, _| {});
+        cx.run_until_parked();
+
+        assert!(!weak_view.is_upgradable());
+        assert_eq!(
+            connection.shutdown_count(),
+            1,
+            "releasing a dedicated view must retire its owned transport"
+        );
     }
 
     #[gpui::test]
@@ -4881,7 +4926,7 @@ pub(crate) mod tests {
         init_test(cx);
 
         let connection = StubAgentConnection::new().with_supports_load_session(true);
-        let (server, fail, connect_attempts) = FlakyAgentServer::new_dedicated(connection);
+        let (server, fail, connect_attempts) = FlakyAgentServer::new_dedicated(connection.clone());
         fail.store(false, Ordering::SeqCst);
         let (conversation_view, cx) = setup_conversation_view(server, cx).await;
         let original_session_id = conversation_view
@@ -4904,6 +4949,11 @@ pub(crate) mod tests {
                 cx,
             );
         });
+        assert_eq!(
+            connection.shutdown_count(),
+            1,
+            "replacing a dedicated connection must retire its owned transport immediately"
+        );
         conversation_view.update_in(cx, |view, window, cx| {
             view.retry_load(window, cx);
         });

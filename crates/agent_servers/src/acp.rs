@@ -401,7 +401,7 @@ pub struct AcpConnection {
     agent_capabilities: acp::AgentCapabilities,
     request_elicitations: Entity<ElicitationStore>,
     defaults: AcpConnectionDefaults,
-    child: Option<Child>,
+    child: RefCell<Option<Child>>,
     session_list: Option<Rc<AcpSessionList>>,
     debug_log: AcpDebugLog,
     _settings_subscription: Subscription,
@@ -1151,7 +1151,7 @@ impl AcpConnection {
             _dispatch_task: dispatch_task,
             _wait_task: wait_task,
             _stderr_task: stderr_task,
-            child: Some(child),
+            child: RefCell::new(Some(child)),
         })
     }
 
@@ -1186,7 +1186,7 @@ impl AcpConnection {
             agent_capabilities,
             request_elicitations,
             defaults,
-            child: None,
+            child: RefCell::new(None),
             session_list: None,
             debug_log: AcpDebugLog::default(),
             _settings_subscription: settings_subscription,
@@ -1569,7 +1569,13 @@ fn emit_load_error_to_all_sessions(
 
 impl Drop for AcpConnection {
     fn drop(&mut self) {
-        if let Some(ref mut child) = self.child {
+        self.shutdown_owned_transport();
+    }
+}
+
+impl AcpConnection {
+    fn shutdown_owned_transport(&self) {
+        if let Some(mut child) = self.child.borrow_mut().take() {
             child.kill().log_err();
         }
     }
@@ -1638,6 +1644,10 @@ impl AgentConnection for AcpConnection {
 
     fn agent_version(&self) -> Option<SharedString> {
         self.agent_version.clone()
+    }
+
+    fn shutdown_transport(&self) {
+        self.shutdown_owned_transport();
     }
 
     fn new_session(

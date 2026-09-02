@@ -5321,6 +5321,7 @@ mod tests {
                     false,
                     0,
                     Some(completion_tx),
+                    None,
                     cx,
                     vec![],
                     PathStyle::local(),

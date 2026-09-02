@@ -97,6 +97,11 @@ pub trait AgentConnection {
         None
     }
 
+    /// Stop the owned agent transport when its sole UI owner is replacing or
+    /// releasing it. Shared connections keep the default no-op and continue
+    /// to be governed by their connection store.
+    fn shutdown_transport(&self) {}
+
     fn new_session(
         self: Rc<Self>,
         project: Entity<Project>,
@@ -761,6 +766,7 @@ mod test_support {
         supports_session_additional_directories: bool,
         agent_id: AgentId,
         telemetry_id: SharedString,
+        shutdown_count: Arc<AtomicUsize>,
     }
 
     struct Session {
@@ -784,7 +790,12 @@ mod test_support {
                 supports_session_additional_directories: false,
                 agent_id: AgentId::new("stub"),
                 telemetry_id: "stub".into(),
+                shutdown_count: Arc::default(),
             }
+        }
+
+        pub fn shutdown_count(&self) -> usize {
+            self.shutdown_count.load(Ordering::SeqCst)
         }
 
         pub fn set_next_prompt_updates(&self, updates: Vec<acp::SessionUpdate>) {
@@ -901,6 +912,10 @@ mod test_support {
 
         fn telemetry_id(&self) -> SharedString {
             self.telemetry_id.clone()
+        }
+
+        fn shutdown_transport(&self) {
+            self.shutdown_count.fetch_add(1, Ordering::SeqCst);
         }
 
         fn auth_methods(&self) -> &[acp::AuthMethod] {

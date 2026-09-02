@@ -158,6 +158,9 @@ test("focused CI executes every containment and alias-policy regression", () => 
     "unix::env_exec_reaps_its_command_group_when_guardian_dies_after_transport_eof",
     "unix::env_exec_preserves_the_command_exit_identity",
     "test_legacy_alias_resolves_dedicated_policy_before_connection_selection",
+    "cargo test --locked -p acp_thread --lib",
+    "test_retry_load_refreshes_dedicated_transport_and_preserves_session_id",
+    "test_drop_shuts_down_dedicated_transport",
   ]) {
     assert.ok(workflow.includes(testName), testName);
   }
