@@ -109,6 +109,57 @@ pub enum Commands {
     Version,
 }
 
+#[cfg(unix)]
+#[derive(Debug)]
+pub struct EnvExecExitError {
+    status: std::process::ExitStatus,
+    transport_closed: bool,
+}
+
+#[cfg(unix)]
+impl EnvExecExitError {
+    fn new(status: std::process::ExitStatus, transport_closed: bool) -> Self {
+        Self {
+            status,
+            transport_closed,
+        }
+    }
+
+    pub fn to_exit_code(&self) -> i32 {
+        use std::os::unix::process::ExitStatusExt as _;
+
+        self.status
+            .code()
+            .or_else(|| self.status.signal().map(|signal| 128 + signal))
+            .unwrap_or(1)
+    }
+
+    pub fn signal(&self) -> Option<i32> {
+        use std::os::unix::process::ExitStatusExt as _;
+
+        self.status.signal()
+    }
+}
+
+#[cfg(unix)]
+impl std::fmt::Display for EnvExecExitError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let reason = if self.transport_closed {
+            "terminated after transport closed"
+        } else {
+            "exited"
+        };
+        write!(
+            formatter,
+            "stdin environment command {reason}: {}",
+            self.status
+        )
+    }
+}
+
+#[cfg(unix)]
+impl std::error::Error for EnvExecExitError {}
+
 pub fn run(command: Commands) -> anyhow::Result<()> {
     use anyhow::Context;
     use release_channel::{RELEASE_CHANNEL, ReleaseChannel};
@@ -285,6 +336,49 @@ fn set_close_on_exec(fd: std::os::fd::RawFd, close_on_exec: bool) -> std::io::Re
 }
 
 #[cfg(unix)]
+fn process_group_is_gone(error: &std::io::Error) -> bool {
+    error.raw_os_error() == Some(libc::ESRCH)
+        || cfg!(target_os = "macos") && error.raw_os_error() == Some(libc::EPERM)
+}
+
+#[cfg(unix)]
+fn wait_for_process_exit_without_reaping(pid: i32) -> std::io::Result<()> {
+    loop {
+        let mut info = std::mem::MaybeUninit::<libc::siginfo_t>::zeroed();
+        // Keeping the exited group leader as a zombie prevents PID/PGID reuse
+        // until its parent has finished exact-group cleanup.
+        let result = unsafe {
+            libc::waitid(
+                libc::P_PID,
+                pid as libc::id_t,
+                info.as_mut_ptr(),
+                libc::WEXITED | libc::WNOWAIT,
+            )
+        };
+        if result == 0 {
+            return Ok(());
+        }
+        let error = std::io::Error::last_os_error();
+        if error.kind() != std::io::ErrorKind::Interrupted {
+            return Err(error);
+        }
+    }
+}
+
+#[cfg(unix)]
+fn kill_process_group(process_group_id: i32) -> std::io::Result<()> {
+    if unsafe { libc::killpg(process_group_id, libc::SIGKILL) } == 0 {
+        return Ok(());
+    }
+    let error = std::io::Error::last_os_error();
+    if process_group_is_gone(&error) {
+        Ok(())
+    } else {
+        Err(error)
+    }
+}
+
+#[cfg(unix)]
 #[allow(clippy::disallowed_methods)] // This synchronous boundary owns a real process group.
 fn execute_env_exec_guardian(
     owner_fd: i32,
@@ -293,105 +387,42 @@ fn execute_env_exec_guardian(
 ) -> anyhow::Result<()> {
     use std::{
         io::Read as _,
-        os::{fd::FromRawFd as _, unix::process::CommandExt as _},
-        process::{Command, Stdio},
+        os::fd::FromRawFd as _,
+        os::unix::process::ExitStatusExt as _,
+        process::{Command, ExitStatus, Stdio},
         sync::mpsc,
         thread,
     };
 
     enum Event {
         OwnerExited(std::io::Result<()>),
-        CommandExited(std::io::Result<()>),
+        CommandExited(std::io::Result<ExitStatus>),
     }
 
-    struct ProcessGroupCleanupGuard {
-        process_group_id: i32,
-        armed: bool,
-    }
-
-    impl ProcessGroupCleanupGuard {
-        fn new(process_group_id: i32) -> Self {
-            Self {
-                process_group_id,
-                armed: true,
-            }
+    fn terminate_own_process_group() -> ! {
+        let process_group_id = unsafe { libc::getpgrp() };
+        if unsafe { libc::killpg(process_group_id, libc::SIGKILL) } != 0 {
+            unsafe { libc::_exit(1) }
         }
-
-        fn disarm(&mut self) {
-            self.armed = false;
-        }
-    }
-
-    impl Drop for ProcessGroupCleanupGuard {
-        fn drop(&mut self) {
-            if !self.armed {
-                return;
-            }
-
-            // This guard is armed immediately after spawn, before the provider
-            // identity is published. It therefore closes the last orphaning
-            // window when report publication or any later guardian setup fails.
-            // SAFETY: the guardian created this process group and still owns
-            // its child leader. Drop cannot return errors, so cleanup is best
-            // effort and bounded by SIGKILL followed by waitpid.
-            unsafe {
-                libc::killpg(self.process_group_id, libc::SIGKILL);
-            }
-            loop {
-                let result =
-                    unsafe { libc::waitpid(self.process_group_id, std::ptr::null_mut(), 0) };
-                if result >= 0 {
-                    break;
-                }
-                let error = std::io::Error::last_os_error();
-                if error.kind() != std::io::ErrorKind::Interrupted {
-                    break;
-                }
-            }
-        }
-    }
-
-    fn wait_without_reaping(pid: i32) -> std::io::Result<()> {
         loop {
-            let mut info = std::mem::MaybeUninit::<libc::siginfo_t>::zeroed();
-            // Keep the exited leader as a zombie until the owner has killed its
-            // process group. This prevents PID/PGID reuse from redirecting the
-            // cleanup signal at an unrelated process group.
-            // SAFETY: `info` points to writable storage for one `siginfo_t`.
-            let result = unsafe {
-                libc::waitid(
-                    libc::P_PID,
-                    pid as libc::id_t,
-                    info.as_mut_ptr(),
-                    libc::WEXITED | libc::WNOWAIT,
-                )
-            };
-            if result == 0 {
-                return Ok(());
-            }
-            let error = std::io::Error::last_os_error();
-            if error.kind() != std::io::ErrorKind::Interrupted {
-                return Err(error);
+            unsafe {
+                libc::pause();
             }
         }
     }
 
-    fn kill_process_group(process_group_id: i32) -> std::io::Result<()> {
-        // SAFETY: the guardian created this process group and retains its
-        // unreaped leader until after this call.
-        if unsafe { libc::killpg(process_group_id, libc::SIGKILL) } == 0 {
-            return Ok(());
-        }
-        let error = std::io::Error::last_os_error();
-        if error.raw_os_error() == Some(libc::ESRCH) {
-            Ok(())
-        } else {
-            Err(error)
-        }
-    }
-
-    anyhow::ensure!(owner_fd >= 0, "owner liveness descriptor is invalid");
-    anyhow::ensure!(report_fd >= 0, "guardian report descriptor is invalid");
+    anyhow::ensure!(
+        owner_fd > libc::STDERR_FILENO,
+        "owner liveness descriptor must not use a standard descriptor"
+    );
+    anyhow::ensure!(
+        report_fd > libc::STDERR_FILENO,
+        "guardian report descriptor must not use a standard descriptor"
+    );
+    anyhow::ensure!(
+        owner_fd != report_fd,
+        "guardian descriptors must be distinct"
+    );
     let (program, arguments) = command
         .split_first()
         .context("stdin environment command is missing")?;
@@ -413,34 +444,13 @@ fn execute_env_exec_guardian(
         .stderr(Stdio::inherit());
     #[cfg(debug_assertions)]
     command.env_remove("ZED_ENV_EXEC_TEST_GUARDIAN_REPORT_DELAY_MS");
-    // The provider gets its own checked session and process group. Every
-    // ordinary worker it spawns inherits that group unless it deliberately
-    // daemonizes, which is outside the ACP provider contract.
-    unsafe {
-        command.pre_exec(|| {
-            if libc::setsid() < 0 {
-                Err(std::io::Error::last_os_error())
-            } else {
-                Ok(())
-            }
-        });
-    }
+    // The guardian is already the leader of a separate checked session. The
+    // provider inherits that exact group, which lets the supervisor know the
+    // cleanup identity before provider spawn and keeps it reuse-safe while the
+    // guardian remains its unreaped child.
     let mut child = command
         .spawn()
         .context("executing guarded stdin environment command")?;
-    let child_pid = child.id() as i32;
-    let mut cleanup_guard = ProcessGroupCleanupGuard::new(child_pid);
-    #[cfg(debug_assertions)]
-    if let Ok(delay_ms) = std::env::var("ZED_ENV_EXEC_TEST_GUARDIAN_REPORT_DELAY_MS") {
-        let delay_ms = delay_ms
-            .parse::<u64>()
-            .context("parsing guardian report test delay")?;
-        thread::sleep(Duration::from_millis(delay_ms));
-    }
-    writeln!(report, "{child_pid}").context("reporting guarded command identity")?;
-    report
-        .flush()
-        .context("publishing guarded command identity")?;
 
     let (event_tx, event_rx) = mpsc::channel();
     let owner_tx = event_tx.clone();
@@ -457,10 +467,21 @@ fn execute_env_exec_guardian(
         owner_tx.send(Event::OwnerExited(result)).ok();
     });
     thread::spawn(move || {
-        event_tx
-            .send(Event::CommandExited(wait_without_reaping(child_pid)))
-            .ok();
+        event_tx.send(Event::CommandExited(child.wait())).ok();
     });
+
+    #[cfg(debug_assertions)]
+    if let Ok(delay_ms) = std::env::var("ZED_ENV_EXEC_TEST_GUARDIAN_REPORT_DELAY_MS") {
+        let delay_ms = delay_ms
+            .parse::<u64>()
+            .context("parsing guardian report test delay")?;
+        thread::sleep(Duration::from_millis(delay_ms));
+    }
+    // A dead supervisor closes this report channel at the same time as the
+    // owner channel. Readiness publication must not prevent the owner event
+    // from driving exact-group cleanup.
+    writeln!(report, "ready").ok();
+    report.flush().ok();
 
     match event_rx
         .recv()
@@ -468,33 +489,18 @@ fn execute_env_exec_guardian(
     {
         Event::OwnerExited(result) => {
             result.context("watching stdin environment command owner")?;
-            kill_process_group(child_pid).context("terminating orphaned command group")?;
-            child.wait().context("reaping orphaned command leader")?;
-            cleanup_guard.disarm();
-            writeln!(report, "clean").ok();
+            // Cleanup must not depend on the report reader still existing: an
+            // abrupt supervisor death closes both the liveness and report
+            // channels at once.
+            writeln!(report, "owner").ok();
             report.flush().ok();
-            anyhow::bail!("stdin environment command owner exited")
+            terminate_own_process_group()
         }
         Event::CommandExited(result) => {
-            result.context("observing stdin environment command exit")?;
-            if let Err(error) = kill_process_group(child_pid)
-                // Darwin reports EPERM when the process group contains only
-                // its unreaped zombie leader. A group with a live same-user
-                // descendant remains signalable; the descendant regression
-                // below exercises that distinct case.
-                && error.raw_os_error() != Some(libc::EPERM)
-            {
-                return Err(error).context("reaping remaining command group");
-            }
-            let status = child.wait().context("reaping stdin environment command")?;
-            cleanup_guard.disarm();
-            writeln!(report, "clean").ok();
+            let status = result.context("reaping stdin environment command")?;
+            writeln!(report, "command {}", status.into_raw()).ok();
             report.flush().ok();
-            if status.success() {
-                Ok(())
-            } else {
-                anyhow::bail!("stdin environment command exited with {status}")
-            }
+            terminate_own_process_group()
         }
     }
 }
@@ -503,7 +509,7 @@ fn execute_env_exec_guardian(
 #[allow(clippy::disallowed_methods)] // This synchronous process boundary proxies stdio threads.
 fn execute_env_exec(command: Vec<OsString>) -> anyhow::Result<()> {
     use std::{
-        io::{BufRead as _, BufReader, Read as _, Write as _},
+        io::{BufRead as _, BufReader, Write as _},
         os::{fd::AsRawFd as _, unix::net::UnixStream, unix::process::CommandExt as _},
         process::{Command, ExitStatus, Stdio},
         sync::mpsc,
@@ -512,10 +518,45 @@ fn execute_env_exec(command: Vec<OsString>) -> anyhow::Result<()> {
 
     enum Event {
         TransportClosed(std::io::Result<u64>),
-        ChildExited(std::io::Result<ExitStatus>),
+        ChildExited(std::io::Result<()>),
     }
 
     const TRANSPORT_CLOSE_GRACE: Duration = Duration::from_secs(2);
+    const GUARDIAN_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(5);
+
+    fn finish_guardian_exit(
+        observed: std::io::Result<()>,
+        guardian: &mut std::process::Child,
+        guardian_report: &mut impl std::io::Read,
+        process_group_id: i32,
+    ) -> anyhow::Result<(ExitStatus, bool)> {
+        use std::os::unix::process::ExitStatusExt as _;
+
+        observed.context("observing command guardian exit")?;
+        // The guardian remains an unreaped leader until this exact group has
+        // been killed, so the PGID cannot be reused between observation and
+        // cleanup even when the guardian was killed before its readiness report.
+        kill_process_group(process_group_id)
+            .context("terminating command group after guardian exit")?;
+        let guardian_status = guardian.wait().context("reaping command guardian")?;
+        let mut report = String::new();
+        guardian_report
+            .read_to_string(&mut report)
+            .context("reading command guardian terminal report")?;
+        let outcome = report.lines().rev().find(|line| *line != "ready");
+        match outcome {
+            Some("owner") => Ok((ExitStatus::from_raw(1 << 8), true)),
+            Some(line) if line.starts_with("command ") => {
+                let raw_status = line["command ".len()..]
+                    .parse::<i32>()
+                    .context("parsing stdin environment command exit identity")?;
+                Ok((ExitStatus::from_raw(raw_status), false))
+            }
+            _ => anyhow::bail!(
+                "stdin environment command guardian exited unexpectedly with {guardian_status}"
+            ),
+        }
+    }
 
     anyhow::ensure!(!command.is_empty(), "stdin environment command is missing");
     let mut stdin = UnbufferedStdin {
@@ -574,6 +615,7 @@ fn execute_env_exec(command: Vec<OsString>) -> anyhow::Result<()> {
     let mut child = guardian
         .spawn()
         .context("executing stdin environment command guardian")?;
+    let guardian_pid = child.id() as i32;
     drop(owner_reader);
     drop(report_writer);
     let mut owner_writer = Some(owner_writer);
@@ -581,24 +623,37 @@ fn execute_env_exec(command: Vec<OsString>) -> anyhow::Result<()> {
         .set_read_timeout(Some(Duration::from_secs(30)))
         .context("bounding guardian identity report")?;
     let mut guardian_report = BufReader::new(report_reader);
-    let mut command_pid_line = String::new();
-    guardian_report
-        .read_line(&mut command_pid_line)
-        .context("reading guarded command identity")?;
-    let command_process_group = command_pid_line
-        .trim()
-        .parse::<i32>()
-        .context("parsing guarded command identity")?;
-    anyhow::ensure!(
-        command_process_group > 0,
-        "guarded command identity is invalid"
-    );
+    let (event_tx, event_rx) = mpsc::channel();
+    let child_tx = event_tx.clone();
+    thread::spawn(move || {
+        child_tx
+            .send(Event::ChildExited(wait_for_process_exit_without_reaping(
+                guardian_pid,
+            )))
+            .ok();
+    });
+
+    let mut readiness_line = String::new();
+    let readiness = guardian_report
+        .read_line(&mut readiness_line)
+        .context("reading guarded command readiness")
+        .and_then(|_| {
+            anyhow::ensure!(
+                readiness_line.trim() == "ready",
+                "guarded command readiness is invalid"
+            );
+            Ok(())
+        });
+    if let Err(error) = readiness {
+        kill_process_group(guardian_pid).context("terminating unready command group")?;
+        child.wait().context("reaping unready command guardian")?;
+        return Err(error);
+    }
     let mut child_stdin = child.stdin.take().context("taking command stdin")?;
     let mut child_stdout = child.stdout.take().context("taking command stdout")?;
     let mut child_stderr = child.stderr.take().context("taking command stderr")?;
 
-    let (event_tx, event_rx) = mpsc::channel();
-    let transport_tx = event_tx.clone();
+    let transport_tx = event_tx;
     thread::spawn(move || {
         let result = std::io::copy(&mut std::io::stdin().lock(), &mut child_stdin);
         drop(child_stdin);
@@ -616,39 +671,40 @@ fn execute_env_exec(command: Vec<OsString>) -> anyhow::Result<()> {
         stderr.flush()
     });
 
-    thread::spawn(move || {
-        event_tx.send(Event::ChildExited(child.wait())).ok();
-    });
-
     let mut transport_closed = false;
     let mut transport_error = None;
-    let status = loop {
-        match event_rx
-            .recv()
-            .context("waiting for stdin environment command")?
-        {
-            Event::ChildExited(status) => {
-                let status = status.context("waiting for command exit")?;
-                let mut cleanup_report = String::new();
-                let cleanup_reported = guardian_report.read_to_string(&mut cleanup_report).is_ok()
-                    && cleanup_report.lines().any(|line| line == "clean");
-                if !cleanup_reported {
-                    // A guardian crash must not orphan the provider's separate
-                    // process group. The exact PGID was published before this
-                    // supervisor accepted the launch.
-                    let result = unsafe { libc::killpg(command_process_group, libc::SIGKILL) };
-                    if result != 0 {
-                        let error = std::io::Error::last_os_error();
-                        let already_gone = error.raw_os_error() == Some(libc::ESRCH)
-                            || cfg!(target_os = "macos")
-                                && error.raw_os_error() == Some(libc::EPERM);
-                        if !already_gone {
-                            return Err(error)
-                                .context("terminating command group after guardian exit");
-                        }
-                    }
+    let mut guardian_shutdown_deadline: Option<Instant> = None;
+    let (status, owner_closed) = loop {
+        let event = if let Some(deadline) = guardian_shutdown_deadline {
+            let remaining = deadline.saturating_duration_since(Instant::now());
+            match event_rx.recv_timeout(remaining) {
+                Ok(event) => event,
+                Err(mpsc::RecvTimeoutError::Timeout) => {
+                    // A command stuck in uninterruptible I/O can prevent the
+                    // guardian from reaping it. Bound the transport-close path
+                    // so the remote client does not hang indefinitely.
+                    kill_process_group(guardian_pid)
+                        .context("terminating timed-out command group")?;
+                    child.wait().context("reaping timed-out command guardian")?;
+                    anyhow::bail!("stdin environment command cleanup timed out")
                 }
-                break status;
+                Err(mpsc::RecvTimeoutError::Disconnected) => {
+                    anyhow::bail!("stdin environment command monitor disconnected")
+                }
+            }
+        } else {
+            event_rx
+                .recv()
+                .context("waiting for stdin environment command")?
+        };
+        match event {
+            Event::ChildExited(status) => {
+                break finish_guardian_exit(
+                    status,
+                    &mut child,
+                    &mut guardian_report,
+                    guardian_pid,
+                )?;
             }
             Event::TransportClosed(result) => {
                 transport_closed = true;
@@ -658,8 +714,12 @@ fn execute_env_exec(command: Vec<OsString>) -> anyhow::Result<()> {
 
                 match event_rx.recv_timeout(TRANSPORT_CLOSE_GRACE) {
                     Ok(Event::ChildExited(status)) => {
-                        let status = status.context("waiting for command exit")?;
-                        break status;
+                        break finish_guardian_exit(
+                            status,
+                            &mut child,
+                            &mut guardian_report,
+                            guardian_pid,
+                        )?;
                     }
                     Ok(Event::TransportClosed(_)) => continue,
                     Err(mpsc::RecvTimeoutError::Timeout) => {
@@ -670,6 +730,8 @@ fn execute_env_exec(command: Vec<OsString>) -> anyhow::Result<()> {
                         // Continue the outer loop: the supervisor must not
                         // return until the guardian reports ChildExited after
                         // killing and reaping the owned command group.
+                        guardian_shutdown_deadline =
+                            Some(Instant::now() + GUARDIAN_SHUTDOWN_TIMEOUT);
                     }
                     Err(mpsc::RecvTimeoutError::Disconnected) => {
                         anyhow::bail!("stdin environment command monitor disconnected")
@@ -694,10 +756,8 @@ fn execute_env_exec(command: Vec<OsString>) -> anyhow::Result<()> {
 
     if status.success() {
         Ok(())
-    } else if transport_closed {
-        anyhow::bail!("stdin environment command terminated after transport closed: {status}")
     } else {
-        anyhow::bail!("stdin environment command exited with {status}")
+        Err(EnvExecExitError::new(status, transport_closed || owner_closed).into())
     }
 }
 

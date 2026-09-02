@@ -615,6 +615,26 @@ test("bundle-mac signs local installs outside file-provider workspaces", () => {
   assert.ok(installOffset > signOffset, "only the verified signing candidate may be installed");
 });
 
+test("bundle-mac cleans an isolated local signing stage on every exit path", () => {
+  const repositoryRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../..");
+  const bundleScript = fs.readFileSync(path.join(repositoryRoot, "script", "bundle-mac"), "utf8");
+  const stageOffset = bundleScript.indexOf(
+    'signing_stage_directory=$(mktemp -d "${TMPDIR:-/tmp}/zed-10x-signing.XXXXXX")',
+  );
+  const trapOffset = bundleScript.indexOf("trap cleanup EXIT");
+  const installOffset = bundleScript.indexOf('mv "$app_path" "$installed_app_path"', stageOffset);
+  const clearStageOffset = bundleScript.indexOf('signing_stage_directory=""', installOffset);
+
+  assert.ok(stageOffset > 0);
+  assert.ok(trapOffset > 0 && trapOffset < stageOffset, "cleanup must be armed before staging begins");
+  assert.ok(installOffset > stageOffset, "cleanup must cover signing and verification failures");
+  assert.ok(clearStageOffset > installOffset, "the installed stage must be marked clean");
+  assert.match(
+    bundleScript,
+    /function cleanup\(\)[\s\S]*rm -rf -- "\$signing_stage_directory"/,
+  );
+});
+
 test("bundle-mac stops after local installation instead of reusing the moved staging app", () => {
   const repositoryRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../..");
   const bundleScript = fs.readFileSync(path.join(repositoryRoot, "script", "bundle-mac"), "utf8");

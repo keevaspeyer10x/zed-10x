@@ -17,6 +17,16 @@ function sha256(relativePath) {
     .digest("hex");
 }
 
+function sha256AtRevision(revision, relativePath) {
+  const source = spawnSync(
+    "git",
+    ["-C", repositoryRoot, "show", `${revision}:${relativePath}`],
+    { maxBuffer: 16 * 1024 * 1024 },
+  );
+  assert.equal(source.status, 0, `${relativePath} must exist at ${revision}`);
+  return createHash("sha256").update(source.stdout).digest("hex");
+}
+
 const discovery = readJson("docs/discovery-ir.json");
 const plan = readJson("docs/test-plan.json");
 const implementation = readJson("docs/test-implementation-map.json");
@@ -102,7 +112,7 @@ test("every surface and variant source is an existing regular repository file", 
   }
 });
 
-test("production closure is bound to an ancestor revision and current load-bearing bytes", () => {
+test("production closure is bound to unchanged installed load-bearing bytes", () => {
   assert.equal(summary.decisionCandidate, "production_ready");
   assert.equal(implementation.plannedRows, 5);
   assert.equal(implementation.readyNowRows, 5);
@@ -132,6 +142,23 @@ test("production closure is bound to an ancestor revision and current load-beari
     assert.equal(boundInputs.get(relativePath), sha256(relativePath), relativePath);
   }
   for (const [relativePath, digest] of boundInputs) {
+    assert.equal(sha256AtRevision(revision, relativePath), digest, relativePath);
     assert.equal(sha256(relativePath), digest, relativePath);
+  }
+});
+
+test("focused CI executes every containment and alias-policy regression", () => {
+  const workflow = readFileSync(
+    path.join(repositoryRoot, ".github/workflows/zed-10x-ci.yml"),
+    "utf8",
+  );
+  for (const testName of [
+    "unix::env_exec_reaps_its_command_group_when_supervisor_dies_before_identity_report",
+    "unix::env_exec_reaps_its_command_group_when_guardian_dies_before_readiness_report",
+    "unix::env_exec_reaps_its_command_group_when_guardian_dies_after_transport_eof",
+    "unix::env_exec_preserves_the_command_exit_identity",
+    "test_legacy_alias_resolves_dedicated_policy_before_connection_selection",
+  ]) {
+    assert.ok(workflow.includes(testName), testName);
   }
 });

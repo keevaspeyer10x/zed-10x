@@ -18,6 +18,7 @@ notarization_timeout="60m"
 signing_keychain=""
 certificate_file=""
 notarization_key_file=""
+signing_stage_directory=""
 
 # This must match the team in the provisioning profile.
 IDENTITY="Zed Industries, Inc."
@@ -164,6 +165,20 @@ trap - EXIT
 popd
 echo "Bundled ${app_path}"
 
+function cleanup() {
+    if [[ -n "${signing_stage_directory:-}" && -d "$signing_stage_directory" ]]; then
+        rm -rf -- "$signing_stage_directory"
+    fi
+    if [[ -n "${signing_directory:-}" ]]; then
+        echo "Cleaning up keychain"
+        [[ -z "$certificate_file" ]] || rm -f "$certificate_file"
+        [[ -z "$notarization_key_file" ]] || rm -f "$notarization_key_file"
+        [[ -z "$signing_keychain" ]] || security delete-keychain "$signing_keychain" >/dev/null 2>&1 || true
+        rmdir "$signing_directory" >/dev/null 2>&1 || true
+    fi
+}
+trap cleanup EXIT
+
 # DocumentTypes.plist references CFBundleTypeIconFile "Document", so the bundle must contain Document.icns.
 # We use the app icon as a placeholder document icon for now.
 document_icon_source="crates/zed/resources/Document.icns"
@@ -181,15 +196,6 @@ if [[ $can_code_sign == true ]]; then
     signing_keychain="${signing_directory}/zed-signing.keychain-db"
     certificate_file="${signing_directory}/certificate.p12"
     notarization_key_file="${signing_directory}/notarization-key.p8"
-    function cleanup() {
-        echo "Cleaning up keychain"
-        [[ -z "$certificate_file" ]] || rm -f "$certificate_file"
-        [[ -z "$notarization_key_file" ]] || rm -f "$notarization_key_file"
-        [[ -z "$signing_keychain" ]] || security delete-keychain "$signing_keychain" >/dev/null 2>&1 || true
-        [[ -z "${signing_directory:-}" ]] || rmdir "$signing_directory" >/dev/null 2>&1 || true
-    }
-    trap cleanup EXIT
-
     keychain_password=$(/usr/bin/uuidgen)
     /usr/bin/install -m 0600 /dev/null "$certificate_file"
     printf '%s' "$certificate_base64" | base64 --decode > "$certificate_file"
@@ -329,7 +335,7 @@ function codesign_distribution_file() {
 }
 
 function sign_app_binaries() {
-    local signing_stage_directory=""
+    signing_stage_directory=""
     if [[ "$local_install" == true ]]; then
         # A repository may live under a file-provider root. Those daemons can
         # immediately restore FinderInfo after xattr removes it, racing
@@ -402,7 +408,8 @@ function sign_app_binaries() {
         local installed_app_path="/Applications/$bundle_name"
         rm -rf "$installed_app_path"
         mv "$app_path" "$installed_app_path"
-        rmdir "$signing_stage_directory"
+        rm -rf -- "$signing_stage_directory"
+        signing_stage_directory=""
         # File-provider metadata may be stamped during the move into /Applications,
         # after the pre-signing cleanup above. Clear it again and prove the installed
         # bundle still satisfies the signature contract before reporting success.

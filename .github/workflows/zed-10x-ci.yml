@@ -73,6 +73,7 @@ jobs:
           cargo test --locked -p agent_servers test_custom_agent_dedicated_connection_setting --lib
           cargo test --locked -p agent_ui test_retained_thread_does_not_share_dedicated_agent_connection --lib
           cargo test --locked -p agent_ui test_superseded_dedicated_connection_can_finish_for_existing_owner --lib
+          cargo test --locked -p agent_ui test_legacy_alias_resolves_dedicated_policy_before_connection_selection --lib
           cargo test --locked -p agent_ui test_new_external_agent_replaces_mismatched_ephemeral_draft --lib
           cargo test --locked -p agent_ui test_new_workspace_ignores_unavailable_global_last_used_agent --lib
           cargo test --locked -p agent_ui test_pending_registry_agent_waits_for_authoritative_inventory --lib
@@ -106,7 +107,12 @@ jobs:
           cargo test --locked -p remote_server --test env_exec unix::env_exec_reaps_a_command_group_that_ignores_transport_eof -- --exact
           cargo test --locked -p remote_server --test env_exec unix::env_exec_reaps_descendants_after_the_direct_command_exits -- --exact
           cargo test --locked -p remote_server --test env_exec unix::env_exec_reaps_its_command_group_when_the_supervisor_is_killed -- --exact
+          cargo test --locked -p remote_server --test env_exec unix::env_exec_reaps_its_command_group_when_supervisor_dies_before_identity_report -- --exact
+          cargo test --locked -p remote_server --test env_exec unix::env_exec_reaps_its_command_group_when_guardian_dies_before_readiness_report -- --exact
           cargo test --locked -p remote_server --test env_exec unix::env_exec_reaps_its_command_group_when_the_guardian_is_killed -- --exact
+          cargo test --locked -p remote_server --test env_exec unix::env_exec_reaps_its_command_group_when_guardian_dies_after_transport_eof -- --exact
+          cargo test --locked -p remote_server --test env_exec unix::env_exec_preserves_the_command_exit_identity -- --exact
+          cargo test --locked -p remote_server --test env_exec unix::env_exec_guardian_rejects_standard_descriptors -- --exact
 
       - name: Test the Zed 10x updater and release channel
         run: |
