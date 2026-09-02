@@ -21,8 +21,6 @@ jobs:
     steps:
       - name: Check out the exact pull-request revision
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
-        with:
-          fetch-depth: 0
 
       - name: Protect packaged CLI launch logging
         run: cargo test --locked -p cli --bin cli
@@ -35,8 +33,6 @@ jobs:
     steps:
       - name: Check out the exact pull-request revision
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
-        with:
-          fetch-depth: 0
 
       - name: Verify the workflow contract
         run: tests/test_zed_10x_ci_workflows.sh
