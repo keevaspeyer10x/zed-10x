@@ -110,6 +110,28 @@ if [[ -e "$receipt_path" || -L "$receipt_path" ]]; then
     echo "Refusing to replace an existing release verification receipt" >&2
     exit 1
 fi
+if [[ ! "${GITHUB_RUN_NUMBER:-}" =~ ^[0-9]+$ ]]; then
+    echo "Zed 10x release signing requires a numeric GITHUB_RUN_NUMBER" >&2
+    exit 2
+fi
+expected_commit=$(git rev-parse HEAD)
+if [[ ! "$expected_commit" =~ ^[0-9a-f]{40}$ ]]; then
+    echo "git HEAD is not a full lowercase commit" >&2
+    exit 2
+fi
+expected_version=$(node script/zed-10x-release-version.mjs --print version --cargo crates/zed/Cargo.toml --run "$GITHUB_RUN_NUMBER" --commit "$expected_commit")
+release_version_marker="${app_path}/Contents/Resources/zed-10x-release-version"
+require_regular_file "$release_version_marker" "release version marker"
+marker_version=$(tr -d '[:space:]' < "$release_version_marker")
+if [[ "$marker_version" != "$expected_version" ]]; then
+    echo "Prepared app release version does not match the release identity" >&2
+    exit 1
+fi
+git_marker=$(tr -d '[:space:]' < "${app_path}/Contents/Resources/zed-10x-git-commit")
+if [[ "$git_marker" != "$expected_commit" ]]; then
+    echo "Prepared app source revision does not match git HEAD" >&2
+    exit 1
+fi
 
 signing_directory=""
 signing_keychain=""
@@ -204,10 +226,10 @@ rm -f "$notarization_key_file"
 notarization_key=""
 "${xcode_bin_directory}/stapler" staple "$dmg_path"
 
-expected_commit=$(git rev-parse HEAD)
 node script/verify-zed-10x-macos-release.mjs \
     --dmg "$dmg_path" \
     --remote-server "$remote_server_archive" \
     --expected-commit "$expected_commit" \
     --expected-team-id "$team_id" \
+    --expected-version "$expected_version" \
     --receipt "$receipt_path"

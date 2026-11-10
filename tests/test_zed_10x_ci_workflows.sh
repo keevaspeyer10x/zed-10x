@@ -232,6 +232,16 @@ if [[ -f "$RELEASE" ]]; then
         contains "$RELEASE" "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd"
     check "release build is credential-free" \
         contains "$RELEASE" "./script/bundle-mac --zed-10x-prepare-release aarch64-apple-darwin"
+    check "release identity comes from the shared version formula" \
+        contains "$RELEASE" "script/zed-10x-release-version.mjs"
+    check "release build stamps the run number" \
+        contains "$RELEASE" "ZED_BUILD_ID="
+    check "release build stamps the commit" \
+        contains "$RELEASE" "ZED_COMMIT_SHA="
+    check "release tag is not derived inline from the run number" \
+        not_contains "$RELEASE" '+dev.${GITHUB_RUN_NUMBER}.${GITHUB_SHA}'
+    check "release build does not export ZED_APP_VERSION" \
+        not_contains "$RELEASE" "ZED_APP_VERSION"
     check "release signing is a separate narrow step" \
         contains "$RELEASE" "./script/sign-zed-10x-macos-release aarch64-apple-darwin"
     check "release signing uses a fresh runner after unsigned build" \

@@ -134,6 +134,9 @@ export function verifyPublication({ directory, expectedCommit, expectedVersion }
   if (receipt.sourceCommit !== expectedCommit) {
     throw new Error("release receipt source commit mismatch");
   }
+  if (typeof receipt.releaseVersion !== "string" || receipt.releaseVersion !== expectedVersion) {
+    throw new Error("release receipt version mismatch");
+  }
   const dmgSha256 = sha256File(path.join(directory, "Zed-10x-aarch64.dmg"));
   const remoteServerSha256 = sha256File(path.join(directory, "zed-remote-server-macos-aarch64.gz"));
   if (receipt.dmgSha256 !== dmgSha256) {

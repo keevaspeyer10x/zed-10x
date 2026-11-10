@@ -271,7 +271,27 @@ impl FromStr for ReleaseChannel {
 
 #[cfg(test)]
 mod tests {
-    use super::ReleaseChannel;
+    use super::{AppCommitSha, AppVersion, ReleaseChannel};
+
+    #[test]
+    fn test_dev_release_identity_includes_the_run_number() {
+        assert!(
+            std::env::var_os("ZED_APP_VERSION").is_none(),
+            "ZED_APP_VERSION replaces the Cargo version and must stay unset"
+        );
+        assert_eq!(
+            *super::RELEASE_CHANNEL,
+            ReleaseChannel::Dev,
+            "ZED_RELEASE_CHANNEL must not override the dev release identity under test"
+        );
+        let commit = "0123456789abcdef0123456789abcdef01234567";
+        let sha = AppCommitSha::new(commit.to_string());
+        let stamped = AppVersion::load("1.14.0", Some("42"), Some(sha.clone()));
+        let local = AppVersion::load("1.14.0", None, Some(sha));
+        assert_eq!(stamped.to_string(), format!("1.14.0+dev.42.{commit}"));
+        assert_eq!(local.to_string(), format!("1.14.0+dev.{commit}"));
+        assert_ne!(stamped, local);
+    }
 
     #[test]
     fn test_docs_url_for_release_channel() {

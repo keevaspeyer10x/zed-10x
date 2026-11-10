@@ -15,6 +15,7 @@ import {
 
 const TEAM_ID = "A1B2C3D4E5";
 const COMMIT = "0123456789abcdef0123456789abcdef01234567";
+const RELEASE_VERSION = `1.14.0+dev.42.${COMMIT}`;
 
 function appFixture(root, name = "Zed 10x.app") {
   const appPath = path.join(root, name);
@@ -26,6 +27,10 @@ function appFixture(root, name = "Zed 10x.app") {
     fs.writeFileSync(path.join(appPath, "Contents", "MacOS", executable), "x");
   }
   fs.writeFileSync(path.join(appPath, "Contents", "Resources", "zed-10x-git-commit"), `${COMMIT}\n`);
+  fs.writeFileSync(
+    path.join(appPath, "Contents", "Resources", "zed-10x-release-version"),
+    `${RELEASE_VERSION}\n`,
+  );
   fs.writeFileSync(path.join(appPath, "Contents", "Info.plist"), "fixture");
   return appPath;
 }
@@ -159,6 +164,7 @@ test("verifies the fork identity and every shipped executable without --deep", a
   const result = await verifyAppBundle({
     appPath,
     expectedCommit: COMMIT,
+    expectedVersion: RELEASE_VERSION,
     expectedTeamId: TEAM_ID,
     readPlist: plistReader(),
     runCommand: successfulRunner(commands),
@@ -167,6 +173,7 @@ test("verifies the fork identity and every shipped executable without --deep", a
   assert.equal(result.bundleIdentifier, "ai.10xlabs.Zed10x");
   assert.equal(result.teamId, TEAM_ID);
   assert.equal(result.sourceCommit, COMMIT);
+  assert.equal(result.releaseVersion, RELEASE_VERSION);
   assert.equal(result.hardenedRuntime, true);
   assert.equal(
     commands.filter(([command, argument]) => command === "/usr/bin/codesign" && argument === "--verify").length,
@@ -184,6 +191,7 @@ test("rejects a valid signature from the wrong Developer ID team", async () => {
     verifyAppBundle({
       appPath,
       expectedCommit: COMMIT,
+      expectedVersion: RELEASE_VERSION,
       expectedTeamId: TEAM_ID,
       readPlist: plistReader(),
       runCommand: successfulRunner([], { teamId: "WRONG12345" }),
@@ -215,6 +223,7 @@ test("rejects a shipped executable signed by another Developer ID team", async (
     verifyAppBundle({
       appPath,
       expectedCommit: COMMIT,
+      expectedVersion: RELEASE_VERSION,
       expectedTeamId: TEAM_ID,
       readPlist: plistReader(),
       runCommand,
@@ -232,6 +241,7 @@ test("rejects an inherited upstream provisioning profile", async () => {
     verifyAppBundle({
       appPath,
       expectedCommit: COMMIT,
+      expectedVersion: RELEASE_VERSION,
       expectedTeamId: TEAM_ID,
       readPlist: plistReader(),
       runCommand: successfulRunner([]),
@@ -249,6 +259,7 @@ test("rejects even a broken provisioning-profile symlink", async () => {
     verifyAppBundle({
       appPath,
       expectedCommit: COMMIT,
+      expectedVersion: RELEASE_VERSION,
       expectedTeamId: TEAM_ID,
       readPlist: plistReader(),
       runCommand: successfulRunner([]),
@@ -276,6 +287,7 @@ test("rejects an app without hardened runtime", async () => {
     verifyAppBundle({
       appPath,
       expectedCommit: COMMIT,
+      expectedVersion: RELEASE_VERSION,
       expectedTeamId: TEAM_ID,
       readPlist: plistReader(),
       runCommand,
@@ -307,6 +319,7 @@ test("verifies the mounted app, always detaches, and writes a content-free recei
     dmgPath,
     remoteServerPath,
     expectedCommit: COMMIT,
+    expectedVersion: RELEASE_VERSION,
     expectedTeamId: TEAM_ID,
     receiptPath,
     readPlist: plistReader(),
@@ -314,6 +327,7 @@ test("verifies the mounted app, always detaches, and writes a content-free recei
   });
 
   assert.equal(receipt.status, "verified");
+  assert.equal(receipt.releaseVersion, RELEASE_VERSION);
   assert.equal(receipt.sourceCommit, COMMIT);
   assert.equal(receipt.teamId, TEAM_ID);
   assert.equal(receipt.dmgSha256, crypto.createHash("sha256").update("signed-dmg-fixture").digest("hex"));
@@ -348,6 +362,7 @@ test("rejects a disk image not signed with Developer ID Application", async () =
       dmgPath,
       remoteServerPath: remoteServerFixture(root),
       expectedCommit: COMMIT,
+      expectedVersion: RELEASE_VERSION,
       expectedTeamId: TEAM_ID,
       receiptPath: path.join(root, "release-receipt.json"),
       readPlist: plistReader(),
@@ -380,6 +395,7 @@ test("detaches a mounted image when app verification fails", async () => {
       dmgPath,
       remoteServerPath,
       expectedCommit: COMMIT,
+      expectedVersion: RELEASE_VERSION,
       expectedTeamId: TEAM_ID,
       receiptPath: path.join(root, "release-receipt.json"),
       readPlist: plistReader({ ":CFBundleIdentifier": "dev.zed.Zed" }),
@@ -416,6 +432,7 @@ test("force-detaches a mounted image when ordinary detach fails", async () => {
     dmgPath,
     remoteServerPath,
     expectedCommit: COMMIT,
+    expectedVersion: RELEASE_VERSION,
     expectedTeamId: TEAM_ID,
     receiptPath: path.join(root, "release-receipt.json"),
     readPlist: plistReader(),
@@ -450,6 +467,7 @@ test("never replaces an existing immutable release receipt", async () => {
     dmgPath,
     remoteServerPath,
     expectedCommit: COMMIT,
+    expectedVersion: RELEASE_VERSION,
     expectedTeamId: TEAM_ID,
     receiptPath,
     readPlist: plistReader(),
@@ -715,6 +733,9 @@ test("release signer unsets reusable credentials before any build-capable subpro
 
   assert.ok(unsetOffset > 0);
   assert.ok(firstExternalToolOffset > unsetOffset);
+  const versionScriptOffset = signingScript.indexOf("script/zed-10x-release-version.mjs");
+  assert.ok(versionScriptOffset > unsetOffset, "the version formula must not inherit signing credentials");
+  assert.match(signingScript, /--expected-version "\$expected_version"/);
   assert.doesNotMatch(signingScript, /cargo (?:build|install)|npm install|curl /);
 });
 
@@ -731,12 +752,152 @@ test("the protected release workflow publishes one immutable-feed candidate", ()
   assert.match(workflow, /zed-remote-server-macos-aarch64\.gz/);
   assert.match(workflow, /zed-10x-release-receipt\.json/);
   assert.match(workflow, /zed-10x-v\$\{release_version\}/);
+  assert.match(workflow, /script\/zed-10x-release-version\.mjs/);
+  assert.match(workflow, /ZED_BUILD_ID=/);
+  assert.match(workflow, /ZED_COMMIT_SHA=/);
+  assert.doesNotMatch(workflow, /ZED_APP_VERSION/);
+  assert.doesNotMatch(workflow, /\+dev\.\$\{GITHUB_RUN_NUMBER\}\.\$\{GITHUB_SHA\}/);
+  const linuxCargo = workflow.indexOf('cargo build --locked --release --target');
+  const bundle = workflow.indexOf("./script/bundle-mac --zed-10x-prepare-release aarch64-apple-darwin");
+  const stampOffsets = [...workflow.matchAll(/script\/zed-10x-release-version\.mjs/g)].map((match) => match.index);
+  assert.equal(stampOffsets.length, 3);
+  assert.ok(stampOffsets[0] < linuxCargo, "Linux remote servers must be stamped before cargo");
+  assert.ok(stampOffsets[1] < bundle, "the unsigned app must be stamped before bundle-mac");
+  assert.ok(stampOffsets[2] > bundle, "publication metadata recomputes the same formula");
   assert.match(workflow, /github\.repository == 'keevaspeyer10x\/zed-10x' && github\.ref == 'refs\/heads\/main'/);
   assert.doesNotMatch(workflow, /release create[^\n]*--prerelease/);
   assert.ok(
     workflow.indexOf("--expected-state draft-uploaded") < workflow.indexOf('gh release edit "$release_tag" --draft=false'),
     "the complete uploaded draft must be verified before publication",
   );
+});
+
+test("release identity is one version across the formula, receipt, and updater tag", () => {
+  const repositoryRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../..");
+  const helper = path.join(repositoryRoot, "script", "zed-10x-release-version.mjs");
+  const commit = COMMIT;
+  const stamped = spawnSync(process.execPath, [
+    helper,
+    "--print",
+    "version",
+    "--cargo",
+    path.join(repositoryRoot, "crates", "zed", "Cargo.toml"),
+    "--run",
+    "42",
+    "--commit",
+    commit,
+  ], { encoding: "utf8" });
+  assert.equal(stamped.status, 0, stamped.stderr);
+  assert.equal(stamped.stdout, `${RELEASE_VERSION}\n`);
+
+  const shaOnly = spawnSync(process.execPath, [
+    helper,
+    "--print",
+    "version",
+    "--base",
+    "1.14.0",
+    "--commit",
+    commit,
+  ], { encoding: "utf8" });
+  assert.equal(shaOnly.status, 2);
+  assert.match(shaOnly.stderr, /requires --run and --commit/);
+
+  const wrongRun = spawnSync(process.execPath, [
+    helper,
+    "--print",
+    "version",
+    "--base",
+    "1.14.0",
+    "--run",
+    "42a",
+    "--commit",
+    commit,
+  ], { encoding: "utf8" });
+  assert.equal(wrongRun.status, 2);
+  assert.match(wrongRun.stderr, /decimal digits/);
+
+  const uppercase = spawnSync(process.execPath, [
+    helper,
+    "--print",
+    "version",
+    "--base",
+    "1.14.0",
+    "--run",
+    "42",
+    "--commit",
+    commit.toUpperCase(),
+  ], { encoding: "utf8" });
+  assert.equal(uppercase.status, 2);
+  assert.match(uppercase.stderr, /lowercase hexadecimal/);
+
+  const tag = `zed-10x-v${RELEASE_VERSION}`;
+  const requestedUrl = `https://api.github.com/repos/keevaspeyer10x/zed-10x/releases/tags/${tag.replaceAll("+", "%2B")}`;
+  const shaOnlyTag = `zed-10x-v1.14.0+dev.${commit}`;
+  assert.equal(
+    requestedUrl,
+    `https://api.github.com/repos/keevaspeyer10x/zed-10x/releases/tags/zed-10x-v1.14.0%2Bdev.42.${commit}`,
+  );
+  assert.notEqual(tag, shaOnlyTag);
+
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "zed-10x-identity-"));
+  for (const name of [
+    "Zed-10x-aarch64.dmg",
+    "zed-remote-server-linux-aarch64.gz",
+    "zed-remote-server-linux-x86_64.gz",
+    "zed-remote-server-macos-aarch64.gz",
+  ]) {
+    fs.writeFileSync(path.join(root, name), name);
+  }
+  const dmg = fs.readFileSync(path.join(root, "Zed-10x-aarch64.dmg"));
+  const remoteServer = fs.readFileSync(path.join(root, "zed-remote-server-macos-aarch64.gz"));
+  fs.writeFileSync(path.join(root, "zed-10x-release-receipt.json"), `${JSON.stringify({
+    schema: "zed-10x-macos-release-verification-v1",
+    status: "verified",
+    releaseVersion: RELEASE_VERSION,
+    sourceCommit: COMMIT,
+    dmgSha256: crypto.createHash("sha256").update(dmg).digest("hex"),
+    remoteServerSha256: crypto.createHash("sha256").update(remoteServer).digest("hex"),
+  })}\n`);
+  assert.equal(verifyPublication({
+    directory: root,
+    expectedCommit: COMMIT,
+    expectedVersion: RELEASE_VERSION,
+  }).expectedVersion, RELEASE_VERSION);
+  const receipt = JSON.parse(fs.readFileSync(path.join(root, "zed-10x-release-receipt.json"), "utf8"));
+  receipt.releaseVersion = `1.14.0+dev.7.${COMMIT}`;
+  fs.writeFileSync(path.join(root, "zed-10x-release-receipt.json"), `${JSON.stringify(receipt)}\n`);
+  assert.throws(
+    () => verifyPublication({
+      directory: root,
+      expectedCommit: COMMIT,
+      expectedVersion: RELEASE_VERSION,
+    }),
+    /release receipt version mismatch/,
+  );
+});
+
+test("app verification rejects a release marker that is missing or not the requested identity", async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "zed-10x-release-marker-"));
+  const appPath = appFixture(root);
+  const versionPath = path.join(appPath, "Contents", "Resources", "zed-10x-release-version");
+  const common = {
+    appPath,
+    expectedCommit: COMMIT,
+    expectedTeamId: TEAM_ID,
+    expectedVersion: RELEASE_VERSION,
+    readPlist: plistReader(),
+    runCommand: successfulRunner([]),
+  };
+
+  fs.rmSync(versionPath);
+  await assert.rejects(verifyAppBundle(common), /release version marker is missing/);
+
+  const otherCommit = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+  fs.writeFileSync(versionPath, `1.14.0+dev.42.${otherCommit}\n`);
+  await assert.rejects(verifyAppBundle(common), /release version commit does not match the source revision marker/);
+
+  fs.writeFileSync(versionPath, `1.14.0+dev.7.${COMMIT}\n`);
+  await assert.rejects(verifyAppBundle(common), /release version mismatch/);
 });
 
 test("publication is bound to the signed receipt, exact commit, and exact file set", () => {
@@ -752,6 +913,7 @@ test("publication is bound to the signed receipt, exact commit, and exact file s
     `${JSON.stringify({
       schema: "zed-10x-macos-release-verification-v1",
       status: "verified",
+      releaseVersion: RELEASE_VERSION,
       sourceCommit: COMMIT,
       dmgSha256: crypto.createHash("sha256").update(dmg).digest("hex"),
       remoteServerSha256: crypto.createHash("sha256").update(remoteServer).digest("hex"),
@@ -788,6 +950,7 @@ test("publication safely resumes an exact draft and verifies an immutable rerun"
   const receipt = Buffer.from(`${JSON.stringify({
     schema: "zed-10x-macos-release-verification-v1",
     status: "verified",
+    releaseVersion: RELEASE_VERSION,
     sourceCommit: COMMIT,
     dmgSha256: crypto.createHash("sha256").update(files.get("Zed-10x-aarch64.dmg")).digest("hex"),
     remoteServerSha256: crypto

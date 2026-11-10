@@ -84,6 +84,28 @@ if [[ "$zed_10x_release" == true ]]; then
         echo "--zed-10x-prepare-release cannot install over a local application" >&2
         exit 2
     fi
+    if [[ -n "${ZED_APP_VERSION:-}" ]]; then
+        echo "--zed-10x-prepare-release refuses ZED_APP_VERSION because it replaces the stamped release identity" >&2
+        exit 2
+    fi
+    if [[ ! "${ZED_BUILD_ID:-}" =~ ^[0-9]+$ ]]; then
+        echo "--zed-10x-prepare-release requires a numeric ZED_BUILD_ID" >&2
+        exit 2
+    fi
+    if [[ -n "${GITHUB_RUN_NUMBER:-}" && "$GITHUB_RUN_NUMBER" != "$ZED_BUILD_ID" ]]; then
+        echo "--zed-10x-prepare-release ZED_BUILD_ID does not match GITHUB_RUN_NUMBER" >&2
+        exit 2
+    fi
+    if [[ ! "${ZED_COMMIT_SHA:-}" =~ ^[0-9a-f]{40}$ ]]; then
+        echo "--zed-10x-prepare-release requires a 40-character lowercase ZED_COMMIT_SHA" >&2
+        exit 2
+    fi
+    head_commit=$(git rev-parse HEAD)
+    if [[ "$head_commit" != "$ZED_COMMIT_SHA" ]]; then
+        echo "--zed-10x-prepare-release ZED_COMMIT_SHA does not match git HEAD" >&2
+        exit 2
+    fi
+    zed_10x_release_version=$(node script/zed-10x-release-version.mjs --print version --cargo crates/zed/Cargo.toml --run "$ZED_BUILD_ID" --commit "$ZED_COMMIT_SHA")
 elif [[ -n "${MACOS_CERTIFICATE:-}" && -n "${MACOS_CERTIFICATE_PASSWORD:-}" && -n "${APPLE_NOTARIZATION_KEY:-}" && -n "${APPLE_NOTARIZATION_KEY_ID:-}" && -n "${APPLE_NOTARIZATION_ISSUER_ID:-}" ]]; then
     can_code_sign=true
     certificate_base64="$MACOS_CERTIFICATE"
@@ -285,9 +307,10 @@ function assemble_zed_10x_canary() {
     fi
 }
 
-# Locally-built bundles cannot use published release assets: dev versions embed the
-# commit sha, so no release tag can ever match. Bundle commit-matched remote servers
-# instead; the client prefers them before consulting the GitHub Releases API.
+# Local installs do not set ZED_BUILD_ID, so their dev version is
+# {base}+dev.{sha} and cannot match a published zed-10x-v{base}+dev.{run}.{sha}
+# tag. Bundle commit-matched remote servers instead. The release lane stamps
+# the run number and publishes servers as release assets.
 # Must run after sign_binary so the bundled macOS server carries the signed bytes.
 function bundle_zed_10x_remote_servers() {
     local remote_server_dir="${app_path}/Contents/Resources/remote-server"
@@ -547,6 +570,11 @@ upload_debug_symbols
 cp target/${target_triple}/${target_dir}/zed-10x "${app_path}/Contents/MacOS/zed-10x"
 cp target/${target_triple}/${target_dir}/cli "${app_path}/Contents/MacOS/cli"
 assemble_zed_10x_canary
+if [[ "$zed_10x_release" == true ]]; then
+    release_version_path="${app_path}/Contents/Resources/zed-10x-release-version"
+    printf '%s\n' "$zed_10x_release_version" > "$release_version_path"
+    chmod 0644 "$release_version_path"
+fi
 
 sign_binary "target/${target_triple}/${target_dir}/remote_server"
 gzip -f --stdout --best "target/${target_triple}/${target_dir}/remote_server" > "target/zed-remote-server-macos-${arch_suffix}.gz"
