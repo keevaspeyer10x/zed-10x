@@ -107,7 +107,11 @@ export function verifyPublication({ directory, expectedCommit, expectedVersion }
   if (!/^[0-9a-f]{40}$/.test(expectedCommit)) {
     throw new Error("expected commit must be a full lowercase Git SHA");
   }
-  if (!/^\d+\.\d+\.\d+\+dev\.\d+\.[0-9a-f]{40}$/.test(expectedVersion)) {
+  if (
+    !/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\+dev\.\d+\.[0-9a-f]{40}$/.test(
+      expectedVersion,
+    )
+  ) {
     throw new Error("expected version must be a Zed 10x release semantic version");
   }
   if (!expectedVersion.endsWith(`.${expectedCommit}`)) {
@@ -133,6 +137,9 @@ export function verifyPublication({ directory, expectedCommit, expectedVersion }
   }
   if (receipt.sourceCommit !== expectedCommit) {
     throw new Error("release receipt source commit mismatch");
+  }
+  if (typeof receipt.releaseVersion !== "string" || receipt.releaseVersion !== expectedVersion) {
+    throw new Error("release receipt version mismatch");
   }
   const dmgSha256 = sha256File(path.join(directory, "Zed-10x-aarch64.dmg"));
   const remoteServerSha256 = sha256File(path.join(directory, "zed-remote-server-macos-aarch64.gz"));

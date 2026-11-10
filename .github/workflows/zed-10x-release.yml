@@ -36,6 +36,21 @@ jobs:
       - name: Install Linux build dependencies
         run: ./script/linux
 
+      - name: Set up Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: "24"
+          check-latest: true
+
+      - name: Stamp the Zed 10x release identity
+        run: |
+          release_version="$(node script/zed-10x-release-version.mjs --print version --cargo crates/zed/Cargo.toml --run "${GITHUB_RUN_NUMBER}" --commit "${GITHUB_SHA}")"
+          test -n "${release_version}"
+          {
+            printf 'ZED_BUILD_ID=%s\n' "${GITHUB_RUN_NUMBER}"
+            printf 'ZED_COMMIT_SHA=%s\n' "${GITHUB_SHA}"
+          } >> "${GITHUB_ENV}"
+
       - name: Build the matching Linux remote server
         run: |
           rustup target add "${{ matrix.triple }}"
@@ -69,6 +84,15 @@ jobs:
 
       - name: Run release regression tests
         run: node --test script/tests/zed-10x-macos-release.test.mjs script/tests/zed-10x-product-identity.test.mjs
+
+      - name: Stamp the Zed 10x release identity
+        run: |
+          release_version="$(node script/zed-10x-release-version.mjs --print version --cargo crates/zed/Cargo.toml --run "${GITHUB_RUN_NUMBER}" --commit "${GITHUB_SHA}")"
+          test -n "${release_version}"
+          {
+            printf 'ZED_BUILD_ID=%s\n' "${GITHUB_RUN_NUMBER}"
+            printf 'ZED_COMMIT_SHA=%s\n' "${GITHUB_SHA}"
+          } >> "${GITHUB_ENV}"
 
       - name: Build the unsigned release inputs
         run: ./script/bundle-mac --zed-10x-prepare-release aarch64-apple-darwin
@@ -132,8 +156,7 @@ jobs:
       - name: Prepare immutable release metadata
         id: release-metadata
         run: |
-          base_version=$(node -e 'const fs=require("node:fs"); const source=fs.readFileSync("crates/zed/Cargo.toml","utf8"); const value=source.match(/^version = "([0-9]+\.[0-9]+\.[0-9]+)"$/m)?.[1]; if (!value) process.exit(2); process.stdout.write(value)')
-          release_version="${base_version}+dev.${GITHUB_RUN_NUMBER}.${GITHUB_SHA}"
+          release_version="$(node script/zed-10x-release-version.mjs --print version --cargo crates/zed/Cargo.toml --run "${GITHUB_RUN_NUMBER}" --commit "${GITHUB_SHA}")"
           release_tag="zed-10x-v${release_version}"
           printf 'release-version=%s\n' "$release_version" >> "$GITHUB_OUTPUT"
           printf 'release-tag=%s\n' "$release_tag" >> "$GITHUB_OUTPUT"

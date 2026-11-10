@@ -29,7 +29,9 @@ use node_runtime::{NodeBinaryOptions, NodeRuntime};
 use paths::logs_dir;
 use project::{project_settings::ProjectSettings, trusted_worktrees};
 use proto::CrashReport;
-use release_channel::{AppCommitSha, AppVersion, RELEASE_CHANNEL, ReleaseChannel};
+use release_channel::{
+    AppCommitSha, AppVersion, RELEASE_CHANNEL, ReleaseChannel, nonempty_compile_stamp,
+};
 use remote::{
     RemoteClient,
     json_log::LogRecord,
@@ -223,9 +225,9 @@ pub fn run(command: Commands) -> anyhow::Result<()> {
                     println!("{}", env!("ZED_PKG_VERSION"))
                 }
                 ReleaseChannel::Nightly | ReleaseChannel::Dev => {
-                    let commit_sha =
-                        option_env!("ZED_COMMIT_SHA").unwrap_or(release_channel.dev_name());
-                    let build_id = option_env!("ZED_BUILD_ID");
+                    let commit_sha = nonempty_compile_stamp(option_env!("ZED_COMMIT_SHA"))
+                        .unwrap_or(release_channel.dev_name());
+                    let build_id = nonempty_compile_stamp(option_env!("ZED_BUILD_ID"));
                     if let Some(build_id) = build_id {
                         println!("{}+{}", build_id, commit_sha)
                     } else {
@@ -930,8 +932,9 @@ fn execute_env_exec_pty(
 pub static VERSION: LazyLock<String> = LazyLock::new(|| match *RELEASE_CHANNEL {
     ReleaseChannel::Stable | ReleaseChannel::Preview => env!("ZED_PKG_VERSION").to_owned(),
     ReleaseChannel::Nightly | ReleaseChannel::Dev => {
-        let commit_sha = option_env!("ZED_COMMIT_SHA").unwrap_or("missing-zed-commit-sha");
-        let build_identifier = option_env!("ZED_BUILD_ID");
+        let commit_sha = nonempty_compile_stamp(option_env!("ZED_COMMIT_SHA"))
+            .unwrap_or("missing-zed-commit-sha");
+        let build_identifier = nonempty_compile_stamp(option_env!("ZED_BUILD_ID"));
         if let Some(build_id) = build_identifier {
             format!("{build_id}+{commit_sha}")
         } else {
@@ -1375,25 +1378,29 @@ pub fn execute_run(
         client::telemetry::should_install_crash_handler(*RELEASE_CHANNEL);
 
     let crash_handler = if should_install_crash_handler {
-        Some(app.background_executor().spawn(crashes::init(
-            crashes::InitCrashHandler {
-                session_id: id,
-                zed_version: VERSION.to_owned(),
-                binary: "zed-remote-server".to_string(),
-                release_channel: release_channel::RELEASE_CHANNEL_NAME.clone(),
-                commit_sha: option_env!("ZED_COMMIT_SHA").unwrap_or("no_sha").to_owned(),
-            },
-            {
-                let background_executor = app.background_executor();
-                move |task| {
-                    background_executor.spawn(task).detach();
-                }
-            },
-            |pid| paths::temp_dir().join(format!("zed-remote-server-crash-handler-{pid}")),
-            // we are running outside gpui
-            #[allow(clippy::disallowed_methods)]
-            |duration| FutureExt::map(Timer::after(duration), |_| ()),
-        )))
+        Some(
+            app.background_executor().spawn(crashes::init(
+                crashes::InitCrashHandler {
+                    session_id: id,
+                    zed_version: VERSION.to_owned(),
+                    binary: "zed-remote-server".to_string(),
+                    release_channel: release_channel::RELEASE_CHANNEL_NAME.clone(),
+                    commit_sha: nonempty_compile_stamp(option_env!("ZED_COMMIT_SHA"))
+                        .unwrap_or("no_sha")
+                        .to_owned(),
+                },
+                {
+                    let background_executor = app.background_executor();
+                    move |task| {
+                        background_executor.spawn(task).detach();
+                    }
+                },
+                |pid| paths::temp_dir().join(format!("zed-remote-server-crash-handler-{pid}")),
+                // we are running outside gpui
+                #[allow(clippy::disallowed_methods)]
+                |duration| FutureExt::map(Timer::after(duration), |_| ()),
+            )),
+        )
     } else {
         crashes::force_backtrace();
         None
@@ -1445,10 +1452,11 @@ pub fn execute_run(
             .detach();
         }
         settings::init(cx);
-        let app_commit_sha = option_env!("ZED_COMMIT_SHA").map(|s| AppCommitSha::new(s.to_owned()));
+        let app_commit_sha = nonempty_compile_stamp(option_env!("ZED_COMMIT_SHA"))
+            .map(|s| AppCommitSha::new(s.to_owned()));
         let app_version = AppVersion::load(
             env!("ZED_PKG_VERSION"),
-            option_env!("ZED_BUILD_ID"),
+            nonempty_compile_stamp(option_env!("ZED_BUILD_ID")),
             app_commit_sha,
         );
         release_channel::init(app_version, cx);
@@ -1702,7 +1710,9 @@ pub(crate) fn execute_proxy(
                 zed_version: VERSION.to_owned(),
                 binary: "zed-remote-proxy".to_string(),
                 release_channel: release_channel::RELEASE_CHANNEL_NAME.clone(),
-                commit_sha: option_env!("ZED_COMMIT_SHA").unwrap_or("no_sha").to_owned(),
+                commit_sha: nonempty_compile_stamp(option_env!("ZED_COMMIT_SHA"))
+                    .unwrap_or("no_sha")
+                    .to_owned(),
             },
             |task| {
                 smol::spawn(task).detach();

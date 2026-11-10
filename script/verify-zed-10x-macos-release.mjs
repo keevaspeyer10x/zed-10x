@@ -18,6 +18,17 @@ const EXPECTED_EXECUTABLE = "zed-10x-launcher";
 const EXPECTED_URL_SCHEME = "zed-10x";
 const EXPECTED_APP_FILENAME = "Zed 10x.app";
 const SHIPPED_EXECUTABLES = ["zed-10x-runtime", "cli", "git"];
+const RELEASE_VERSION_PATTERN =
+  /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\+dev\.\d+\.[0-9a-f]{40}$/;
+
+function requireReleaseVersion(expectedVersion, expectedCommit) {
+  if (!RELEASE_VERSION_PATTERN.test(expectedVersion)) {
+    throw new Error("expected version must be a Zed 10x release semantic version");
+  }
+  if (!expectedVersion.endsWith(`.${expectedCommit}`)) {
+    throw new Error("release version is not bound to the expected commit");
+  }
+}
 
 async function defaultRunCommand(command, args) {
   try {
@@ -90,6 +101,7 @@ export async function verifyAppBundle({
   appPath,
   expectedCommit,
   expectedTeamId,
+  expectedVersion,
   readPlist = defaultReadPlist,
   runCommand = defaultRunCommand,
 }) {
@@ -99,6 +111,7 @@ export async function verifyAppBundle({
   if (!/^[A-Z0-9]{10}$/.test(expectedTeamId)) {
     throw new Error("expected Developer ID team must be ten uppercase characters");
   }
+  requireReleaseVersion(expectedVersion, expectedCommit);
 
   requireDirectory(appPath, "application bundle");
   const contentsPath = path.join(appPath, "Contents");
@@ -133,6 +146,25 @@ export async function verifyAppBundle({
     throw new Error(`source revision mismatch: ${sourceCommit}`);
   }
 
+  const versionPath = path.join(contentsPath, "Resources", "zed-10x-release-version");
+  let releaseVersion;
+  try {
+    requireRegularFile(versionPath, "release version marker");
+    releaseVersion = fs.readFileSync(versionPath, "utf8").trim();
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      throw new Error("release version marker is missing");
+    }
+    throw error;
+  }
+  const markerCommit = releaseVersion.split(".").at(-1);
+  if (markerCommit !== sourceCommit) {
+    throw new Error(`release version commit does not match the source revision marker: ${markerCommit}`);
+  }
+  if (releaseVersion !== expectedVersion) {
+    throw new Error(`release version mismatch: ${releaseVersion}`);
+  }
+
   for (const executableName of SHIPPED_EXECUTABLES) {
     await verifyCodeObject(path.join(contentsPath, "MacOS", executableName), expectedTeamId, runCommand);
   }
@@ -154,6 +186,7 @@ export async function verifyAppBundle({
     bundleName,
     executable,
     hardenedRuntime: true,
+    releaseVersion,
     sourceCommit,
     teamId: signature.teamId,
     urlScheme,
@@ -216,6 +249,7 @@ export async function verifyRelease({
   remoteServerPath,
   expectedCommit,
   expectedTeamId,
+  expectedVersion,
   receiptPath,
   readPlist = defaultReadPlist,
   runCommand = defaultRunCommand,
@@ -269,6 +303,7 @@ export async function verifyRelease({
       appPath: path.join(mountPath, EXPECTED_APP_FILENAME),
       expectedCommit,
       expectedTeamId,
+      expectedVersion,
       readPlist,
       runCommand,
     });
@@ -305,6 +340,7 @@ export async function verifyRelease({
     bundleName: app.bundleName,
     dmgSha256: await sha256File(dmgPath),
     hardenedRuntime: app.hardenedRuntime,
+    releaseVersion: app.releaseVersion,
     remoteServerSha256: await sha256File(remoteServerPath),
     sourceCommit: app.sourceCommit,
     teamId: app.teamId,
@@ -325,7 +361,14 @@ function parseArguments(args) {
     if (values.has(key)) throw new Error(`duplicate argument ${key}`);
     values.set(key, value);
   }
-  const allowed = new Set(["--dmg", "--remote-server", "--expected-commit", "--expected-team-id", "--receipt"]);
+  const allowed = new Set([
+    "--dmg",
+    "--remote-server",
+    "--expected-commit",
+    "--expected-team-id",
+    "--expected-version",
+    "--receipt",
+  ]);
   for (const key of values.keys()) {
     if (!allowed.has(key)) throw new Error(`unknown argument ${key}`);
   }
@@ -337,6 +380,7 @@ function parseArguments(args) {
     remoteServerPath: path.resolve(values.get("--remote-server")),
     expectedCommit: values.get("--expected-commit"),
     expectedTeamId: values.get("--expected-team-id"),
+    expectedVersion: values.get("--expected-version"),
     receiptPath: path.resolve(values.get("--receipt")),
   };
 }

@@ -238,11 +238,21 @@ fn zed_10x_asset_name(asset: &str, os: &str, arch: &str) -> Result<String> {
     }
 }
 
+fn zed_10x_dev_release_url(version: &str) -> String {
+    if version == "latest" {
+        format!("{ZED_10X_RELEASE_API}/latest")
+    } else {
+        let encoded_version = version.replace('+', "%2B");
+        format!("{ZED_10X_RELEASE_API}/tags/{ZED_10X_RELEASE_TAG_PREFIX}{encoded_version}")
+    }
+}
+
 fn zed_10x_release_asset_from_json(
     body: &[u8],
     asset: &str,
     os: &str,
     arch: &str,
+    expected_version: Option<&str>,
 ) -> Result<ReleaseAsset> {
     let release: GitHubRelease =
         serde_json::from_slice(body).context("failed to parse Zed 10x GitHub release metadata")?;
@@ -257,6 +267,12 @@ fn zed_10x_release_asset_from_json(
         .tag_name
         .strip_prefix(ZED_10X_RELEASE_TAG_PREFIX)
         .context("Zed 10x release tag has the wrong prefix")?;
+    if let Some(expected_version) = expected_version {
+        anyhow::ensure!(
+            version == expected_version,
+            "Zed 10x release tag does not match the requested app version"
+        );
+    }
     let parsed_version = version
         .parse::<Version>()
         .context("Zed 10x release tag is not a semantic version")?;
@@ -828,12 +844,7 @@ impl AutoUpdater {
         let http_client = client.http_client();
 
         if release_channel == ReleaseChannel::Dev {
-            let release_url = if version == "latest" {
-                format!("{ZED_10X_RELEASE_API}/latest")
-            } else {
-                let encoded_version = version.replace('+', "%2B");
-                format!("{ZED_10X_RELEASE_API}/tags/{ZED_10X_RELEASE_TAG_PREFIX}{encoded_version}")
-            };
+            let release_url = zed_10x_dev_release_url(&version);
             let mut response = http_client
                 .get(&release_url, Default::default(), true)
                 .await?;
@@ -844,7 +855,8 @@ impl AutoUpdater {
                 "failed to fetch Zed 10x release metadata: {:?}",
                 response.status()
             );
-            return zed_10x_release_asset_from_json(&body, asset, os, arch);
+            let expected_version = (version != "latest").then_some(version.as_str());
+            return zed_10x_release_asset_from_json(&body, asset, os, arch, expected_version);
         }
 
         let path = format!("/releases/{}/{}/asset", release_channel.dev_name(), version,);
@@ -2362,8 +2374,15 @@ mod tests {
             }}"#
         );
 
-        let release = zed_10x_release_asset_from_json(body.as_bytes(), "zed", "macos", "aarch64")
-            .expect("the exact Zed 10x release should be accepted");
+        let expected = format!("1.14.0+dev.42.{commit}");
+        let release = zed_10x_release_asset_from_json(
+            body.as_bytes(),
+            "zed",
+            "macos",
+            "aarch64",
+            Some(&expected),
+        )
+        .expect("the exact Zed 10x release should be accepted");
 
         assert_eq!(release.version, format!("1.14.0+dev.42.{commit}"));
         assert_eq!(release.size, Some(1234));
@@ -2392,16 +2411,73 @@ mod tests {
             }}"#
         );
 
+        let expected = format!("1.14.0+dev.42.{commit}");
         let release = zed_10x_release_asset_from_json(
             body.as_bytes(),
             "zed-remote-server",
             "linux",
             "x86_64",
+            Some(&expected),
         )
         .expect("the exact Zed 10x Linux remote server should be accepted");
 
         assert_eq!(release.version, format!("1.14.0+dev.42.{commit}"));
         assert_eq!(release.size, Some(4321));
+    }
+
+    #[test]
+    fn test_zed_10x_dev_release_url_uses_the_stamped_version() {
+        let commit = "0123456789abcdef0123456789abcdef01234567";
+        let stamped = format!("1.14.0+dev.42.{commit}");
+        let local = format!("1.14.0+dev.{commit}");
+        let stamped_url = zed_10x_dev_release_url(&stamped);
+        let local_url = zed_10x_dev_release_url(&local);
+
+        assert_eq!(
+            stamped_url,
+            format!("{ZED_10X_RELEASE_API}/tags/zed-10x-v1.14.0%2Bdev.42.{commit}")
+        );
+        assert_ne!(stamped_url, local_url);
+        assert!(!local_url.contains("%2Bdev.42."));
+        assert_eq!(
+            zed_10x_dev_release_url("latest"),
+            format!("{ZED_10X_RELEASE_API}/latest")
+        );
+    }
+
+    #[test]
+    fn test_zed_10x_release_rejects_a_different_run_number() {
+        let commit = "0123456789abcdef0123456789abcdef01234567";
+        let requested = format!("1.14.0+dev.42.{commit}");
+        let body = format!(
+            r#"{{
+                "tag_name": "zed-10x-v1.14.0+dev.7.{commit}",
+                "draft": false,
+                "prerelease": false,
+                "immutable": true,
+                "assets": [{{
+                    "name": "zed-remote-server-linux-x86_64.gz",
+                    "state": "uploaded",
+                    "size": 4321,
+                    "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                    "browser_download_url": "https://github.com/keevaspeyer10x/zed-10x/releases/download/zed-10x-v1.14.0%2Bdev.7.{commit}/zed-remote-server-linux-x86_64.gz"
+                }}]
+            }}"#
+        );
+
+        let error = zed_10x_release_asset_from_json(
+            body.as_bytes(),
+            "zed-remote-server",
+            "linux",
+            "x86_64",
+            Some(&requested),
+        )
+        .expect_err("a different release run must not satisfy the requested app version");
+        assert!(
+            error
+                .to_string()
+                .contains("Zed 10x release tag does not match the requested app version")
+        );
     }
 
     #[test]
@@ -2429,16 +2505,21 @@ mod tests {
             ]
         }"#;
 
-        let error = zed_10x_release_asset_from_json(body, "zed", "macos", "aarch64")
+        let error = zed_10x_release_asset_from_json(body, "zed", "macos", "aarch64", None)
             .expect_err("mutable release metadata must fail closed");
         assert!(error.to_string().contains("immutable"));
 
         let immutable_body = String::from_utf8(body.to_vec())
             .unwrap()
             .replace(r#""immutable": false"#, r#""immutable": true"#);
-        let error =
-            zed_10x_release_asset_from_json(immutable_body.as_bytes(), "zed", "macos", "aarch64")
-                .expect_err("duplicate release assets must fail closed");
+        let error = zed_10x_release_asset_from_json(
+            immutable_body.as_bytes(),
+            "zed",
+            "macos",
+            "aarch64",
+            None,
+        )
+        .expect_err("duplicate release assets must fail closed");
         assert!(error.to_string().contains("duplicate"));
     }
 
