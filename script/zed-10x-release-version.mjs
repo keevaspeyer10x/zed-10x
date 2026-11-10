@@ -9,10 +9,10 @@ import fs from "node:fs";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 
-const BASE_PATTERN = /^\d+\.\d+\.\d+$/;
+const BASE_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 const RUN_PATTERN = /^\d+$/;
 const COMMIT_PATTERN = /^[0-9a-f]{40}$/;
-const VERSION_PATTERN = /^\d+\.\d+\.\d+\+dev\.\d+\.[0-9a-f]{40}$/;
+const VERSION_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\+dev\.\d+\.[0-9a-f]{40}$/;
 
 export function zed10xReleaseVersion({ base, run, commit }) {
   if (typeof base !== "string" || !BASE_PATTERN.test(base)) {
@@ -33,7 +33,11 @@ export function zed10xReleaseVersion({ base, run, commit }) {
 
 export function readZedCargoBase(cargoPath) {
   const source = fs.readFileSync(cargoPath, "utf8");
-  const matches = [...source.matchAll(/^version = "(\d+\.\d+\.\d+)"$/gm)];
+  const matches = [
+    ...source.matchAll(
+      /^version = "((?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*))"$/gm,
+    ),
+  ];
   if (matches.length !== 1) {
     throw new Error(`${cargoPath} must contain exactly one x.y.z package version`);
   }

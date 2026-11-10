@@ -816,6 +816,20 @@ test("release identity is one version across the formula, receipt, and updater t
   assert.equal(wrongRun.status, 2);
   assert.match(wrongRun.stderr, /decimal digits/);
 
+  const leadingZeroBase = spawnSync(process.execPath, [
+    helper,
+    "--print",
+    "version",
+    "--base",
+    "01.14.0",
+    "--run",
+    "42",
+    "--commit",
+    commit,
+  ], { encoding: "utf8" });
+  assert.equal(leadingZeroBase.status, 2);
+  assert.match(leadingZeroBase.stderr, /x\.y\.z/);
+
   const uppercase = spawnSync(process.execPath, [
     helper,
     "--print",

@@ -17,12 +17,10 @@ fn main() {
     println!("cargo:rerun-if-env-changed=ZED_COMMIT_SHA");
     println!("cargo:rerun-if-env-changed=ZED_BUILD_ID");
     println!("cargo:rerun-if-env-changed=GITHUB_RUN_NUMBER");
-    if let Some(git_sha) = release_commit_sha() {
-        println!("cargo:rustc-env=ZED_COMMIT_SHA={git_sha}");
-        if let Some(build_identifier) = release_build_id() {
-            println!("cargo:rustc-env=ZED_BUILD_ID={build_identifier}");
-        }
-    }
+    let git_sha = release_commit_sha();
+    let build_identifier = git_sha.as_ref().and_then(|_| release_build_id());
+    emit_rustc_env("ZED_COMMIT_SHA", git_sha);
+    emit_rustc_env("ZED_BUILD_ID", build_identifier);
 
     #[cfg(windows)]
     {
@@ -30,6 +28,17 @@ fn main() {
         println!("cargo:rerun-if-env-changed=GITHUB_RUN_NUMBER");
 
         windows_resources::compile(false).expect("failed to compile Windows resources");
+    }
+}
+
+fn emit_rustc_env(name: &str, value: Option<String>) {
+    match value {
+        Some(value) => println!("cargo:rustc-env={name}={value}"),
+        None => {
+            if std::env::var(name).is_ok() {
+                println!("cargo:rustc-env={name}=");
+            }
+        }
     }
 }
 

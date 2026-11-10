@@ -1040,7 +1040,7 @@ mod linux {
                     format!("{} ", *release_channel::RELEASE_CHANNEL_NAME)
                 },
                 option_env!("RELEASE_VERSION").unwrap_or_default(),
-                match option_env!("ZED_COMMIT_SHA") {
+                match release_channel::nonempty_compile_stamp(option_env!("ZED_COMMIT_SHA")) {
                     Some(commit_sha) => format!(" {commit_sha} "),
                     None => "".to_string(),
                 },
@@ -1293,7 +1293,7 @@ mod windows {
                     format!("{} ", *release_channel::RELEASE_CHANNEL_NAME)
                 },
                 option_env!("RELEASE_VERSION").unwrap_or_default(),
-                match option_env!("ZED_COMMIT_SHA") {
+                match release_channel::nonempty_compile_stamp(option_env!("ZED_COMMIT_SHA")) {
                     Some(commit_sha) => format!(" {commit_sha} "),
                     None => "".to_string(),
                 },

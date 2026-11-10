@@ -77,6 +77,12 @@ struct GlobalAppVersion(Version);
 
 impl Global for GlobalAppVersion {}
 
+/// `option_env!` is `Some("")` when a build script clears an ambient stamp.
+/// An empty stamp is absent, not a value that should enter the version.
+pub fn nonempty_compile_stamp(value: Option<&str>) -> Option<&str> {
+    value.filter(|value| !value.is_empty())
+}
+
 /// The version of Zed.
 pub struct AppVersion;
 
@@ -94,12 +100,12 @@ impl AppVersion {
         };
         let mut pre = String::from(RELEASE_CHANNEL.dev_name());
 
-        if let Some(build_id) = build_id {
+        if let Some(build_id) = nonempty_compile_stamp(build_id) {
             pre.push('.');
-            pre.push_str(&build_id);
+            pre.push_str(build_id);
         }
 
-        if let Some(sha) = commit_sha {
+        if let Some(sha) = commit_sha.filter(|sha| !sha.0.is_empty()) {
             pre.push('.');
             pre.push_str(&sha.0);
         }
@@ -287,10 +293,19 @@ mod tests {
         let commit = "0123456789abcdef0123456789abcdef01234567";
         let sha = AppCommitSha::new(commit.to_string());
         let stamped = AppVersion::load("1.14.0", Some("42"), Some(sha.clone()));
-        let local = AppVersion::load("1.14.0", None, Some(sha));
+        let local = AppVersion::load("1.14.0", None, Some(sha.clone()));
         assert_eq!(stamped.to_string(), format!("1.14.0+dev.42.{commit}"));
         assert_eq!(local.to_string(), format!("1.14.0+dev.{commit}"));
         assert_ne!(stamped, local);
+
+        let cleared_build = AppVersion::load("1.14.0", Some(""), Some(sha.clone()));
+        assert_eq!(cleared_build.to_string(), format!("1.14.0+dev.{commit}"));
+        let cleared_sha =
+            AppVersion::load("1.14.0", Some("42"), Some(AppCommitSha::new(String::new())));
+        assert_eq!(cleared_sha.to_string(), "1.14.0+dev.42");
+        let cleared_both =
+            AppVersion::load("1.14.0", Some(""), Some(AppCommitSha::new(String::new())));
+        assert_eq!(cleared_both.to_string(), "1.14.0+dev");
     }
 
     #[test]

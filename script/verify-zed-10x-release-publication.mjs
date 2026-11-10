@@ -107,7 +107,11 @@ export function verifyPublication({ directory, expectedCommit, expectedVersion }
   if (!/^[0-9a-f]{40}$/.test(expectedCommit)) {
     throw new Error("expected commit must be a full lowercase Git SHA");
   }
-  if (!/^\d+\.\d+\.\d+\+dev\.\d+\.[0-9a-f]{40}$/.test(expectedVersion)) {
+  if (
+    !/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\+dev\.\d+\.[0-9a-f]{40}$/.test(
+      expectedVersion,
+    )
+  ) {
     throw new Error("expected version must be a Zed 10x release semantic version");
   }
   if (!expectedVersion.endsWith(`.${expectedCommit}`)) {

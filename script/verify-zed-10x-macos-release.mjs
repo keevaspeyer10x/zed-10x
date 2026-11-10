@@ -18,7 +18,8 @@ const EXPECTED_EXECUTABLE = "zed-10x-launcher";
 const EXPECTED_URL_SCHEME = "zed-10x";
 const EXPECTED_APP_FILENAME = "Zed 10x.app";
 const SHIPPED_EXECUTABLES = ["zed-10x-runtime", "cli", "git"];
-const RELEASE_VERSION_PATTERN = /^\d+\.\d+\.\d+\+dev\.\d+\.[0-9a-f]{40}$/;
+const RELEASE_VERSION_PATTERN =
+  /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\+dev\.\d+\.[0-9a-f]{40}$/;
 
 function requireReleaseVersion(expectedVersion, expectedCommit) {
   if (!RELEASE_VERSION_PATTERN.test(expectedVersion)) {

@@ -49,24 +49,23 @@ fn main() {
         std::env::var("TARGET").unwrap()
     );
 
-    // option_env! reads the environment from when this build script was
-    // compiled, so a release stamp set only for this package build is missed.
+    // option_env! reads the rustc process environment. A release stamp set
+    // only for this package build is missed unless cargo:rustc-env sets it,
+    // and omitting that line leaves an ambient value in place.
     // AppVersion::load replaces build metadata, so the release identity is
     // ZED_BUILD_ID plus ZED_COMMIT_SHA, not ZED_APP_VERSION.
-    if let Some(git_sha) = release_commit_sha() {
-        println!("cargo:rustc-env=ZED_COMMIT_SHA={git_sha}");
+    let git_sha = release_commit_sha();
+    let build_identifier = git_sha.as_ref().and_then(|_| release_build_id());
+    emit_rustc_env("ZED_COMMIT_SHA", git_sha.clone());
+    emit_rustc_env("ZED_BUILD_ID", build_identifier);
 
-        if let Some(build_identifier) = release_build_id() {
-            println!("cargo:rustc-env=ZED_BUILD_ID={build_identifier}");
-        }
-
-        if let Ok(build_profile) = std::env::var("PROFILE")
-            && build_profile == "release"
-        {
-            // This is currently the best way to make `cargo build ...`'s build script
-            // to print something to stdout without extra verbosity.
-            println!("cargo::warning=Info: using '{git_sha}' hash for ZED_COMMIT_SHA env var");
-        }
+    if let Some(git_sha) = git_sha
+        && let Ok(build_profile) = std::env::var("PROFILE")
+        && build_profile == "release"
+    {
+        // This is currently the best way to make `cargo build ...`'s build script
+        // to print something to stdout without extra verbosity.
+        println!("cargo::warning=Info: using '{git_sha}' hash for ZED_COMMIT_SHA env var");
     }
 
     if cfg!(windows) {
@@ -200,6 +199,17 @@ fn main() {
 
     #[cfg(any(target_os = "linux", target_os = "freebsd"))]
     prepare_app_icon_x11();
+}
+
+fn emit_rustc_env(name: &str, value: Option<String>) {
+    match value {
+        Some(value) => println!("cargo:rustc-env={name}={value}"),
+        None => {
+            if std::env::var(name).is_ok() {
+                println!("cargo:rustc-env={name}=");
+            }
+        }
+    }
 }
 
 fn nonempty_env(name: &str) -> Option<String> {

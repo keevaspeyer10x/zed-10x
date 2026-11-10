@@ -1291,11 +1291,11 @@ mod tests {
         assert_eq!(build_identity.service_version, env!("CARGO_PKG_VERSION"));
         assert_eq!(
             build_identity.build_version,
-            option_env!("ZED_BUILD_ID").unwrap_or("local")
+            release_channel::nonempty_compile_stamp(option_env!("ZED_BUILD_ID")).unwrap_or("local")
         );
         assert_eq!(
             build_identity.commit_sha.as_deref(),
-            option_env!("ZED_COMMIT_SHA")
+            release_channel::nonempty_compile_stamp(option_env!("ZED_COMMIT_SHA"))
         );
         let app_config = RecorderConfig::for_app(build_identity, false);
         assert_eq!(
@@ -2787,8 +2787,11 @@ impl SourceIdentity {
 
     fn from_build() -> Option<Self> {
         let service_version = env!("CARGO_PKG_VERSION").to_owned();
-        let build_version = option_env!("ZED_BUILD_ID").unwrap_or("local").to_owned();
-        let commit_sha = option_env!("ZED_COMMIT_SHA").map(str::to_owned);
+        let build_version = release_channel::nonempty_compile_stamp(option_env!("ZED_BUILD_ID"))
+            .unwrap_or("local")
+            .to_owned();
+        let commit_sha = release_channel::nonempty_compile_stamp(option_env!("ZED_COMMIT_SHA"))
+            .map(str::to_owned);
         if !valid_identity_text(&service_version)
             || !valid_identity_text(&build_version)
             || commit_sha
